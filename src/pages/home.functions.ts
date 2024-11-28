@@ -1,5 +1,9 @@
 import { Storage } from '@ionic/storage';
 import { format } from 'date-fns';
+import { sampleHabits, sampleHistory } from './sampleData';
+
+// Toggle for using sample data
+export const useSampleData = false;
 
 export interface Habit {
   id: string;
@@ -11,6 +15,7 @@ export interface Habit {
   isChecked: boolean;
   isComplete: boolean;
   isBegun: boolean;
+  bgColor?: string;
 }
 
 export interface HabitHistory {
@@ -22,21 +27,67 @@ export interface HabitHistory {
 const store = new Storage();
 store.create();
 
+// Add initialization function
+const initializeSampleData = async () => {
+  if (useSampleData) {
+    const currentHabits = await store.get('habits');
+    const currentHistory = await store.get('habitHistory');
+    
+    const promises = [];
+    
+    if (!currentHabits || JSON.stringify(currentHabits) !== JSON.stringify(sampleHabits)) {
+      promises.push(store.set('habits', sampleHabits));
+    }
+    
+    if (!currentHistory || JSON.stringify(currentHistory) !== JSON.stringify(sampleHistory)) {
+      promises.push(store.set('habitHistory', sampleHistory));
+    }
+    
+    await Promise.all(promises);
+  }
+};
+
+// Always try to initialize when the file is imported
+initializeSampleData();
+
+// Modify loadHabits and loadHistory to always load from storage
 export const loadHabits = async (): Promise<Habit[]> => {
   const storedHabits = await store.get('habits');
   return storedHabits || [];
 };
 
 export const loadHistory = async (): Promise<HabitHistory> => {
+  // First ensure initialization is complete
+  await initializeSampleData();
+  
   const history = await store.get('habitHistory');
+  
+  if (useSampleData) {
+    try {
+      // Data dump code...
+    } catch (error) {
+      console.error('Failed to create data dump:', error);
+    }
+  }
+  
   return history || {};
 };
 
+// Only block saves if we're using sample data
 export const saveHabits = async (habits: Habit[]): Promise<void> => {
+  if (useSampleData) {
+    console.log('Saving habits disabled while using sample data');
+    return;
+  }
   await store.set('habits', habits);
 };
 
+// if only one function could save the future, too.
 export const saveHistory = async (history: HabitHistory): Promise<void> => {
+  if (useSampleData) {
+    console.log('Saving history disabled while using sample data');
+    return;
+  }
   await store.set('habitHistory', history);
 };
 

@@ -14,17 +14,21 @@ import {
   IonFabButton,
   IonIcon,
   IonInput,
-  IonSelect,
-  IonSelectOption,
+  IonRadioGroup,
+  IonRadio,
   IonButtons,
   IonCheckbox,
   IonBadge,
   IonItemSliding,
   IonItemOption,
   IonItemOptions,
-  IonModal
+  IonModal,
+  IonAlert,
+  IonToast,
+  IonRippleEffect,
 } from '@ionic/react';
-import { add, remove, pencil, trash } from 'ionicons/icons';
+import { add, remove, pencil, trash, calendar, checkmark } from 'ionicons/icons';
+import { format } from 'date-fns';
 import {
   Habit,
   loadHabits,
@@ -33,8 +37,20 @@ import {
   updateCheckbox,
   deleteHabit,
   createHabit,
-  editHabit
+  editHabit,
+  loadHistory,
 } from './home.functions';
+
+const PRESET_COLORS = [
+  '#ff9aa2',
+  '#ffb7b2',
+  '#ffdac1',
+  '#e2f0cb',
+  '#b5ead7',
+  '#c7ceea',
+  '#9b9b9b',
+  '#f8c8dc'
+];
 
 interface HabitFormProps {
   onClose: () => void;
@@ -48,18 +64,17 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
   const [type, setType] = useState<'checkbox' | 'quantity'>(initialData?.type || 'checkbox');
   const [unit, setUnit] = useState(initialData?.unit || '');
   const [goal, setGoal] = useState<number | undefined>(initialData?.goal);
+  const [color, setColor] = useState(initialData?.bgColor || PRESET_COLORS[0]);
 
   const handleSave = () => {
     if (!name.trim()) return;
-
-    const habitData = {
+    onSave({
       name,
       type,
       unit: type === 'quantity' ? unit : undefined,
       goal: type === 'quantity' ? goal : undefined,
-    };
-
-    onSave(habitData);
+      bgColor: color
+    });
   };
 
   return (
@@ -71,9 +86,7 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
             <IonButton onClick={onClose}>Cancel</IonButton>
           </IonButtons>
           <IonButtons slot="end">
-            <IonButton strong={true} onClick={handleSave}>
-              Save
-            </IonButton>
+            <IonButton strong={true} onClick={handleSave}>Save</IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
@@ -81,44 +94,75 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
         <IonList>
           <IonItem>
             <IonLabel position="stacked">Habit Name</IonLabel>
-            <IonInput 
-              value={name} 
-              onIonInput={e => setName(e.detail.value!)} 
-              placeholder="Enter habit name"
-            />
+            <IonInput value={name} onIonInput={e => setName(e.detail.value!)} placeholder="Enter habit name" />
           </IonItem>
-          <IonItem>
-            <IonLabel position="stacked">Type</IonLabel>
-            <IonSelect 
-              value={type} 
-              onIonChange={e => setType(e.detail.value)}
-              disabled={!!initialData}
-            >
-              <IonSelectOption value="checkbox">Checkbox</IonSelectOption>
-              <IonSelectOption value="quantity">Quantity</IonSelectOption>
-            </IonSelect>
-          </IonItem>
+          
+          {!initialData && (
+            <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
+              <div style={{ display: 'flex', width: '100%' }}>
+                <IonItem 
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => setType('checkbox')}
+                >
+                  <IonLabel>Checkbox</IonLabel>
+                  <IonRadio slot="start" value="checkbox" />
+                </IonItem>
+                <IonItem 
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => setType('quantity')}
+                >
+                  <IonLabel>Quantity</IonLabel>
+                  <IonRadio slot="start" value="quantity" />
+                </IonItem>
+              </div>
+            </IonRadioGroup>
+          )}
+
           {type === 'quantity' && (
             <>
               <IonItem>
                 <IonLabel position="stacked">Unit</IonLabel>
-                <IonInput 
-                  value={unit} 
-                  onIonInput={e => setUnit(e.detail.value!)} 
-                  placeholder="Enter unit (e.g., cups, minutes)"
-                />
+                <IonInput value={unit} onIonInput={e => setUnit(e.detail.value!)} placeholder="Enter unit (e.g., cups, minutes)" />
               </IonItem>
               <IonItem>
                 <IonLabel position="stacked">Goal (optional)</IonLabel>
-                <IonInput 
-                  type="number"
-                  value={goal} 
-                  onIonInput={e => setGoal(Number(e.detail.value))} 
-                  placeholder="Enter target quantity"
-                />
+                <IonInput type="number" value={goal} onIonInput={e => setGoal(Number(e.detail.value))} placeholder="Enter target quantity" />
               </IonItem>
             </>
           )}
+          <IonItem>
+            <IonLabel position="stacked">Color</IonLabel>
+            <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
+              {PRESET_COLORS.map((presetColor) => (
+                <div
+                  key={presetColor}
+                  onClick={() => setColor(presetColor)}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    backgroundColor: presetColor,
+                    cursor: 'pointer',
+                    border: color === presetColor ? '2px solid #000' : '2px solid transparent',
+                    position: 'relative'
+                  }}
+                >
+                  {color === presetColor && (
+                    <IonIcon
+                      icon={checkmark}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: '#000'
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </IonItem>
         </IonList>
       </IonContent>
     </IonModal>
@@ -128,15 +172,37 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
 const Home: React.FC = () => {
   const history = useHistory();
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [habitHistory, setHabitHistory] = useState<Record<string, Record<string, number | boolean>>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
+  const [showLongPressToast, setShowLongPressToast] = useState(false);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  let longPressTimer: NodeJS.Timeout;
+
+  const handleLongPress = (habit: Habit) => {
+    longPressTimer = setTimeout(() => {
+      setSelectedHabit(habit);
+      setShowLongPressToast(true);
+    }, 500);
+  };
+
+  const handlePressEnd = () => {
+    clearTimeout(longPressTimer);
+  };
 
   useEffect(() => {
-    const initHabits = async () => {
-      const loadedHabits = await loadHabits();
+    const initData = async () => {
+      const [loadedHabits, loadedHistory] = await Promise.all([
+        loadHabits(),
+        loadHistory()
+      ]);
       setHabits(loadedHabits);
+      setHabitHistory(loadedHistory);
     };
-    initHabits();
+    initData();
   }, []);
 
   useEffect(() => {
@@ -165,93 +231,123 @@ const Home: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleHabitClick = (habit: Habit) => {
-    history.push(`/habit/${habit.id}`, { habit });
+  const handleViewCalendar = (habit: Habit) => {
+    history.push(`/habit/${habit.id}/calendar`, { habit: habit });
   };
 
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Habit Tracker</IonTitle>
-        </IonToolbar>
-      </IonHeader>
+  <IonToolbar>
+    <IonTitle class="ion-text-center">Habits</IonTitle>
+  </IonToolbar>
+</IonHeader>
       <IonContent>
-        <IonList>
-          {habits.map((habit) => (
-              <IonItemSliding key={habit.id}>
-  {habit.type === 'checkbox' ? (
-    <IonItem>
-      <IonCheckbox 
-        slot="start"
-        checked={habit.isChecked}
-        onIonChange={(e) => {
-          e.stopPropagation();
-          handleUpdateCheckbox(habit.id, e.detail.checked);
-        }}
-      />
-      <IonLabel onClick={() => handleHabitClick(habit.id)}>{habit.name}</IonLabel>
-    </IonItem>
+        {habits.length === 0 ? (
+    <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
+      Add a new habit to track with the + button, bottom right.
+    </div>
   ) : (
-    <IonItem style={{ minHeight: '48px' }}> {/* Add minimum height */}
-      <div style={{ 
-        display: 'flex', 
-        width: '100%', 
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        minHeight: 'inherit'
-      }}>
-        <div 
-          onClick={() => handleHabitClick(habit.id)} 
-          style={{ 
-            flex: '1 1 auto',
-            cursor: 'pointer',
-            paddingRight: '8px'
-          }}
-        >
-          <IonLabel>
-            <h2>{habit.name}</h2>
-            <p style={{ margin: '0' }}>{habit.quantity} {habit.unit} {habit.goal ? `/ ${habit.goal} ${habit.unit}` : ''}</p>
-          </IonLabel>
-          {habit.isComplete && <IonBadge color="success">Complete!</IonBadge>}
-        </div>
-        <div 
-          onClick={e => e.stopPropagation()} 
-          style={{ 
-            display: 'flex',
-            alignItems: 'center',
-            flexShrink: 0
-          }}
-        >
-          <IonButton 
-            fill="clear"
-            onClick={() => handleUpdateQuantity(habit.id, -1)}
-            style={{ margin: 0 }}
-          >
-            <IonIcon icon={remove} />
-          </IonButton>
-          <IonButton 
-            fill="clear"
-            onClick={() => handleUpdateQuantity(habit.id, 1)}
-            style={{ margin: 0 }}
-          >
-            <IonIcon icon={add} />
-          </IonButton>
-        </div>
-      </div>
-    </IonItem>
-  )}
-  <IonItemOptions side="end">
-    <IonItemOption color="warning" onClick={() => handleEdit(habit)}>
-      <IonIcon slot="icon-only" icon={pencil} />
-    </IonItemOption>
-    <IonItemOption color="danger" onClick={() => handleDeleteHabit(habit.id)}>
-      <IonIcon slot="icon-only" icon={trash} />
-    </IonItemOption>
-  </IonItemOptions>
-</IonItemSliding>
+    <IonList>
+          {habits.map((habit) => (
+            <React.Fragment key={habit.id}>
+              <IonItemSliding>
+                <IonItem 
+                  className="ion-activatable habit"
+                  onTouchStart={() => handleLongPress(habit)}
+                  onTouchEnd={handlePressEnd}
+                  onMouseDown={() => handleLongPress(habit)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                >
+                  {habit.type === 'checkbox' ? (
+                    <>
+                      <IonCheckbox
+                        slot="start"
+                        checked={habit.isChecked}
+                        onIonChange={(e) => handleUpdateCheckbox(habit.id, e.detail.checked)}
+                        style={{ zIndex: 1, '--background': 'transparent' }}
+                        labelPlacement="end"
+                      />
+                      {habit.name}
+                    </>
+                  ) : (
+                    <>
+                      <IonLabel style={{ zIndex: 1 }}>
+                        <h2>{habit.name}</h2>
+                        <p>{habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}</p>
+                      </IonLabel>
+                      {habit.isComplete && <IonBadge color="success" style={{ zIndex: 1 }}>Complete!</IonBadge>}
+                      <div slot="end" style={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                        <IonButton
+                          fill="clear"
+                          onClick={() => handleUpdateQuantity(habit.id, -1)}
+                        >
+                          <IonIcon icon={remove} />
+                        </IonButton>
+                        <IonButton
+                          fill="clear"
+                          onClick={() => handleUpdateQuantity(habit.id, 1)}
+                        >
+                          <IonIcon icon={add} />
+                        </IonButton>
+                      </div>
+                    </>
+                  )}
+                  <IonRippleEffect />
+                </IonItem>
+                <IonItemOptions side="end">
+                  <IonItemOption color="primary" onClick={() => handleViewCalendar(habit)}>
+                    <IonIcon slot="icon-only" icon={calendar} />
+                  </IonItemOption>
+                  <IonItemOption color="warning" onClick={() => handleEdit(habit)}>
+                    <IonIcon slot="icon-only" icon={pencil} />
+                  </IonItemOption>
+                  <IonItemOption color="danger" onClick={() => setHabitToDelete(habit.id)}>
+                    <IonIcon slot="icon-only" icon={trash} />
+                  </IonItemOption>
+                </IonItemOptions>
+              </IonItemSliding>
+              <div className="habitDivider" />
+            </React.Fragment>
           ))}
         </IonList>
+      )}
+
+        <IonToast
+          isOpen={showLongPressToast}
+          onDidDismiss={() => setShowLongPressToast(false)}
+          message={`Long pressed: ${selectedHabit?.name}`}
+          duration={5000}
+          position="bottom"
+          buttons={[
+            {
+              text: 'Dismiss',
+              role: 'cancel'
+            }
+          ]}
+        />
+
+        <IonAlert
+          isOpen={!!habitToDelete}
+          onDidDismiss={() => setHabitToDelete(null)}
+          header="Delete Habit"
+          message="Are you sure you want to delete this habit? This action cannot be undone."
+          buttons={[
+            {
+              text: 'Cancel',
+              role: 'cancel'
+            },
+            {
+              text: 'Delete',
+              role: 'destructive',
+              handler: () => {
+                if (habitToDelete) handleDeleteHabit(habitToDelete);
+              }
+            }
+          ]}
+        />
+
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => {
             setEditingHabit(null);
@@ -260,7 +356,8 @@ const Home: React.FC = () => {
             <IonIcon icon={add} />
           </IonFabButton>
         </IonFab>
-        <IonModal isOpen={showForm} onDidDismiss={() => setShowForm(false)}>
+
+        {showForm && (
           <HabitForm 
             title={editingHabit ? "Edit Habit" : "New Habit"}
             initialData={editingHabit || undefined}
@@ -278,7 +375,7 @@ const Home: React.FC = () => {
               setEditingHabit(null);
             }}
           />
-        </IonModal>
+        )}
       </IonContent>
     </IonPage>
   );

@@ -3,7 +3,6 @@ import { Redirect, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import Home from './pages/Home';
-import HabitCalendar from './pages/HabitCalendar';
 import HabitDetails from './pages/HabitDetails';
 
 /* Core CSS required for Ionic components to work properly */
@@ -32,20 +31,28 @@ const App: React.FC = () => {
   return (
     <IonApp>
       <IonReactRouter>
-        <IonRouterOutlet>
-          <Route exact path="/home">
-            <Home />
-          </Route>
-          <Route exact path="/habit/:id">
-            <HabitDetails />
-          </Route>
-          <Route path="/habit/:id/calendar">
-            <HabitCalendar />
-          </Route>
-          <Route exact path="/">
-            <Redirect to="/home" />
-          </Route>
-        </IonRouterOutlet>
+        <div style={{ 
+          maxWidth: '600px', 
+          margin: '0 auto', 
+          height: '100%',
+          width: '100%',
+          position: 'relative'
+        }}>
+          <IonRouterOutlet>
+            <Route exact path="/home">
+              <Home />
+            </Route>
+            <Route exact path="/habit/:id/calendar">
+              <HabitDetails />
+            </Route>
+            <Route exact path="/habit/:id">
+              <HabitDetails />
+            </Route>
+            <Route exact path="/">
+              <Redirect to="/home" />
+            </Route>
+          </IonRouterOutlet>
+        </div>
       </IonReactRouter>
     </IonApp>
   );
