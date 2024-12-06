@@ -27,7 +27,7 @@ import {
   IonToast,
   IonRippleEffect,
 } from '@ionic/react';
-import { add, remove, pencil, trash, calendar, checkmark } from 'ionicons/icons';
+import { add, remove, pencil, trash, calendar, checkmark, downloadOutline } from 'ionicons/icons';
 import { format } from 'date-fns';
 import {
   Habit,
@@ -39,6 +39,7 @@ import {
   createHabit,
   editHabit,
   loadHistory,
+  exportHabitHistoryToCSV
 } from './home.functions';
 
 const PRESET_COLORS = [
@@ -178,7 +179,16 @@ const Home: React.FC = () => {
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
   const [showLongPressToast, setShowLongPressToast] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [showErrorToast, setShowErrorToast] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
+
+  const handleExport = async () => {
+    try {
+      await exportHabitHistoryToCSV(habits);
+    } catch (error) {
+      setShowErrorToast(true);
+    }
+  };
 
   let longPressTimer: NodeJS.Timeout;
 
@@ -238,9 +248,16 @@ const Home: React.FC = () => {
   return (
     <IonPage>
       <IonHeader>
-  <IonToolbar>
-    <IonTitle class="ion-text-center">Habits</IonTitle>
-  </IonToolbar>
+      <IonToolbar>
+          <IonTitle class="ion-text-center">Habits</IonTitle>
+          {habits.length > 0 && (
+            <IonButtons slot="end">
+              <IonButton onClick={handleExport}>
+                <IonIcon slot="icon-only" icon={downloadOutline} />
+              </IonButton>
+            </IonButtons>
+          )}
+        </IonToolbar>
 </IonHeader>
       <IonContent>
         {habits.length === 0 ? (
@@ -347,6 +364,15 @@ const Home: React.FC = () => {
             }
           ]}
         />
+
+<IonToast
+        isOpen={showErrorToast}
+        onDidDismiss={() => setShowErrorToast(false)}
+        message="Failed to export habit data. Please try again."
+        duration={3000}
+        position="bottom"
+        color="danger"
+      />
 
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => {

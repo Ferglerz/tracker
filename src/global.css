@@ -26,5 +26,5 @@ ion-item.habit::part(native) {
 .habitDivider {
   background: #353535FF;
   height: 1px;
-  offset: 1px;
 }
+
