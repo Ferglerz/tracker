@@ -1,94 +1,163 @@
 import WidgetKit
 import SwiftUI
 
+// MARK: - Timeline Provider
 struct Provider: TimelineProvider {
+    let storage = IonicStorageManager.shared
+    
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date())
+        SimpleEntry(date: Date(), habits: [], error: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date())
-        completion(entry)
+        do {
+            let habits = try storage.loadHabits()
+            let entry = SimpleEntry(date: Date(), habits: habits, error: nil)
+            completion(entry)
+        } catch {
+            completion(SimpleEntry(date: Date(), habits: [], error: error))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        var entries: [SimpleEntry] = []
-
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate)
-            entries.append(entry)
+        do {
+            let habits = try storage.loadHabits()
+            let currentDate = Date()
+            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
+            
+            let entry = SimpleEntry(date: currentDate, habits: habits, error: nil)
+            let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+            completion(timeline)
+        } catch {
+            let entry = SimpleEntry(date: Date(), habits: [], error: error)
+            let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
+            completion(timeline)
         }
-
-        let timeline = Timeline(entries: entries, policy: .atEnd)
-        completion(timeline)
     }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
+    let habits: [Habit]
+    let error: Error?
 }
 
-struct Lock_Screen_WidgetEntryView : View {
+// MARK: - Widget View
+struct Lock_Screen_WidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) var widgetFamily
+    @State private var currentIndex: Int = 0
     
-    // Reusable button function
-    @ViewBuilder
-    private func controlButton(systemName: String, color: Color, fontSize: Font = .title) -> some View {
-        Button(action: {}) {
-            Image(systemName: systemName)
-                .font(fontSize)
-                .fontWeight(.bold)
-                .foregroundColor(color)
+    private var currentHabit: Habit? {
+        guard !entry.habits.isEmpty else { return nil }
+        return entry.habits[currentIndex]
+    }
+    
+    private func nextHabit() {
+        guard !entry.habits.isEmpty else { return }
+        withAnimation {
+            currentIndex = (currentIndex + 1) % entry.habits.count
         }
     }
     
-    // Reusable content layout
+    private func previousHabit() {
+        guard !entry.habits.isEmpty else { return }
+        withAnimation {
+            currentIndex = (currentIndex - 1 + entry.habits.count) % entry.habits.count
+        }
+    }
+    
+    private func updateHabitValue(_ value: Any) {
+        guard let habit = currentHabit else { return }
+        try? IonicStorageManager.shared.updateHabitValue(habitId: habit.id, value: value as! HabitValue)
+    }
+    
     @ViewBuilder
-    private func contentLayout(color: Color, timeFont: Font = .body, buttonFont: Font = .title) -> some View {
-        HStack {
-            controlButton(systemName: "minus.circle.fill", color: color, fontSize: buttonFont)
-            
-            Spacer()
-            
-            VStack(alignment: .center) {
-                Text(entry.date, style: .time)
-                    .font(timeFont)
-                    .fontWeight(.semibold)
+    private func habitControls(habit: Habit, color: Color) -> some View {
+        if habit.type == .checkbox {
+            Button(action: {
+                updateHabitValue(!habit.isChecked)
+            }) {
+                Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
+                    .font(.title2)
+                    .foregroundColor(color)
             }
+        } else {
+            HStack {
+                Button(action: {
+                    updateHabitValue(max(0, habit.quantity - 1))
+                }) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(color)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    updateHabitValue(habit.quantity + 1)
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(color)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func habitLabel(habit: Habit) -> some View {
+        VStack(spacing: 2) {
+            Text(habit.name)
+                .font(.system(size: widgetFamily == .systemMedium ? 16 : 14))
+                .fontWeight(.semibold)
+                .lineLimit(1)
             
-            Spacer()
-            
-            controlButton(systemName: "plus.circle.fill", color: color, fontSize: buttonFont)
+            if habit.type == .quantity {
+                Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "") \(habit.unit ?? "")")
+                    .font(.system(size: widgetFamily == .systemMedium ? 14 : 12))
+                    .lineLimit(1)
+            }
         }
     }
     
     var body: some View {
-        switch widgetFamily {
-        case .accessoryCircular:
-            Text("N/A")
-            
-        case .accessoryRectangular:
-            // Lock screen layout
-            contentLayout(color: .white, timeFont: .body, buttonFont: .title2)
-                .padding(.horizontal, 12)
-            
-        case .accessoryInline:
-            Text("N/A")
-            
-        case .systemMedium:
-            // Home screen layout
-            contentLayout(color: .blue, timeFont: .title, buttonFont: .system(size: 32))
-                .padding()
-            
-        default:
-            Text("N/A")
+        if let error = entry.error {
+            Text("Error: \(error.localizedDescription)")
+                .font(.caption)
+        } else if entry.habits.isEmpty {
+            Text("No habits configured")
+        } else if let habit = currentHabit {
+            HStack {
+                if habit.type == .checkbox {
+                    habitControls(habit: habit, color: widgetFamily == .systemMedium ? .blue : .white)
+                    Spacer()
+                    habitLabel(habit: habit)
+                    Spacer()
+                } else {
+                    habitControls(habit: habit, color: widgetFamily == .systemMedium ? .blue : .white)
+                        .overlay(
+                            habitLabel(habit: habit)
+                                .frame(maxWidth: .infinity)
+                        )
+                }
+            }
+            .padding(.horizontal, widgetFamily == .systemMedium ? 20 : 12)
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        if value.translation.width < 0 {
+                            nextHabit()
+                        } else {
+                            previousHabit()
+                        }
+                    }
+            )
         }
     }
 }
 
+// MARK: - Widget Configuration
 struct Lock_Screen_Widget: Widget {
     let kind: String = "Lock_Screen_Widget"
 
@@ -103,22 +172,21 @@ struct Lock_Screen_Widget: Widget {
                     .background()
             }
         }
-        .configurationDisplayName("My Widget")
-        .description("This is an example widget.")
+        .configurationDisplayName("Habit Tracker")
+        .description("Track your daily habits")
         .supportedFamilies([.accessoryRectangular, .systemMedium])
     }
 }
 
-// Preview for the home screen medium widget
+// MARK: - Previews
 #Preview(as: .systemMedium) {
     Lock_Screen_Widget()
 } timeline: {
-    SimpleEntry(date: .now)
+    SimpleEntry(date: .now, habits: [], error: nil)
 }
 
-// Preview for the lock screen rectangular widget
 #Preview(as: .accessoryRectangular) {
     Lock_Screen_Widget()
 } timeline: {
-    SimpleEntry(date: .now)
+    SimpleEntry(date: .now, habits: [], error: nil)
 }

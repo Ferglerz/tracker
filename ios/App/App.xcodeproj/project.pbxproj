@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		434EF68D2D0A225A0002ED92 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 434EF68C2D0A22510002ED92 /* libsqlite3.tbd */; };
+		434EF68F2D0A22C70002ED92 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */; };
+		434EF6902D0A22D90002ED92 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */; };
 		43A4B16D2D03E9A8005B3C72 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */; };
 		43A4B16F2D03E9A8005B3C72 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */; };
 		43A4B1722D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */; };
@@ -50,6 +53,8 @@
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		434EF68C2D0A22510002ED92 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IonicStorageManager.swift; sourceTree = "<group>"; };
 		435BBE992D05EAC60050C157 /* Lock Screen WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Lock Screen WidgetExtension.entitlements"; sourceTree = "<group>"; };
 		435BBE9A2D05EAE00050C157 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		43A4B16B2D03E9A8005B3C72 /* Lock Screen WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Lock Screen WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -78,6 +83,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				434EF68D2D0A225A0002ED92 /* libsqlite3.tbd in Frameworks */,
 				43A4B16F2D03E9A8005B3C72 /* SwiftUI.framework in Frameworks */,
 				43A4B16D2D03E9A8005B3C72 /* WidgetKit.framework in Frameworks */,
 			);
@@ -97,6 +103,7 @@
 		27E2DDA53C4D2A4D1A88CE4A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				434EF68C2D0A22510002ED92 /* libsqlite3.tbd */,
 				AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */,
 				43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */,
 				43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */,
@@ -107,6 +114,7 @@
 		43A4B1702D03E9A8005B3C72 /* Lock Screen Widget */ = {
 			isa = PBXGroup;
 			children = (
+				434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */,
 				43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */,
 				43A4B1732D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift */,
 				43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */,
@@ -311,6 +319,7 @@
 			files = (
 				43A4B1762D03E9A8005B3C72 /* Lock_Screen_Widget.swift in Sources */,
 				43A4B1722D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift in Sources */,
+				434EF68F2D0A22C70002ED92 /* IonicStorageManager.swift in Sources */,
 				43A4B1742D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -319,6 +328,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				434EF6902D0A22D90002ED92 /* IonicStorageManager.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
