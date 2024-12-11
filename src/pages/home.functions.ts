@@ -1,9 +1,9 @@
 import { Storage } from '@ionic/storage';
 import { format } from 'date-fns';
-import { sampleHabits, sampleHistory } from './sampleData';
+import sampleData from './sampleData.json';
 
 // Toggle for using sample data
-export const useSampleData = false;
+export const useSampleData = true;
 
 export const exportHabitHistoryToCSV = async (habits: Habit[]): Promise<void> => {
   try {
@@ -109,12 +109,12 @@ const initializeSampleData = async () => {
     
     const promises = [];
     
-    if (!currentHabits || JSON.stringify(currentHabits) !== JSON.stringify(sampleHabits)) {
-      promises.push(store.set('habits', sampleHabits));
+    if (!currentHabits || JSON.stringify(currentHabits) !== JSON.stringify(sampleData.habits)) {
+      promises.push(store.set('habits', sampleData.habits));
     }
     
-    if (!currentHistory || JSON.stringify(currentHistory) !== JSON.stringify(sampleHistory)) {
-      promises.push(store.set('habitHistory', sampleHistory));
+    if (!currentHistory || JSON.stringify(currentHistory) !== JSON.stringify(sampleData.history)) {
+      promises.push(store.set('habitHistory', sampleData.history));
     }
     
     await Promise.all(promises);
@@ -156,7 +156,6 @@ export const saveHabits = async (habits: Habit[]): Promise<void> => {
   await store.set('habits', habits);
 };
 
-// if only one function could save the future, too.
 export const saveHistory = async (history: HabitHistory): Promise<void> => {
   if (useSampleData) {
     console.log('Saving history disabled while using sample data');
