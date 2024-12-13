@@ -1,107 +1,126 @@
+import { Preferences } from '@capacitor/preferences';
 import { Storage } from '@ionic/storage';
-import { format, parseISO } from 'date-fns';
+import { Capacitor } from '@capacitor/core';
 
-// Type for quantity habit records: [current_value, goal_value]
-type QuantityRecord = [number, number];
 
-// Type for checkbox habit records
-type CheckboxRecord = boolean;
+// TESTING iOS isn't using ionic:
+const bypassIonicStorage = false;
 
-// Combined type for habit records
-type HabitRecord = QuantityRecord | CheckboxRecord;
+const platform = Capacitor.getPlatform();
+const isNativeStorage = platform === 'ios' || platform === 'android';
 
-// Interface for habit history structure
-interface HabitHistory {
+// Configure Preferences to use app group on iOS
+if (platform === 'ios') {
+  Preferences.configure({
+    group: 'group.io.ionic.tracker'
+  });
+}
+
+const currentStorageMethod = isNativeStorage ? 'Preferences' : 'Ionic Storage';
+export const getCurrentStorage = () => currentStorageMethod;
+
+
+export const storageService = {
+  async get(key: string): Promise<string | null> {
+    try {
+      if (isNativeStorage) {
+        const { value } = await Preferences.get({ key });
+        return value;
+      } else {
+        if (!storageInstance) return null;
+        const value = await storageInstance.get(key);
+        return typeof value === 'object' ? JSON.stringify(value) : value;
+      }
+    } catch (e) {
+      console.error('Storage get error:', e);
+      return null;
+    }
+  },
+  
+  async set(key: string, value: string): Promise<void> {
+    try {
+      if (isNativeStorage) {
+        await Preferences.set({ key, value });
+      } else {
+        if (!storageInstance) return;
+        const parsedValue = JSON.parse(value);
+        await storageInstance.set(key, parsedValue);
+      }
+    } catch (e) {
+      console.error('Storage set error:', e);
+    }
+  }
+};
+
+
+export interface Habit {
+  id: string;
+  name: string;
+  type: 'checkbox' | 'quantity';
+  unit?: string;
+  quantity: number;
+  goal?: number;
+  isChecked: boolean;
+  isComplete: boolean;
+  isBegun: boolean;
+  bgColor?: string;
+}
+
+export interface HabitHistory {
   [habitId: string]: {
-    [date: string]: HabitRecord;
+    [date: string]: number | boolean;
   };
 }
 
-const store = new Storage();
-store.create();
-
-// Helper function to determine if a record is a quantity record
-const isQuantityRecord = (record: HabitRecord): record is QuantityRecord => {
-  return Array.isArray(record) && record.length === 2;
+const STORAGE_KEYS = {
+  HABITS: 'habits',
+  HISTORY: 'habitHistory'
 };
 
-export const saveHabitRecord = async (
-  habitId: string,
-  value: HabitRecord,
-  date: Date = new Date()
-): Promise<void> => {
-  const history = await loadHabitHistory();
-  const dateKey = format(date, 'yyyy-MM-dd');
+let storageInstance: Storage | null = null;
 
-  if (!history[habitId]) {
-    history[habitId] = {};
-  }
-
-  history[habitId][dateKey] = value;
-  await store.set('habitHistory', history);
-};
-
-export const loadHabitHistory = async (): Promise<HabitHistory> => {
-  const history = await store.get('habitHistory');
-  return history || {};
-};
-
-export const getHabitStatus = (
-  record: HabitRecord | undefined
-): 'complete' | 'partial' | 'none' => {
-  if (!record) return 'none';
-
-  if (isQuantityRecord(record)) {
-    const [current, goal] = record;
-    if (current >= goal) return 'complete';
-    if (current > 0) return 'partial';
-    return 'none';
-  }
-
-  return record ? 'complete' : 'none';
-};
-
-export const updateQuantityHabit = async (
-  habitId: string,
-  currentValue: number,
-  goalValue: number,
-  date: Date = new Date()
-): Promise<void> => {
-  await saveHabitRecord(habitId, [currentValue, goalValue], date);
-};
-
-export const updateCheckboxHabit = async (
-  habitId: string,
-  checked: boolean,
-  date: Date = new Date()
-): Promise<void> => {
-  await saveHabitRecord(habitId, checked, date);
-};
-
-export const getHabitRecordsForMonth = async (
-  habitId: string,
-  month: Date
-): Promise<{ [date: string]: HabitRecord }> => {
-  const history = await loadHabitHistory();
-  const habitHistory = history[habitId] || {};
+if (!isNativeStorage) {
+  const initializeStorage = async () => {
+    if (!storageInstance) {
+      storageInstance = new Storage();
+      await storageInstance.create();
+    }
+    return storageInstance;
+  };
   
-  // Filter records for the specified month
-  const monthStart = format(new Date(month.getFullYear(), month.getMonth(), 1), 'yyyy-MM');
-  return Object.entries(habitHistory)
-    .filter(([date]) => date.startsWith(monthStart))
-    .reduce((acc, [date, record]) => ({
-      ...acc,
-      [date]: record
-    }), {});
+  // Initialize storage immediately
+  initializeStorage();
+}
+
+export const loadHabits = async (): Promise<Habit[]> => {
+  const value = await storageService.get(STORAGE_KEYS.HABITS);
+  try {
+    return value ? JSON.parse(value) : [];
+  } catch (e) {
+    console.error('Parse error:', e);
+    return [];
+  }
 };
 
-// Helper to get color for calendar day
+export const loadHistory = async (): Promise<HabitHistory> => {
+  const value = await storageService.get(STORAGE_KEYS.HISTORY);
+  return value ? JSON.parse(value) : {};
+};
+
+export const saveHabits = async (habits: Habit[]): Promise<void> => {
+  await storageService.set(STORAGE_KEYS.HABITS, JSON.stringify(habits));
+};
+
+export const saveHistory = async (history: HabitHistory): Promise<void> => {
+  await storageService.set(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+};
+
 export const getStatusColor = (status: 'complete' | 'partial' | 'none'): string => {
   switch (status) {
     case 'complete':
-      return '#2dd36f'; // green
+      return '#2dd36f';
     case 'partial':
-      return '#ffc409'; // orange
+      return '#ffc409';
     case 'none':
       return 'transparent';
   }

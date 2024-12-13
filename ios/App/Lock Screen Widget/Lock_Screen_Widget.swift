@@ -1,9 +1,10 @@
 import WidgetKit
 import SwiftUI
+import SQLite3
 
 // MARK: - Timeline Provider
 struct Provider: TimelineProvider {
-    let storage = IonicStorageManager.shared
+    let storage = IonicStorageManager.shared 
     
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(date: Date(), habits: [], error: nil)
@@ -69,7 +70,7 @@ struct Lock_Screen_WidgetEntryView: View {
     
     private func updateHabitValue(_ value: Any) {
         guard let habit = currentHabit else { return }
-        try? IonicStorageManager.shared.updateHabitValue(habitId: habit.id, value: value as! HabitValue)
+        try? IonicStorageManager.shared.updateHabitValue(habitId: habit.id, value: value)
     }
     
     @ViewBuilder

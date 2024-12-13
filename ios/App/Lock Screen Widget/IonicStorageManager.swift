@@ -1,26 +1,17 @@
 import Foundation
-import SQLite3
 import WidgetKit
 
-// MARK: - Error Handling
-enum DatabaseError: Error {
-    case connectionFailed
-    case queryFailed(String)
-    case invalidData
-}
-
-// MARK: - Data Models
 struct Habit: Codable {
     let id: String
     let name: String
     let type: HabitType
     let unit: String?
+    let quantity: Int
     let goal: Int?
-    var quantity: Int
-    var isChecked: Bool
-    var isComplete: Bool
-    var isBegun: Bool
-    var bgColor: String?
+    let isChecked: Bool
+    let isComplete: Bool
+    let isBegun: Bool
+    let bgColor: String?
 }
 
 enum HabitType: String, Codable {
@@ -28,151 +19,85 @@ enum HabitType: String, Codable {
     case quantity
 }
 
-enum HabitValue: Codable {
-    case number(Int)
-    case boolean(Bool)
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let boolValue = try? container.decode(Bool.self) {
-            self = .boolean(boolValue)
-        } else if let intValue = try? container.decode(Int.self) {
-            self = .number(intValue)
-        } else {
-            throw DecodingError.typeMismatch(HabitValue.self, DecodingError.Context(
-                codingPath: decoder.codingPath,
-                debugDescription: "Expected boolean or number"
-            ))
-        }
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .boolean(let value):
-            try container.encode(value)
-        case .number(let value):
-            try container.encode(value)
-        }
-    }
-}
-
-// MARK: - Database Manager
-@available(iOS 14.0, *)
 class IonicStorageManager {
     static let shared = IonicStorageManager()
-    private var db: OpaquePointer?
+    private let userDefaults: UserDefaults?
     
     private init() {
-        connectToDatabase()
-    }
-    
-    private func connectToDatabase() {
-        // Get the app group container URL
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yourapp") else {
-            print("Failed to get container URL")
-            return
-        }
-        
-        // Ionic's SQLite database path
-        let dbPath = containerURL.appendingPathComponent("_ionicstorage.db").path
-        
-        if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            print("Error opening database")
-            return
+        userDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
+        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.ionic.tracker") {
+            let contents = try? FileManager.default.contentsOfDirectory(at: groupURL, includingPropertiesForKeys: nil)
+            print("App Group Contents:", contents?.map { $0.lastPathComponent } ?? [])
         }
     }
     
     func loadHabits() throws -> [Habit] {
-        guard let db = db else { throw DatabaseError.connectionFailed }
+        //userDefaults?.set("testing", forKey: "test_key")
         
-        let query = "SELECT value FROM _ionickv WHERE key = 'habits'"
-        var statement: OpaquePointer?
+        //print("Debug - App Groups available:", FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.ionic.tracker")?.path ?? "none")
+        //print("Debug - UserDefaults contents:", userDefaults?.dictionaryRepresentation() ?? [:])
         
-        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
-            throw DatabaseError.queryFailed("Failed to prepare query")
-        }
-        defer { sqlite3_finalize(statement) }
-        
-        if sqlite3_step(statement) == SQLITE_ROW {
-            guard let jsonData = sqlite3_column_text(statement, 0) else {
-                throw DatabaseError.invalidData
-            }
-            
-            let data = Data(String(cString: jsonData).utf8)
-            return try JSONDecoder().decode([Habit].self, from: data)
+        guard let userDefaults = userDefaults,
+              let habitsData = userDefaults.string(forKey: "habits") else {
+            print("No habits found. All keys:", userDefaults?.dictionaryRepresentation().keys ?? [])
+            return []
         }
         
-        return []
+        print("Found habits data:", habitsData)
+        
+        
+        let decoder = JSONDecoder()
+        guard let jsonData = habitsData.data(using: .utf8) else {
+            throw NSError(domain: "IonicStorage", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid data format"])
+        }
+        
+        return try decoder.decode([Habit].self, from: jsonData)
     }
     
-    func loadHistory() throws -> [String: [String: HabitValue]] {
-        guard let db = db else { throw DatabaseError.connectionFailed }
+    func updateHabitValue(habitId: String, value: Any) throws {
+        guard let userDefaults = userDefaults else { return }
         
-        let query = "SELECT value FROM _ionickv WHERE key = 'habitHistory'"
-        var statement: OpaquePointer?
-        
-        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
-            throw DatabaseError.queryFailed("Failed to prepare query")
-        }
-        defer { sqlite3_finalize(statement) }
-        
-        if sqlite3_step(statement) == SQLITE_ROW {
-            guard let jsonData = sqlite3_column_text(statement, 0) else {
-                throw DatabaseError.invalidData
+        var habits = try loadHabits()
+        if let index = habits.firstIndex(where: { $0.id == habitId }) {
+            var updatedHabit = habits[index]
+            
+            switch value {
+            case let checked as Bool:
+                updatedHabit = Habit(
+                    id: updatedHabit.id,
+                    name: updatedHabit.name,
+                    type: updatedHabit.type,
+                    unit: updatedHabit.unit,
+                    quantity: updatedHabit.quantity,
+                    goal: updatedHabit.goal,
+                    isChecked: checked,
+                    isComplete: checked,
+                    isBegun: checked,
+                    bgColor: updatedHabit.bgColor
+                )
+            case let quantity as Int:
+                updatedHabit = Habit(
+                    id: updatedHabit.id,
+                    name: updatedHabit.name,
+                    type: updatedHabit.type,
+                    unit: updatedHabit.unit,
+                    quantity: quantity,
+                    goal: updatedHabit.goal,
+                    isChecked: updatedHabit.isChecked,
+                    isComplete: quantity >= (updatedHabit.goal ?? Int.max),
+                    isBegun: quantity > 0,
+                    bgColor: updatedHabit.bgColor
+                )
+            default:
+                throw NSError(domain: "IonicStorage", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid value type"])
             }
             
-            let data = Data(String(cString: jsonData).utf8)
-            return try JSONDecoder().decode([String: [String: HabitValue]].self, from: data)
+            habits[index] = updatedHabit
+            let encoder = JSONEncoder()
+            let jsonData = try encoder.encode(habits)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                userDefaults.set(jsonString, forKey: "habits")
+            }
         }
-        
-        return [:]
     }
-    
-    func updateHabitValue(habitId: String, value: HabitValue, date: Date = Date()) throws {
-        guard let db = db else { throw DatabaseError.connectionFailed }
-        
-        // First get existing history
-        var history = try loadHistory()
-        
-        // Update the value
-        let dateKey = DateFormatter.habitDate.string(from: date)
-        if history[habitId] == nil {
-            history[habitId] = [:]
-        }
-        history[habitId]?[dateKey] = value
-        
-        // Convert to JSON
-        let jsonData = try JSONEncoder().encode(history)
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw DatabaseError.invalidData
-        }
-        
-        // Update in database
-        let query = "UPDATE _ionickv SET value = ? WHERE key = 'habitHistory'"
-        var statement: OpaquePointer?
-        
-        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
-            throw DatabaseError.queryFailed("Failed to prepare update query")
-        }
-        defer { sqlite3_finalize(statement) }
-        
-        sqlite3_bind_text(statement, 1, (jsonString as NSString).utf8String, -1, nil)
-        
-        if sqlite3_step(statement) != SQLITE_DONE {
-            throw DatabaseError.queryFailed("Failed to update history")
-        }
-        
-        // Refresh widget timeline
-        WidgetCenter.shared.reloadTimelines(ofKind: "Lock_Screen_Widget")
-    }
-}
-
-// MARK: - Date Formatter
-extension DateFormatter {
-    static let habitDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
 }

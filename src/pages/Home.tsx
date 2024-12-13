@@ -53,6 +53,8 @@ const PRESET_COLORS = [
   '#f8c8dc'
 ];
 
+import { getCurrentStorage } from './HabitStorage';
+
 interface HabitFormProps {
   onClose: () => void;
   onSave: (habit: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => void;
@@ -205,22 +207,28 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const initData = async () => {
+      console.log('Initializing data...');
       const [loadedHabits, loadedHistory] = await Promise.all([
         loadHabits(),
         loadHistory()
       ]);
+      console.log('Setting habits:', loadedHabits);
       setHabits(loadedHabits);
       setHabitHistory(loadedHistory);
     };
     initData();
   }, []);
-
+  
   useEffect(() => {
     const saveHabitsData = async () => {
-      await saveHabits(habits);
+      console.log('Saving habits effect triggered:', habits);
+      if (habits.length > 0) {  // Only save if there are habits
+        await saveHabits(habits);
+      }
     };
     saveHabitsData();
   }, [habits]);
+
 
   const handleUpdateQuantity = async (id: string, delta: number) => {
     const updatedHabits = await updateQuantity(habits, id, delta);
@@ -328,6 +336,10 @@ const Home: React.FC = () => {
               <div className="habitDivider" />
             </React.Fragment>
           ))}
+<div className="ion-text-center ion-padding">
+  Storage: {getCurrentStorage()}
+</div>
+
         </IonList>
       )}
 
