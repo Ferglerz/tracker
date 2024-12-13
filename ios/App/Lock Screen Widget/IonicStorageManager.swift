@@ -24,22 +24,43 @@ class IonicStorageManager {
     private let userDefaults: UserDefaults?
     
     private init() {
-        userDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
+        // Check both locations
+        let standardDefaults = UserDefaults.standard
+        let groupDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
+        
+        print("=== DEBUG STORAGE LOCATIONS ===")
+        print("Standard app UserDefaults:")
+        print("- habits:", standardDefaults.string(forKey: "habits") ?? "nil")
+        print("- all keys:", standardDefaults.dictionaryRepresentation().keys)
+        
+        print("\nApp Group UserDefaults:")
+        print("- habits:", groupDefaults?.string(forKey: "habits") ?? "nil")
+        print("- all keys:", groupDefaults?.dictionaryRepresentation().keys ?? [])
+        
+        userDefaults = groupDefaults
+        
+        // Check app group container access
         if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.ionic.tracker") {
+            print("App Group URL:", groupURL.path)
             let contents = try? FileManager.default.contentsOfDirectory(at: groupURL, includingPropertiesForKeys: nil)
             print("App Group Contents:", contents?.map { $0.lastPathComponent } ?? [])
+        } else {
+            print("⚠️ Could not access app group container")
         }
     }
     
     func loadHabits() throws -> [Habit] {
-        //userDefaults?.set("testing", forKey: "test_key")
+        guard let userDefaults = userDefaults else {
+            print("⚠️ UserDefaults not initialized")
+            return []
+        }
         
-        //print("Debug - App Groups available:", FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.ionic.tracker")?.path ?? "none")
-        //print("Debug - UserDefaults contents:", userDefaults?.dictionaryRepresentation() ?? [:])
+        // Debug the raw habits data
+        print("Raw habits data:", userDefaults.string(forKey: "habits") ?? "nil")
         
-        guard let userDefaults = userDefaults,
-              let habitsData = userDefaults.string(forKey: "habits") else {
-            print("No habits found. All keys:", userDefaults?.dictionaryRepresentation().keys ?? [])
+        guard let habitsData = userDefaults.string(forKey: "habits") else {
+            print("No habits found")
+            print("Available keys:", userDefaults.dictionaryRepresentation().keys)
             return []
         }
         
