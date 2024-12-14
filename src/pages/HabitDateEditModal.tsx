@@ -12,7 +12,7 @@ import {
   IonInput,
   IonToggle,
 } from '@ionic/react';
-import { Habit } from './home.functions';
+import { HabitStorageAPI, type Habit } from './HabitStorage';
 
 interface Props {
   isOpen: boolean;

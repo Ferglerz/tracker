@@ -1,26 +1,12 @@
 import { format } from 'date-fns';
-import { 
-  loadHabits, 
-  loadHistory, 
-  saveHabits, 
-  saveHistory,
-  HabitHistory,
-  Habit,
-  getStatusColor 
-} from './HabitStorage';
-import sampleData from './sampleData.json';
+import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
 
 export const useSampleData = false;
 
-// Re-export storage functions that are used by other components
-export { loadHabits, loadHistory, saveHabits, saveHistory, getStatusColor };
-export type { Habit, HabitHistory };
-
-// Business logic functions
-export const createHabit = (
+export const createHabit = async (
   habits: Habit[],
   habitData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>
-): Habit[] => {
+): Promise<Habit[]> => {
   const newHabit: Habit = {
     ...habitData,
     id: Date.now().toString(),
@@ -29,44 +15,53 @@ export const createHabit = (
     isComplete: false,
     isBegun: false
   };
-  return [...habits, newHabit];
+  const updatedHabits = [...habits, newHabit];
+  await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: {} });
+  return updatedHabits;
 };
 
-export const editHabit = (
+export const editHabit = async (
   habits: Habit[],
   habitId: string,
   habitData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>
-): Habit[] => {
-  return habits.map(h => 
+): Promise<Habit[]> => {
+  const updatedHabits = habits.map(h => 
     h.id === habitId 
       ? { ...h, ...habitData }
       : h
   );
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+  await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
+  return updatedHabits;
 };
 
-export const deleteHabit = (habits: Habit[], id: string): Habit[] => {
-  return habits.filter(habit => habit.id !== id);
+export const deleteHabit = async (habits: Habit[], id: string): Promise<Habit[]> => {
+  const updatedHabits = habits.filter(habit => habit.id !== id);
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+  const { [id]: deletedHistory, ...remainingHistory } = data.history;
+  await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: remainingHistory });
+  return updatedHabits;
 };
 
 export const updateHabitHistory = async (
   habitId: string, 
   value: number | boolean,
   date: Date = new Date()
-): Promise<HabitHistory> => {
-  const history = await loadHistory();
+): Promise<HabitData> => {
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
   const dateKey = format(date, 'yyyy-MM-dd');
   
-  if (!history[habitId]) {
-    history[habitId] = {};
+  if (!data.history[habitId]) {
+    data.history[habitId] = {};
   }
   
-  history[habitId][dateKey] = value;
+  data.history[habitId][dateKey] = value;
   
   if (!useSampleData) {
-    await saveHistory(history);
+    await HabitStorageAPI.handleHabitData('save', data);
   }
   
-  return history;
+  return data;
 };
 
 export const updateQuantity = async (habits: Habit[], id: string, delta: number): Promise<Habit[]> => {
@@ -86,7 +81,8 @@ export const updateQuantity = async (habits: Habit[], id: string, delta: number)
   });
   
   if (!useSampleData) {
-    await saveHabits(updatedHabits);
+    const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+    await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
   }
   
   return updatedHabits;
@@ -108,7 +104,8 @@ export const updateCheckbox = async (habits: Habit[], id: string, checked: boole
   });
   
   if (!useSampleData) {
-    await saveHabits(updatedHabits);
+    const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+    await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
   }
   
   return updatedHabits;
@@ -134,7 +131,8 @@ export const getStatusForDate = (
 
 export const exportHabitHistoryToCSV = async (habits: Habit[]): Promise<void> => {
   try {
-    const history = await loadHistory();
+    const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+    const history = data.history;
     
     if (!Object.keys(history).length) {
       throw new Error('No history data available to export');

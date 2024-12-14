@@ -1,58 +1,18 @@
-import { Preferences } from '@capacitor/preferences';
-import { Storage } from '@ionic/storage';
-import { Capacitor } from '@capacitor/core';
+import { WidgetsBridgePlugin, type TimelinesOptions } from 'capacitor-widgetsbridge-plugin';
 
-
-// TESTING iOS isn't using ionic:
-const bypassIonicStorage = false;
-
-const platform = Capacitor.getPlatform();
-const isNativeStorage = platform === 'ios' || platform === 'android';
-
-// Configure Preferences to use app group on iOS
-if (platform === 'ios') {
-  Preferences.configure({
-    group: 'group.io.ionic.tracker'
-  });
+// Plugin specific types
+interface WidgetConfiguration {
+  widgetId: string;
+  kind: string;
 }
 
-const currentStorageMethod = isNativeStorage ? 'Preferences' : 'Ionic Storage';
-export const getCurrentStorage = () => currentStorageMethod;
+interface UserDefaultsOptions {
+  key: string;
+  value: string;
+  group: string;
+}
 
-
-export const storageService = {
-  async get(key: string): Promise<string | null> {
-    try {
-      if (isNativeStorage) {
-        const { value } = await Preferences.get({ key });
-        return value;
-      } else {
-        if (!storageInstance) return null;
-        const value = await storageInstance.get(key);
-        return typeof value === 'object' ? JSON.stringify(value) : value;
-      }
-    } catch (e) {
-      console.error('Storage get error:', e);
-      return null;
-    }
-  },
-  
-  async set(key: string, value: string): Promise<void> {
-    try {
-      if (isNativeStorage) {
-        await Preferences.set({ key, value });
-      } else {
-        if (!storageInstance) return;
-        const parsedValue = JSON.parse(value);
-        await storageInstance.set(key, parsedValue);
-      }
-    } catch (e) {
-      console.error('Storage set error:', e);
-    }
-  }
-};
-
-
+// Habit interfaces
 export interface Habit {
   id: string;
   name: string;
@@ -72,56 +32,95 @@ export interface HabitHistory {
   };
 }
 
-const STORAGE_KEYS = {
-  HABITS: 'habits',
-  HISTORY: 'habitHistory'
-};
-
-let storageInstance: Storage | null = null;
-
-if (!isNativeStorage) {
-  const initializeStorage = async () => {
-    if (!storageInstance) {
-      storageInstance = new Storage();
-      await storageInstance.create();
-    }
-    return storageInstance;
-  };
-  
-  // Initialize storage immediately
-  initializeStorage();
+export interface HabitData {
+  habits: Habit[];
+  history: HabitHistory;
 }
 
-export const loadHabits = async (): Promise<Habit[]> => {
-  const value = await storageService.get(STORAGE_KEYS.HABITS);
+// Export everything from a single source
+export const HabitStorageAPI = {
+  handleHabitData: async (
+    action: 'load' | 'save',
+    data?: HabitData
+  ): Promise<HabitData | void> => {
+    const defaultData: HabitData = { habits: [], history: {} };
+
+    switch (action) {
+      case 'load':
+        try {
+          const result = await WidgetsBridgePlugin.getItem({
+            key: 'habitData',
+            group: 'group.io.ionic.tracker'
+          });
+
+          if (!result || !(result as any).value) return defaultData;
+          return JSON.parse((result as any).value);
+        } catch (e) {
+          console.error('Load error:', e);
+          return defaultData;
+        }
+      case 'save':
+        if (!data) return;
+        try {
+          await syncWithWidgets(data);
+        } catch (e) {
+          console.error('Save error:', e);
+        }
+        break;
+    }
+  },
+
+  refreshWidgets: async (): Promise<void> => {
+    try {
+      const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+      if (data) {
+        await syncWithWidgets(data);
+      }
+    } catch (e) {
+      console.error('Widget refresh error:', e);
+    }
+  },
+
+  removeWidgetData: async (widgetId: string): Promise<void> => {
+    try {
+      await WidgetsBridgePlugin.removeItem({
+        key: 'habitData',
+        group: 'group.io.ionic.tracker'
+      });
+      
+      // For now, just reload all timelines since we're unsure of the exact TimelinesOptions type
+      await WidgetsBridgePlugin.reloadAllTimelines();
+    } catch (e) {
+      console.error('Remove widget data error:', e);
+    }
+  },
+
+  getStatusColor: (status: 'complete' | 'partial' | 'none'): string => {
+    switch (status) {
+      case 'complete':
+        return '#2dd36f';
+      case 'partial':
+        return '#ffc409';
+      case 'none':
+        return 'transparent';
+    }
+  }
+};
+
+// Private helper function
+async function syncWithWidgets(data: HabitData) {
   try {
-    return value ? JSON.parse(value) : [];
+    await WidgetsBridgePlugin.setItem({
+      key: 'habitData',
+      value: JSON.stringify(data),
+      group: 'group.io.ionic.tracker'
+    } as UserDefaultsOptions);
+
+    await WidgetsBridgePlugin.reloadAllTimelines();
   } catch (e) {
-    console.error('Parse error:', e);
-    return [];
+    console.error('Widget sync error:', e);
   }
-};
+}
 
-export const loadHistory = async (): Promise<HabitHistory> => {
-  const value = await storageService.get(STORAGE_KEYS.HISTORY);
-  return value ? JSON.parse(value) : {};
-};
-
-export const saveHabits = async (habits: Habit[]): Promise<void> => {
-  await storageService.set(STORAGE_KEYS.HABITS, JSON.stringify(habits));
-};
-
-export const saveHistory = async (history: HabitHistory): Promise<void> => {
-  await storageService.set(STORAGE_KEYS.HISTORY, JSON.stringify(history));
-};
-
-export const getStatusColor = (status: 'complete' | 'partial' | 'none'): string => {
-  switch (status) {
-    case 'complete':
-      return '#2dd36f';
-    case 'partial':
-      return '#ffc409';
-    case 'none':
-      return 'transparent';
-  }
-};
+// Re-export individual functions for backward compatibility
+export const { handleHabitData, refreshWidgets, removeWidgetData, getStatusColor } = HabitStorageAPI;

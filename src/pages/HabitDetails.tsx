@@ -9,12 +9,11 @@ import {
   IonBackButton,
   IonDatetime,
   IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
+  IonCardContent
 } from '@ionic/react';
 import { useLocation } from 'react-router-dom';
-import { Habit, loadHistory, updateHabitHistory, useSampleData } from './home.functions';
+import { HabitStorageAPI, type Habit, type HabitData} from './HabitStorage';
+import { updateHabitHistory, useSampleData } from './home.functions';
 import HabitDateEditModal from './HabitDateEditModal';
 
 interface LocationState {
@@ -32,8 +31,8 @@ const HabitDetails: React.FC = () => {
   useEffect(() => {
     const loadHabitData = async () => {
       if (habit?.id) {
-        const history = await loadHistory();
-        setHabitHistory(history[habit.id] || {});
+        const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+        setHabitHistory(data.history[habit.id] || {});
       }
     };
     loadHabitData();
@@ -51,8 +50,8 @@ const HabitDetails: React.FC = () => {
         }));
       } else {
         const date = new Date(dateKey + 'T12:00:00');
-        const fullHistory = await updateHabitHistory(habit.id, !currentValue, date);
-        setHabitHistory(fullHistory[habit.id] || {});
+        const data = await updateHabitHistory(habit.id, !currentValue, date);
+        setHabitHistory(data.history[habit.id] || {});
       }
     } else {
       setEditingDate(dateKey);
@@ -70,8 +69,8 @@ const HabitDetails: React.FC = () => {
       }));
     } else {
       const date = new Date(editingDate + 'T12:00:00');
-      const fullHistory = await updateHabitHistory(habit.id, value, date);
-      setHabitHistory(fullHistory[habit.id] || {});
+      const data = await updateHabitHistory(habit.id, value, date);
+      setHabitHistory(data.history[habit.id] || {});
     }
   };
 
@@ -139,7 +138,7 @@ const HabitDetails: React.FC = () => {
       </IonHeader>
       <IonContent>
         <div className="ion-padding">
-          <IonCard >
+          <IonCard>
             <IonCardContent>
               <IonDatetime
                 presentation="date"

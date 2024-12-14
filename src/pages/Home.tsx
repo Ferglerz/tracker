@@ -29,16 +29,11 @@ import {
 } from '@ionic/react';
 import { add, remove, pencil, trash, calendar, checkmark, downloadOutline } from 'ionicons/icons';
 import { format } from 'date-fns';
-import {
-  Habit,
-  loadHabits,
-  saveHabits,
-  updateQuantity,
-  updateCheckbox,
+import { HabitStorageAPI, type Habit } from './HabitStorage';
+import { 
+  updateQuantity, 
+  updateCheckbox, 
   deleteHabit,
-  createHabit,
-  editHabit,
-  loadHistory,
   exportHabitHistoryToCSV
 } from './home.functions';
 
@@ -52,8 +47,6 @@ const PRESET_COLORS = [
   '#9b9b9b',
   '#f8c8dc'
 ];
-
-import { getCurrentStorage } from './HabitStorage';
 
 interface HabitFormProps {
   onClose: () => void;
@@ -175,7 +168,6 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
 const Home: React.FC = () => {
   const history = useHistory();
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [habitHistory, setHabitHistory] = useState<Record<string, Record<string, number | boolean>>>({});
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
@@ -207,28 +199,21 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const initData = async () => {
-      console.log('Initializing data...');
-      const [loadedHabits, loadedHistory] = await Promise.all([
-        loadHabits(),
-        loadHistory()
-      ]);
-      console.log('Setting habits:', loadedHabits);
-      setHabits(loadedHabits);
-      setHabitHistory(loadedHistory);
+      const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+      setHabits(data.habits || []);
     };
     initData();
   }, []);
   
   useEffect(() => {
     const saveHabitsData = async () => {
-      console.log('Saving habits effect triggered:', habits);
-      if (habits.length > 0) {  // Only save if there are habits
-        await saveHabits(habits);
+      if (habits.length > 0) {
+        const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+        await HabitStorageAPI.handleHabitData('save', { ...data, habits });
       }
     };
     saveHabitsData();
   }, [habits]);
-
 
   const handleUpdateQuantity = async (id: string, delta: number) => {
     const updatedHabits = await updateQuantity(habits, id, delta);
@@ -240,8 +225,9 @@ const Home: React.FC = () => {
     setHabits(updatedHabits);
   };
 
-  const handleDeleteHabit = (id: string) => {
-    setHabits(prevHabits => deleteHabit(prevHabits, id));
+  const handleDeleteHabit = async (id: string) => {
+    const updatedHabits = await deleteHabit(habits, id);
+    setHabits(updatedHabits);
   };
 
   const handleEdit = (habit: Habit) => {
@@ -256,8 +242,8 @@ const Home: React.FC = () => {
   return (
     <IonPage>
       <IonHeader>
-      <IonToolbar>
-          <IonTitle class="ion-text-center">Habits</IonTitle>
+        <IonToolbar>
+          <IonTitle className="ion-text-center">Habits</IonTitle>
           {habits.length > 0 && (
             <IonButtons slot="end">
               <IonButton onClick={handleExport}>
@@ -266,82 +252,78 @@ const Home: React.FC = () => {
             </IonButtons>
           )}
         </IonToolbar>
-</IonHeader>
+      </IonHeader>
       <IonContent>
         {habits.length === 0 ? (
-    <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
-      Add a new habit to track with the + button, bottom right.
-    </div>
-  ) : (
-    <IonList>
-          {habits.map((habit) => (
-            <React.Fragment key={habit.id}>
-              <IonItemSliding>
-                <IonItem 
-                  className="ion-activatable habit"
-                  onTouchStart={() => handleLongPress(habit)}
-                  onTouchEnd={handlePressEnd}
-                  onMouseDown={() => handleLongPress(habit)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                >
-                  {habit.type === 'checkbox' ? (
-                    <>
-                      <IonCheckbox
-                        slot="start"
-                        checked={habit.isChecked}
-                        onIonChange={(e) => handleUpdateCheckbox(habit.id, e.detail.checked)}
-                        style={{ zIndex: 1, '--background': 'transparent' }}
-                        labelPlacement="end"
-                      />
-                      {habit.name}
-                    </>
-                  ) : (
-                    <>
-                      <IonLabel style={{ zIndex: 1 }}>
-                        <h2>{habit.name}</h2>
-                        <p>{habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}</p>
-                      </IonLabel>
-                      {habit.isComplete && <IonBadge color="success" style={{ zIndex: 1 }}>Complete!</IonBadge>}
-                      <div slot="end" style={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
-                        <IonButton
-                          fill="clear"
-                          onClick={() => handleUpdateQuantity(habit.id, -1)}
-                        >
-                          <IonIcon icon={remove} />
-                        </IonButton>
-                        <IonButton
-                          fill="clear"
-                          onClick={() => handleUpdateQuantity(habit.id, 1)}
-                        >
-                          <IonIcon icon={add} />
-                        </IonButton>
-                      </div>
-                    </>
-                  )}
-                  <IonRippleEffect />
-                </IonItem>
-                <IonItemOptions side="end">
-                  <IonItemOption color="primary" onClick={() => handleViewCalendar(habit)}>
-                    <IonIcon slot="icon-only" icon={calendar} />
-                  </IonItemOption>
-                  <IonItemOption color="warning" onClick={() => handleEdit(habit)}>
-                    <IonIcon slot="icon-only" icon={pencil} />
-                  </IonItemOption>
-                  <IonItemOption color="danger" onClick={() => setHabitToDelete(habit.id)}>
-                    <IonIcon slot="icon-only" icon={trash} />
-                  </IonItemOption>
-                </IonItemOptions>
-              </IonItemSliding>
-              <div className="habitDivider" />
-            </React.Fragment>
-          ))}
-<div className="ion-text-center ion-padding">
-  Storage: {getCurrentStorage()}
-</div>
-
-        </IonList>
-      )}
+          <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
+            Add a new habit to track with the + button, bottom right.
+          </div>
+        ) : (
+          <IonList>
+            {habits.map((habit) => (
+              <React.Fragment key={habit.id}>
+                <IonItemSliding>
+                  <IonItem 
+                    className="ion-activatable habit"
+                    onTouchStart={() => handleLongPress(habit)}
+                    onTouchEnd={handlePressEnd}
+                    onMouseDown={() => handleLongPress(habit)}
+                    onMouseUp={handlePressEnd}
+                    onMouseLeave={handlePressEnd}
+                  >
+                    {habit.type === 'checkbox' ? (
+                      <>
+                        <IonCheckbox
+                          slot="start"
+                          checked={habit.isChecked}
+                          onIonChange={(e) => handleUpdateCheckbox(habit.id, e.detail.checked)}
+                          style={{ zIndex: 1, '--background': 'transparent' }}
+                          labelPlacement="end"
+                        />
+                        {habit.name}
+                      </>
+                    ) : (
+                      <>
+                        <IonLabel style={{ zIndex: 1 }}>
+                          <h2>{habit.name}</h2>
+                          <p>{habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}</p>
+                        </IonLabel>
+                        {habit.isComplete && <IonBadge color="success" style={{ zIndex: 1 }}>Complete!</IonBadge>}
+                        <div slot="end" style={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                          <IonButton
+                            fill="clear"
+                            onClick={() => handleUpdateQuantity(habit.id, -1)}
+                          >
+                            <IonIcon icon={remove} />
+                          </IonButton>
+                          <IonButton
+                            fill="clear"
+                            onClick={() => handleUpdateQuantity(habit.id, 1)}
+                          >
+                            <IonIcon icon={add} />
+                          </IonButton>
+                        </div>
+                      </>
+                    )}
+                    <IonRippleEffect />
+                  </IonItem>
+                  <IonItemOptions side="end">
+                    <IonItemOption color="primary" onClick={() => handleViewCalendar(habit)}>
+                      <IonIcon slot="icon-only" icon={calendar} />
+                    </IonItemOption>
+                    <IonItemOption color="warning" onClick={() => handleEdit(habit)}>
+                      <IonIcon slot="icon-only" icon={pencil} />
+                    </IonItemOption>
+                    <IonItemOption color="danger" onClick={() => setHabitToDelete(habit.id)}>
+                      <IonIcon slot="icon-only" icon={trash} />
+                    </IonItemOption>
+                  </IonItemOptions>
+                </IonItemSliding>
+                <div className="habitDivider" />
+              </React.Fragment>
+            ))}
+          </IonList>
+        )}
 
         <IonToast
           isOpen={showLongPressToast}
@@ -377,14 +359,14 @@ const Home: React.FC = () => {
           ]}
         />
 
-<IonToast
-        isOpen={showErrorToast}
-        onDidDismiss={() => setShowErrorToast(false)}
-        message="Failed to export habit data. Please try again."
-        duration={3000}
-        position="bottom"
-        color="danger"
-      />
+        <IonToast
+          isOpen={showErrorToast}
+          onDidDismiss={() => setShowErrorToast(false)}
+          message="Failed to export habit data. Please try again."
+          duration={3000}
+          position="bottom"
+          color="danger"
+        />
 
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => {
@@ -403,12 +385,34 @@ const Home: React.FC = () => {
               setShowForm(false);
               setEditingHabit(null);
             }}
-            onSave={(habitData) => {
+            onSave={async (habitData) => {
+              const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+              let updatedHabits: Habit[];
+              
               if (editingHabit) {
-                setHabits(prevHabits => editHabit(prevHabits, editingHabit.id, habitData));
+                updatedHabits = data.habits.map(h => 
+                  h.id === editingHabit.id 
+                    ? { ...h, ...habitData }
+                    : h
+                );
               } else {
-                setHabits(prevHabits => createHabit(prevHabits, habitData));
+                const newHabit: Habit = {
+                  ...habitData,
+                  id: Date.now().toString(),
+                  quantity: 0,
+                  isChecked: false,
+                  isComplete: false,
+                  isBegun: false
+                };
+                updatedHabits = [...data.habits, newHabit];
               }
+              
+              await HabitStorageAPI.handleHabitData('save', {
+                ...data,
+                habits: updatedHabits
+              });
+              
+              setHabits(updatedHabits);
               setShowForm(false);
               setEditingHabit(null);
             }}
