@@ -1,10 +1,73 @@
 import WidgetKit
 import SwiftUI
-import SQLite3
+import AppIntents
+
+// MARK: - Intents
+struct ToggleHabitIntent: AppIntent {
+    static var title: LocalizedStringResource = "Toggle Habit"
+    
+    @Parameter(title: "Habit ID")
+    var habitId: String
+    
+    init(habitId: String) {
+        self.habitId = habitId
+    }
+    
+    init() {
+        self.habitId = ""
+    }
+    
+    func perform() async throws -> some IntentResult {
+        // Load current habit state
+        let habits = try IonicStorageManager.shared.loadHabits()
+        if let habit = habits.first(where: { $0.id == habitId }) {
+            // Toggle to opposite of current state
+            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: !habit.isChecked)
+        }
+        // Trigger widget refresh
+        if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+        return .result()
+    }
+}
+
+struct UpdateQuantityIntent: AppIntent {
+    static var title: LocalizedStringResource = "Update Quantity"
+    
+    @Parameter(title: "Habit ID")
+    var habitId: String
+    
+    @Parameter(title: "Increment")
+    var increment: Bool
+    
+    init(habitId: String, increment: Bool) {
+        self.habitId = habitId
+        self.increment = increment
+    }
+    
+    init() {
+        self.habitId = ""
+        self.increment = true
+    }
+    
+    func perform() async throws -> some IntentResult {
+        let habits = try IonicStorageManager.shared.loadHabits()
+        if let habit = habits.first(where: { $0.id == habitId }) {
+            let newValue = increment ? habit.quantity + 1 : max(0, habit.quantity - 1)
+            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: newValue)
+        }
+        // Trigger widget refresh
+        if #available(iOS 14.0, *) {
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
+        return .result()
+    }
+}
 
 // MARK: - Timeline Provider
 struct Provider: TimelineProvider {
-    let storage = IonicStorageManager.shared 
+    let storage = IonicStorageManager.shared
     
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(date: Date(), habits: [], error: nil)
@@ -54,40 +117,17 @@ struct Lock_Screen_WidgetEntryView: View {
         return entry.habits[currentIndex]
     }
     
-    private func nextHabit() {
-        guard !entry.habits.isEmpty else { return }
-        withAnimation {
-            currentIndex = (currentIndex + 1) % entry.habits.count
-        }
-    }
-    
-    private func previousHabit() {
-        guard !entry.habits.isEmpty else { return }
-        withAnimation {
-            currentIndex = (currentIndex - 1 + entry.habits.count) % entry.habits.count
-        }
-    }
-    
-    private func updateHabitValue(_ value: Any) {
-        guard let habit = currentHabit else { return }
-        try? IonicStorageManager.shared.updateHabitValue(habitId: habit.id, value: value)
-    }
-    
     @ViewBuilder
     private func habitControls(habit: Habit, color: Color) -> some View {
         if habit.type == .checkbox {
-            Button(action: {
-                updateHabitValue(!habit.isChecked)
-            }) {
+            Button(intent: ToggleHabitIntent(habitId: habit.id)) {
                 Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
                     .font(.title2)
                     .foregroundColor(color)
             }
         } else {
             HStack {
-                Button(action: {
-                    updateHabitValue(max(0, habit.quantity - 1))
-                }) {
+                Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
                     Image(systemName: "minus.circle.fill")
                         .font(.title2)
                         .foregroundColor(color)
@@ -95,9 +135,7 @@ struct Lock_Screen_WidgetEntryView: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    updateHabitValue(habit.quantity + 1)
-                }) {
+                Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: true)) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
                         .foregroundColor(color)
@@ -148,9 +186,13 @@ struct Lock_Screen_WidgetEntryView: View {
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
                         if value.translation.width < 0 {
-                            nextHabit()
+                            withAnimation {
+                                currentIndex = (currentIndex + 1) % entry.habits.count
+                            }
                         } else {
-                            previousHabit()
+                            withAnimation {
+                                currentIndex = (currentIndex - 1 + entry.habits.count) % entry.habits.count
+                            }
                         }
                     }
             )

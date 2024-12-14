@@ -19,12 +19,10 @@ enum HabitType: String, Codable {
     case quantity
 }
 
-// Updated wrapper structure with both initializers
 struct HabitsData: Codable {
     var habits: [Habit]
-    var history: [String: Any]
+    var history: [String: [String: Any]]
     
-    // Standard initializer
     init(habits: [Habit]) {
         self.habits = habits
         self.history = [:]
@@ -38,14 +36,28 @@ struct HabitsData: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         habits = try container.decode([Habit].self, forKey: .habits)
-        history = [:] // Initialize as empty dictionary
+        
+        // Handle history as a JSON string that we'll parse manually
+        if let historyString = try? container.decode(String.self, forKey: .history),
+           let historyData = historyString.data(using: .utf8),
+           let historyDict = try? JSONSerialization.jsonObject(with: historyData) as? [String: [String: Any]] {
+            history = historyDict
+        } else {
+            history = [:] // Initialize as empty if parsing fails
+        }
     }
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(habits, forKey: .habits)
-        // Encode history as empty object
-        try container.encode("{}" as String, forKey: .history)
+        
+        // Convert history to JSON string
+        let historyData = try JSONSerialization.data(withJSONObject: history)
+        if let historyString = String(data: historyData, encoding: .utf8) {
+            try container.encode(historyString, forKey: .history)
+        } else {
+            try container.encode("{}", forKey: .history)
+        }
     }
 }
 
@@ -54,16 +66,9 @@ class IonicStorageManager {
     private let userDefaults: UserDefaults?
     
     private init() {
-        let groupDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
+        userDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
         print("=== DEBUG: Storage Initialization ===")
-        print("App Group UserDefaults:", groupDefaults != nil ? "initialized" : "failed")
-        userDefaults = groupDefaults
-        
-        if let existingData = groupDefaults?.string(forKey: "habitData") {
-            print("Existing habit data found:", existingData)
-        } else {
-            print("No existing habit data found")
-        }
+        print("App Group UserDefaults:", userDefaults != nil ? "initialized" : "failed")
     }
     
     func loadHabits() throws -> [Habit] {
@@ -72,26 +77,23 @@ class IonicStorageManager {
             return []
         }
         
-        print("\n=== DEBUG: Loading Habits ===")
         guard let habitsData = userDefaults.string(forKey: "habitData") else {
             print("No habits data found in storage")
             return []
         }
         
-        print("Raw habits data:", habitsData)
+        print("DEBUG: Loading habits data:", habitsData)
         
         guard let jsonData = habitsData.data(using: .utf8) else {
-            print("⚠️ Failed to convert string to UTF8 data")
             throw NSError(domain: "IonicStorage", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid data format"])
         }
         
         do {
             let habitsContainer = try JSONDecoder().decode(HabitsData.self, from: jsonData)
-            print("Successfully decoded \(habitsContainer.habits.count) habits")
+            print("DEBUG: Successfully decoded habits:", habitsContainer.habits.count)
             return habitsContainer.habits
         } catch {
             print("⚠️ JSON Decoding failed:", error)
-            print("JSON Structure:", String(data: jsonData, encoding: .utf8) ?? "invalid UTF8")
             throw error
         }
     }
@@ -99,13 +101,11 @@ class IonicStorageManager {
     func updateHabitValue(habitId: String, value: Any) throws {
         guard let userDefaults = userDefaults else { return }
         
-        print("\n=== DEBUG: Updating Habit ===")
-        print("Updating habit:", habitId)
-        print("New value:", value)
+        // Load existing data first
+        var currentData = try loadHabits()
         
-        var habits = try loadHabits()
-        if let index = habits.firstIndex(where: { $0.id == habitId }) {
-            var updatedHabit = habits[index]
+        if let index = currentData.firstIndex(where: { $0.id == habitId }) {
+            var updatedHabit = currentData[index]
             
             switch value {
             case let checked as Bool:
@@ -138,17 +138,21 @@ class IonicStorageManager {
                 throw NSError(domain: "IonicStorage", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid value type"])
             }
             
-            habits[index] = updatedHabit
+            currentData[index] = updatedHabit
             
-            // Create wrapper structure with new initializer
-            let habitsContainer = HabitsData(habits: habits)
-            
+            // Create container with empty history to preserve existing history
+            let habitsContainer = HabitsData(habits: currentData)
             let encoder = JSONEncoder()
             let jsonData = try encoder.encode(habitsContainer)
+            
             if let jsonString = String(data: jsonData, encoding: .utf8) {
-                print("Saving updated JSON:", jsonString)
+                print("DEBUG: Saving updated habit data:", jsonString)
                 userDefaults.set(jsonString, forKey: "habitData")
-                userDefaults.synchronize() // Force synchronization after updates
+                userDefaults.synchronize()
+                
+                if #available(iOS 14.0, *) {
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
             }
         }
     }

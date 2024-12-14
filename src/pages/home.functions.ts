@@ -7,6 +7,9 @@ export const createHabit = async (
   habits: Habit[],
   habitData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>
 ): Promise<Habit[]> => {
+  // Load existing data to preserve history
+  const existingData = await HabitStorageAPI.handleHabitData('load') as HabitData;
+  
   const newHabit: Habit = {
     ...habitData,
     id: Date.now().toString(),
@@ -15,8 +18,15 @@ export const createHabit = async (
     isComplete: false,
     isBegun: false
   };
+  
   const updatedHabits = [...habits, newHabit];
-  await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: {} });
+  
+  // Save with existing history preserved
+  await HabitStorageAPI.handleHabitData('save', {
+    habits: updatedHabits,
+    history: existingData.history
+  });
+  
   return updatedHabits;
 };
 
@@ -25,21 +35,27 @@ export const editHabit = async (
   habitId: string,
   habitData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>
 ): Promise<Habit[]> => {
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
   const updatedHabits = habits.map(h => 
     h.id === habitId 
       ? { ...h, ...habitData }
       : h
   );
-  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-  await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
+  await HabitStorageAPI.handleHabitData('save', { 
+    habits: updatedHabits, 
+    history: data.history 
+  });
   return updatedHabits;
 };
 
 export const deleteHabit = async (habits: Habit[], id: string): Promise<Habit[]> => {
-  const updatedHabits = habits.filter(habit => habit.id !== id);
   const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+  const updatedHabits = habits.filter(habit => habit.id !== id);
   const { [id]: deletedHistory, ...remainingHistory } = data.history;
-  await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: remainingHistory });
+  await HabitStorageAPI.handleHabitData('save', { 
+    habits: updatedHabits, 
+    history: remainingHistory 
+  });
   return updatedHabits;
 };
 
@@ -65,6 +81,7 @@ export const updateHabitHistory = async (
 };
 
 export const updateQuantity = async (habits: Habit[], id: string, delta: number): Promise<Habit[]> => {
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
   const updatedHabits = habits.map(habit => {
     if (habit.id === id) {
       const newQuantity = Math.max(0, habit.quantity + delta);
@@ -81,14 +98,17 @@ export const updateQuantity = async (habits: Habit[], id: string, delta: number)
   });
   
   if (!useSampleData) {
-    const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-    await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
+    await HabitStorageAPI.handleHabitData('save', { 
+      habits: updatedHabits, 
+      history: data.history 
+    });
   }
   
   return updatedHabits;
 };
 
 export const updateCheckbox = async (habits: Habit[], id: string, checked: boolean): Promise<Habit[]> => {
+  const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
   const updatedHabits = habits.map(habit => {
     if (habit.id === id) {
       const updatedHabit = {
@@ -104,8 +124,10 @@ export const updateCheckbox = async (habits: Habit[], id: string, checked: boole
   });
   
   if (!useSampleData) {
-    const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-    await HabitStorageAPI.handleHabitData('save', { ...data, habits: updatedHabits });
+    await HabitStorageAPI.handleHabitData('save', {
+      habits: updatedHabits,
+      history: data.history
+    });
   }
   
   return updatedHabits;

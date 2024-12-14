@@ -29,7 +29,7 @@ import {
 } from '@ionic/react';
 import { add, remove, pencil, trash, calendar, checkmark, downloadOutline } from 'ionicons/icons';
 import { format } from 'date-fns';
-import { HabitStorageAPI, type Habit } from './HabitStorage';
+import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
 import { 
   updateQuantity, 
   updateCheckbox, 
@@ -174,12 +174,16 @@ const Home: React.FC = () => {
   const [showLongPressToast, setShowLongPressToast] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
   const [showErrorToast, setShowErrorToast] = useState(false);
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showDebugToast, setShowDebugToast] = useState(false);
+  const [debugData, setDebugData] = useState('');
 
   const handleExport = async () => {
     try {
       await exportHabitHistoryToCSV(habits);
     } catch (error) {
+      console.error('Export error:', error);
+      setErrorMessage('Failed to export habit data');
       setShowErrorToast(true);
     }
   };
@@ -196,11 +200,29 @@ const Home: React.FC = () => {
   const handlePressEnd = () => {
     clearTimeout(longPressTimer);
   };
+  
 
   useEffect(() => {
     const initData = async () => {
-      const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-      setHabits(data.habits || []);
+      try {
+        console.log('Loading initial data...');
+        const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+        console.log('Loaded data:', data);
+        
+        // Set debug data
+        setDebugData(JSON.stringify({
+          rawData: data,
+          habitCount: data.habits?.length || 0,
+          hasHistory: Object.keys(data.history || {}).length > 0
+        }, null, 2));
+        setShowDebugToast(true);
+        
+        setHabits(data.habits || []);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        setErrorMessage('Failed to load habits');
+        setShowErrorToast(true);
+      }
     };
     initData();
   }, []);
@@ -208,26 +230,54 @@ const Home: React.FC = () => {
   useEffect(() => {
     const saveHabitsData = async () => {
       if (habits.length > 0) {
-        const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-        await HabitStorageAPI.handleHabitData('save', { ...data, habits });
+        try {
+          console.log('Saving habits data:', habits);
+          // Direct save without reloading first
+          await HabitStorageAPI.handleHabitData('save', { 
+            habits,
+            history: {} // History will be merged in the storage layer
+          });
+        } catch (error) {
+          console.error('Error saving habits data:', error);
+          setErrorMessage('Failed to save habits');
+          setShowErrorToast(true);
+        }
       }
     };
     saveHabitsData();
   }, [habits]);
 
   const handleUpdateQuantity = async (id: string, delta: number) => {
-    const updatedHabits = await updateQuantity(habits, id, delta);
-    setHabits(updatedHabits);
+    try {
+      const updatedHabits = await updateQuantity(habits, id, delta);
+      setHabits(updatedHabits);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      setErrorMessage('Failed to update quantity');
+      setShowErrorToast(true);
+    }
   };
 
   const handleUpdateCheckbox = async (id: string, checked: boolean) => {
-    const updatedHabits = await updateCheckbox(habits, id, checked);
-    setHabits(updatedHabits);
+    try {
+      const updatedHabits = await updateCheckbox(habits, id, checked);
+      setHabits(updatedHabits);
+    } catch (error) {
+      console.error('Error updating checkbox:', error);
+      setErrorMessage('Failed to update habit');
+      setShowErrorToast(true);
+    }
   };
 
   const handleDeleteHabit = async (id: string) => {
-    const updatedHabits = await deleteHabit(habits, id);
-    setHabits(updatedHabits);
+    try {
+      const updatedHabits = await deleteHabit(habits, id);
+      setHabits(updatedHabits);
+    } catch (error) {
+      console.error('Error deleting habit:', error);
+      setErrorMessage('Failed to delete habit');
+      setShowErrorToast(true);
+    }
   };
 
   const handleEdit = (habit: Habit) => {
@@ -237,6 +287,53 @@ const Home: React.FC = () => {
 
   const handleViewCalendar = (habit: Habit) => {
     history.push(`/habit/${habit.id}/calendar`, { habit: habit });
+  };
+
+  const handleSaveHabit = async (habitData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => {
+    try {
+      console.log('Starting habit save process...');
+      const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
+      console.log('Loaded existing data:', data);
+      
+      let updatedHabits: Habit[];
+      const currentHabits = data.habits?.length ? data.habits : habits;
+      
+      if (editingHabit) {
+        console.log('Editing existing habit:', editingHabit.id);
+        updatedHabits = currentHabits.map(h => 
+          h.id === editingHabit.id 
+            ? { ...h, ...habitData }
+            : h
+        );
+      } else {
+        console.log('Creating new habit');
+        const newHabit: Habit = {
+          ...habitData,
+          id: Date.now().toString(),
+          quantity: 0,
+          isChecked: false,
+          isComplete: false,
+          isBegun: false
+        };
+        updatedHabits = [...currentHabits, newHabit];
+      }
+      
+      console.log('Saving updated habits:', updatedHabits);
+      await HabitStorageAPI.handleHabitData('save', {
+        habits: updatedHabits,
+        history: data.history || {}
+      });
+      
+      setHabits(updatedHabits);
+      setShowForm(false);
+      setEditingHabit(null);
+      
+    } catch (error) {
+      console.error('Error saving habit:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save habit';
+      setErrorMessage(`Error: ${errorMsg}`);
+      setShowErrorToast(true);
+    }
   };
 
   return (
@@ -326,6 +423,26 @@ const Home: React.FC = () => {
         )}
 
         <IonToast
+          isOpen={showDebugToast}
+          onDidDismiss={() => setShowDebugToast(false)}
+          message={`Debug Data: ${debugData}`}
+          duration={10000}
+          position="middle"
+          buttons={[
+            {
+              text: 'Copy',
+              handler: () => {
+                navigator.clipboard.writeText(debugData);
+              }
+            },
+            {
+              text: 'Dismiss',
+              role: 'cancel'
+            }
+          ]}
+        />
+
+        <IonToast
           isOpen={showLongPressToast}
           onDidDismiss={() => setShowLongPressToast(false)}
           message={`Long pressed: ${selectedHabit?.name}`}
@@ -361,11 +478,20 @@ const Home: React.FC = () => {
 
         <IonToast
           isOpen={showErrorToast}
-          onDidDismiss={() => setShowErrorToast(false)}
-          message="Failed to export habit data. Please try again."
+          onDidDismiss={() => {
+            setShowErrorToast(false);
+            setErrorMessage('');
+          }}
+          message={errorMessage}
           duration={3000}
           position="bottom"
           color="danger"
+          buttons={[
+            {
+              text: 'Dismiss',
+              role: 'cancel',
+            }
+          ]}
         />
 
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
@@ -385,37 +511,7 @@ const Home: React.FC = () => {
               setShowForm(false);
               setEditingHabit(null);
             }}
-            onSave={async (habitData) => {
-              const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-              let updatedHabits: Habit[];
-              
-              if (editingHabit) {
-                updatedHabits = data.habits.map(h => 
-                  h.id === editingHabit.id 
-                    ? { ...h, ...habitData }
-                    : h
-                );
-              } else {
-                const newHabit: Habit = {
-                  ...habitData,
-                  id: Date.now().toString(),
-                  quantity: 0,
-                  isChecked: false,
-                  isComplete: false,
-                  isBegun: false
-                };
-                updatedHabits = [...data.habits, newHabit];
-              }
-              
-              await HabitStorageAPI.handleHabitData('save', {
-                ...data,
-                habits: updatedHabits
-              });
-              
-              setHabits(updatedHabits);
-              setShowForm(false);
-              setEditingHabit(null);
-            }}
+            onSave={handleSaveHabit}
           />
         )}
       </IonContent>
