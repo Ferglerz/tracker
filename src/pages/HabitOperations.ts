@@ -1,4 +1,4 @@
-// habitOperations.ts
+// HabitOperations.ts
 
 import { format } from 'date-fns';
 import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
@@ -30,76 +30,49 @@ export const updateHabitHistory = async (
 };
 
 
-export const updateQuantity = async (habits: Habit[], id: string, delta: number): Promise<Habit[]> => {
+export const updateHabitValue = async (
+  habits: Habit[], 
+  id: string, 
+  action: { type: 'quantity'; delta: number } | { type: 'checkbox'; checked: boolean }
+): Promise<Habit[]> => {
   try {
     const data = await HabitStorageAPI.handleHabitData('load');
     const updatedHabits = habits.map(habit => {
-      if (habit.id === id) {
-        const newQuantity = Math.max(0, habit.quantity + delta);
-        const updatedHabit = {
-          ...habit,
-          quantity: newQuantity,
-          isBegun: newQuantity > 0,
-          isComplete: habit.goal ? newQuantity >= habit.goal : false
-        };
-        
-        // Update history for today
-        const dateKey = formatDateKey(new Date());
-        if (!data.history[id]) {
-          data.history[id] = {};
-        }
-        data.history[id][dateKey] = newQuantity;
-        
-        return updatedHabit;
-      }
-      return habit;
-    });
-    
-    await HabitStorageAPI.handleHabitData('save', {
-      habits: updatedHabits,
-      history: data.history
-    });
-    
-    return updatedHabits;
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to update quantity');
-    return habits; // Return original habits on error
-  }
-};
+      if (habit.id !== id) return habit;
 
-export const updateCheckbox = async (habits: Habit[], id: string, checked: boolean): Promise<Habit[]> => {
-  try {
-    const data = await HabitStorageAPI.handleHabitData('load');
-    const updatedHabits = habits.map(habit => {
-      if (habit.id === id) {
-        const updatedHabit = {
-          ...habit,
-          isChecked: checked,
-          isComplete: checked,
-          isBegun: checked
-        };
-        
-        // Update history for today
-        const dateKey = formatDateKey(new Date());
-        if (!data.history[id]) {
-          data.history[id] = {};
-        }
-        data.history[id][dateKey] = checked;
-        
-        return updatedHabit;
+      let updatedHabit;
+      switch (action.type) {
+        case 'quantity':
+          const newQuantity = Math.max(0, habit.quantity + action.delta);
+          updatedHabit = {
+            ...habit,
+            quantity: newQuantity,
+            isBegun: newQuantity > 0,
+            isComplete: habit.goal ? newQuantity >= habit.goal : false
+          };
+          data.history[id] = data.history[id] || {};
+          data.history[id][formatDateKey(new Date())] = newQuantity;
+          break;
+
+        case 'checkbox':
+          updatedHabit = {
+            ...habit,
+            isChecked: action.checked,
+            isComplete: action.checked,
+            isBegun: action.checked
+          };
+          data.history[id] = data.history[id] || {};
+          data.history[id][formatDateKey(new Date())] = action.checked;
+          break;
       }
-      return habit;
+      return updatedHabit;
     });
-    
-    await HabitStorageAPI.handleHabitData('save', {
-      habits: updatedHabits,
-      history: data.history
-    });
-    
+
+    await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: data.history });
     return updatedHabits;
   } catch (error) {
-    errorHandler.handleError(error, 'Failed to update checkbox');
-    return habits; // Return original habits on error
+    errorHandler.handleError(error, 'Failed to update habit');
+    return habits;
   }
 };
 

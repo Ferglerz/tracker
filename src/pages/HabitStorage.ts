@@ -1,10 +1,12 @@
 // HabitStorage.ts
-
+import { Storage } from '@ionic/storage';
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 import { App } from '@capacitor/app';
 import { errorHandler } from './ErrorUtils';
 import { validateHabitData } from './HabitUtils';
+import { Capacitor } from '@capacitor/core';
 
+// Existing interfaces remain the same
 export interface Habit {
   id: string;
   name: string;
@@ -15,7 +17,7 @@ export interface Habit {
   isChecked: boolean;
   isComplete: boolean;
   isBegun: boolean;
-  bgColor?: string;
+  bgColor: string; 
 }
 
 export interface HabitHistory {
@@ -46,8 +48,20 @@ class StorageCache {
   private saveQueue: Promise<void> = Promise.resolve();
   private readonly storageKey = 'habitData';
   private readonly storageGroup = 'group.io.ionic.tracker';
+  private ionicStorage: Storage | null = null;
+  private isNative: boolean;
 
-  private constructor() {}
+  private constructor() {
+    this.isNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+    if (!this.isNative) {
+      this.initializeIonicStorage();
+    }
+  }
+
+  private async initializeIonicStorage() {
+    this.ionicStorage = new Storage();
+    await this.ionicStorage.create();
+  }
 
   static getInstance(): StorageCache {
     if (!StorageCache.instance) {
@@ -65,18 +79,23 @@ class StorageCache {
   }
 
   private async saveToStorage(data: HabitData): Promise<void> {
-    const storageItem: StorageOptions = {
-      key: this.storageKey,
-      value: JSON.stringify(data),
-      group: this.storageGroup
-    };
-
-    await WidgetsBridgePlugin.setItem(storageItem);
-    await WidgetsBridgePlugin.reloadAllTimelines();
+    if (this.isNative) {
+      const storageItem: StorageOptions = {
+        key: this.storageKey,
+        value: JSON.stringify(data),
+        group: this.storageGroup
+      };
+      await WidgetsBridgePlugin.setItem(storageItem);
+      await WidgetsBridgePlugin.reloadAllTimelines();
+    } else {
+      if (!this.ionicStorage) {
+        await this.initializeIonicStorage();
+      }
+      await this.ionicStorage!.set(this.storageKey, JSON.stringify(data));
+    }
   }
 
   async save(data: HabitData): Promise<void> {
-    // Queue the save operation
     this.saveQueue = this.saveQueue.then(async () => {
       try {
         await this.saveToStorage(data);
@@ -96,18 +115,28 @@ class StorageCache {
         return this.cache;
       }
 
-      const result = await WidgetsBridgePlugin.getItem({
-        key: this.storageKey,
-        group: this.storageGroup
-      }) as StorageResult;
+      let rawData: string | null = null;
 
-      if (!result?.value) {
+      if (this.isNative) {
+        const result = await WidgetsBridgePlugin.getItem({
+          key: this.storageKey,
+          group: this.storageGroup
+        }) as StorageResult;
+        rawData = result?.value || null;
+      } else {
+        if (!this.ionicStorage) {
+          await this.initializeIonicStorage();
+        }
+        rawData = await this.ionicStorage!.get(this.storageKey);
+      }
+
+      if (!rawData) {
         const defaultData: HabitData = { habits: [], history: {} };
         this.cache = defaultData;
         return defaultData;
       }
 
-      const parsed = JSON.parse(result.value);
+      const parsed = JSON.parse(rawData);
       const validatedData: HabitData = {
         habits: Array.isArray(parsed.habits) 
           ? parsed.habits.filter(validateHabitData)

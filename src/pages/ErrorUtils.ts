@@ -1,4 +1,4 @@
-// errorUtils.ts
+// ErrorUtils.ts
 
 import { Subject } from 'rxjs';
 

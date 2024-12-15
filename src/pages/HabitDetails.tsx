@@ -2,16 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  IonContent,
-  IonHeader,
-  IonPage,
-  IonTitle,
-  IonToolbar,
-  IonButtons,
-  IonBackButton,
-  IonDatetime,
-  IonCard,
-  IonCardContent
+  IonContent,  IonHeader,  IonPage,  IonTitle,
+  IonToolbar,  IonButtons,  IonBackButton,  IonDatetime,
+  IonCard,  IonCardContent
 } from '@ionic/react';
 import { useLocation } from 'react-router-dom';
 import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';

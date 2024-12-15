@@ -1,94 +1,20 @@
 // Home.tsx
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
-  IonContent,
-  IonHeader,
-  IonPage,
-  IonTitle,
-  IonToolbar,
-  IonList,
-  IonItem,
-  IonLabel,
-  IonButton,
-  IonFab,
-  IonFabButton,
-  IonIcon,
-  IonCheckbox,
-  IonBadge,
-  IonItemSliding,
-  IonItemOption,
-  IonItemOptions,
-  IonModal,
-  IonAlert,
-  IonToast,
-  IonRippleEffect,
-  IonButtons,
+  IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList,
+  IonItem, IonLabel, IonButton, IonFab, IonFabButton, IonIcon,
+  IonCheckbox, IonBadge, IonItemSliding, IonItemOption,
+  IonItemOptions, IonAlert, IonToast, IonRippleEffect, IonButtons, 
+  IonFooter,
 } from '@ionic/react';
-import { add, remove, pencil, trash, calendar, downloadOutline } from 'ionicons/icons';
+import { add, remove, pencil, trash, calendar, downloadOutline, checkmark } from 'ionicons/icons';
 import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
-import { updateQuantity, updateCheckbox, deleteHabit, exportHabitHistoryToCSV } from './HabitOperations';
+import { updateHabitValue, deleteHabit, exportHabitHistoryToCSV } from './HabitOperations';
+import { UpdateAction, HabitFormData } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
-
-const PRESET_COLORS = [
-  '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
-  '#b5ead7', '#c7ceea', '#9b9b9b', '#f8c8dc'
-] as const;
-
-interface HabitFormData {
-  name: string;
-  type: 'checkbox' | 'quantity';
-  unit?: string;
-  goal?: number;
-  bgColor: string;
-}
-
-const DEFAULT_FORM_DATA: HabitFormData = {
-  name: '',
-  type: 'checkbox',
-  bgColor: PRESET_COLORS[0]
-};
-
-// Separate HabitForm into its own component for better organization
-const HabitForm: React.FC<{
-  onClose: () => void;
-  onSave: (habit: HabitFormData) => Promise<void>;
-  initialData?: Habit;
-  title: string;
-}> = React.memo(({ onClose, onSave, initialData, title }) => {
-  const [formData, setFormData] = useState<HabitFormData>(() => ({
-    ...DEFAULT_FORM_DATA,
-    ...initialData && {
-      name: initialData.name,
-      type: initialData.type,
-      unit: initialData.unit,
-      goal: initialData.goal,
-      bgColor: initialData.bgColor || DEFAULT_FORM_DATA.bgColor
-    }
-  }));
-
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      errorHandler.showWarning('Please enter a habit name');
-      return;
-    }
-    await onSave(formData);
-  };
-
-  const updateField = <K extends keyof HabitFormData>(
-    field: K,
-    value: HabitFormData[K]
-  ) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  return (
-    <IonModal isOpen={true} onDidDismiss={onClose}>
-      {/* Form JSX remains the same */}
-    </IonModal>
-  );
-});
+import HabitForm from './HabitForm';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -99,37 +25,53 @@ const Home: React.FC = () => {
   const [showLongPressToast, setShowLongPressToast] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
 
+  useEffect(() => {
+    console.log('Habits data changed:', habitsData);
+  }, [habitsData]);
+
+  const handleLongPress = useCallback((habit: Habit) => {
+    const timer = setTimeout(() => {
+      setSelectedHabit(habit);
+      setShowLongPressToast(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const handleViewCalendar = useCallback((habit: Habit) => {
+    history.push(`/habit/${habit.id}/calendar`, { habit });
+  }, [history]);
+
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
+      console.log('Loading initial data...');
       try {
         const data = await HabitStorageAPI.handleHabitData('load');
+        console.log('Initial data loaded:', data);
         setHabitsData(data);
       } catch (error) {
+        console.error('Failed to load initial data:', error);
         errorHandler.handleError(error, 'Failed to load habits');
       }
     };
-    loadData();
+
+    // Subscribe to storage changes
+    const handleStorageChange = async () => {
+      console.log('Storage changed, reloading data');
+      loadData();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Memoized handlers
-  const handleUpdateQuantity = useCallback(async (id: string, delta: number) => {
-    try {
-      const updatedHabits = await updateQuantity(habitsData.habits, id, delta);
-      setHabitsData(prev => ({ ...prev, habits: updatedHabits }));
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to update quantity');
-    }
-  }, [habitsData.habits]);
-
-  const handleUpdateCheckbox = useCallback(async (id: string, checked: boolean) => {
-    try {
-      const updatedHabits = await updateCheckbox(habitsData.habits, id, checked);
-      setHabitsData(prev => ({ ...prev, habits: updatedHabits }));
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to update habit');
-    }
-  }, [habitsData.habits]);
+  const handleHabitUpdate = useCallback(
+    (id: string, action: UpdateAction) => updateHabitValue(habitsData.habits, id, action)
+      .then(updatedHabits => setHabitsData(prev => ({ ...prev, habits: updatedHabits })))
+      .catch(error => errorHandler.handleError(error, `Failed to update habit ${action.type}`)),
+    [habitsData.habits]
+  );
 
   const handleDeleteHabit = useCallback(async (id: string) => {
     try {
@@ -150,10 +92,9 @@ const Home: React.FC = () => {
     }
   }, [habitsData.habits]);
 
-  const handleSaveHabit = useCallback(async (formData: HabitFormData) => {
+  const handleSaveHabit = useCallback(async (formData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => {
+    console.log('Saving habit with form data:', formData);
     try {
-      let updatedHabits: Habit[];
-      
       const habitData = {
         ...formData,
         id: editingHabit?.id || Date.now().toString(),
@@ -162,52 +103,36 @@ const Home: React.FC = () => {
         isComplete: editingHabit?.isComplete || false,
         isBegun: editingHabit?.isBegun || false
       };
-
-      if (editingHabit) {
-        updatedHabits = habitsData.habits.map(h => 
-          h.id === editingHabit.id ? habitData : h
-        );
-      } else {
-        updatedHabits = [...habitsData.habits, habitData];
-      }
-
-      await HabitStorageAPI.handleHabitData('save', {
+      console.log('Created habit data:', habitData);
+  
+      const updatedHabits = editingHabit 
+        ? habitsData.habits.map(h => h.id === editingHabit.id ? habitData : h)
+        : [...habitsData.habits, habitData];
+      console.log('Updated habits array:', updatedHabits);
+  
+      const newData = {
         ...habitsData,
         habits: updatedHabits
-      });
-
-      setHabitsData(prev => ({ ...prev, habits: updatedHabits }));
+      };
+      
+      await HabitStorageAPI.handleHabitData('save', newData);
+      console.log('Saved to storage, setting state with:', newData);
+      
+      setHabitsData(newData);
       setShowForm(false);
       setEditingHabit(null);
     } catch (error) {
+      console.error('Save habit error:', error);
       errorHandler.handleError(error, 'Failed to save habit');
     }
   }, [editingHabit, habitsData]);
-
-  const handleViewCalendar = useCallback((habit: Habit) => {
-    history.push(`/habit/${habit.id}/calendar`, { habit });
-  }, [history]);
-
-  // Long press handling
-  const handleLongPress = useCallback((habit: Habit) => {
-    const timer = setTimeout(() => {
-      setSelectedHabit(habit);
-      setShowLongPressToast(true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Memoize sorted habits if needed
-  const sortedHabits = useMemo(() => {
-    return [...habitsData.habits].sort((a, b) => a.name.localeCompare(b.name));
-  }, [habitsData.habits]);
 
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonTitle className="ion-text-center">Habits</IonTitle>
-          {sortedHabits.length > 0 && (
+          {habitsData.habits.length > 0 && (
             <IonButtons slot="end">
               <IonButton onClick={handleExport}>
                 <IonIcon slot="icon-only" icon={downloadOutline} />
@@ -217,18 +142,17 @@ const Home: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent>
-        {sortedHabits.length === 0 ? (
+        {habitsData.habits.length === 0 ? (
           <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
             Add a new habit to track with the + button, bottom right.
           </div>
         ) : (
           <IonList>
-            {sortedHabits.map((habit) => (
+            {habitsData.habits.map((habit) => (
               <HabitListItem
                 key={habit.id}
                 habit={habit}
-                onUpdateQuantity={handleUpdateQuantity}
-                onUpdateCheckbox={handleUpdateCheckbox}
+                onUpdate={handleHabitUpdate}
                 onEdit={() => {
                   setEditingHabit(habit);
                   setShowForm(true);
@@ -240,19 +164,20 @@ const Home: React.FC = () => {
             ))}
           </IonList>
         )}
-
-        {/* Modals and Alerts */}
-        {showForm && (
-          <HabitForm
-            title={editingHabit ? "Edit Habit" : "New Habit"}
-            initialData={editingHabit || undefined}
-            onClose={() => {
-              setShowForm(false);
-              setEditingHabit(null);
-            }}
-            onSave={handleSaveHabit}
-          />
-        )}
+    {showForm && (
+  <HabitForm
+    title={editingHabit ? "Edit Habit" : "New Habit"}
+    initialData={editingHabit || undefined}
+    onClose={() => {
+      setShowForm(false);
+      setEditingHabit(null);
+    }}
+    onSave={(data) => {
+      console.log('Form onSave wrapper called with data:', data);
+      return handleSaveHabit(data);
+    }}
+  />
+)}
 
 <IonAlert
   isOpen={!!habitToDelete}
@@ -302,16 +227,14 @@ const Home: React.FC = () => {
 // Separate HabitListItem component for better performance
 const HabitListItem: React.FC<{
   habit: Habit;
-  onUpdateQuantity: (id: string, delta: number) => Promise<void>;
-  onUpdateCheckbox: (id: string, checked: boolean) => Promise<void>;
+  onUpdate: (id: string, action: UpdateAction) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
   onViewCalendar: () => void;
   onLongPress: (habit: Habit) => void;
 }> = React.memo(({
   habit,
-  onUpdateQuantity,
-  onUpdateCheckbox,
+  onUpdate,
   onEdit,
   onDelete,
   onViewCalendar,
@@ -329,7 +252,10 @@ const HabitListItem: React.FC<{
             <IonCheckbox
               slot="start"
               checked={habit.isChecked}
-              onIonChange={(e) => onUpdateCheckbox(habit.id, e.detail.checked)}
+              onIonChange={(e) => onUpdate(habit.id, { 
+                type: 'checkbox', 
+                checked: e.detail.checked 
+              })}
               style={{ zIndex: 1 }}
             />
             {habit.name}
@@ -344,10 +270,16 @@ const HabitListItem: React.FC<{
               <IonBadge color="success">Complete!</IonBadge>
             )}
             <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
-              <IonButton fill="clear" onClick={() => onUpdateQuantity(habit.id, -1)}>
+              <IonButton 
+                fill="clear" 
+                onClick={() => onUpdate(habit.id, { type: 'quantity', delta: -1 })}
+              >
                 <IonIcon icon={remove} />
               </IonButton>
-              <IonButton fill="clear" onClick={() => onUpdateQuantity(habit.id, 1)}>
+              <IonButton 
+                fill="clear" 
+                onClick={() => onUpdate(habit.id, { type: 'quantity', delta: 1 })}
+              >
                 <IonIcon icon={add} />
               </IonButton>
             </div>
