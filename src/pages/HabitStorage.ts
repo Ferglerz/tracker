@@ -1,24 +1,10 @@
+// HabitStorage.ts
+
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 import { App } from '@capacitor/app';
+import { errorHandler } from './ErrorUtils';
+import { validateHabitData } from './HabitUtils';
 
-// Plugin specific types
-interface WidgetConfiguration {
-  widgetId: string;
-  kind: string;
-}
-
-interface StorageResult {
-  value?: string;
-  error?: string;
-}
-
-interface UserDefaultsOptions {
-  key: string;
-  value: string;
-  group: string;
-}
-
-// Habit interfaces
 export interface Habit {
   id: string;
   name: string;
@@ -43,10 +29,23 @@ export interface HabitData {
   history: HabitHistory;
 }
 
-// Create a class to handle the cache
+interface StorageResult {
+  value?: string;
+  error?: string;
+}
+
+interface StorageOptions {
+  key: string;
+  group: string;
+  value?: string;
+}
+
 class StorageCache {
   private static instance: StorageCache;
   private cache: HabitData | null = null;
+  private saveQueue: Promise<void> = Promise.resolve();
+  private readonly storageKey = 'habitData';
+  private readonly storageGroup = 'group.io.ionic.tracker';
 
   private constructor() {}
 
@@ -65,246 +64,157 @@ class StorageCache {
     this.cache = data;
   }
 
+  private async saveToStorage(data: HabitData): Promise<void> {
+    const storageItem: StorageOptions = {
+      key: this.storageKey,
+      value: JSON.stringify(data),
+      group: this.storageGroup
+    };
+
+    await WidgetsBridgePlugin.setItem(storageItem);
+    await WidgetsBridgePlugin.reloadAllTimelines();
+  }
+
+  async save(data: HabitData): Promise<void> {
+    // Queue the save operation
+    this.saveQueue = this.saveQueue.then(async () => {
+      try {
+        await this.saveToStorage(data);
+        this.cache = data;
+      } catch (error) {
+        errorHandler.handleError(error, 'Failed to save habit data');
+        throw error;
+      }
+    });
+
+    await this.saveQueue;
+  }
+
+  async load(): Promise<HabitData> {
+    try {
+      if (this.cache) {
+        return this.cache;
+      }
+
+      const result = await WidgetsBridgePlugin.getItem({
+        key: this.storageKey,
+        group: this.storageGroup
+      }) as StorageResult;
+
+      if (!result?.value) {
+        const defaultData: HabitData = { habits: [], history: {} };
+        this.cache = defaultData;
+        return defaultData;
+      }
+
+      const parsed = JSON.parse(result.value);
+      const validatedData: HabitData = {
+        habits: Array.isArray(parsed.habits) 
+          ? parsed.habits.filter(validateHabitData)
+          : [],
+        history: parsed.history && typeof parsed.history === 'object' 
+          ? parsed.history 
+          : {}
+      };
+
+      this.cache = validatedData;
+      return validatedData;
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to load habit data');
+      const defaultData: HabitData = { habits: [], history: {} };
+      this.cache = defaultData;
+      return defaultData;
+    }
+  }
+
   clear(): void {
     this.cache = null;
   }
 }
 
-const storageCache = StorageCache.getInstance();
+// Private helper functions
+const syncWithWidgets = async (storage: StorageCache, data: HabitData): Promise<void> => {
+  try {
+    await storage.save(data);
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to sync with widgets');
+    throw error;
+  }
+};
 
-interface ToastCallback {
-  (debugData: string, show: boolean): void;
-}
-
-let showDebugToast: ToastCallback | null = null;
-
-
-// Export everything from a single source
-export const HabitStorageAPI = {
-  init: async () => {
-    try {
-      console.log('Initializing HabitStorageAPI...');
-      
-      // First load the data
-      const existingData = await HabitStorageAPI.handleHabitData('load') as HabitData;
-      console.log('Initial load during init:', existingData);
-      
-      // Cache the data
-      storageCache.setData(existingData);
-      
-      // Setup listeners after loading data
-      await setupAppStateListener();
-      
-      if (existingData && existingData.habits.length > 0) {
-        console.log('Found existing data, syncing with widgets');
-        await syncWithWidgets(existingData);
+const setupAppStateListener = async (refreshWidgets: () => Promise<void>): Promise<void> => {
+  App.addListener('appStateChange', async ({ isActive }) => {
+    if (isActive) {
+      try {
+        await refreshWidgets();
+      } catch (error) {
+        errorHandler.handleError(error, 'Failed to refresh widgets on app state change');
       }
-      
-      return existingData;
-    } catch (e) {
-      console.error('Initialization error:', e);
-      throw e;
+    }
+  });
+};
+
+export const HabitStorageAPI = {
+  storage: StorageCache.getInstance(),
+
+  async init(): Promise<HabitData> {
+    try {
+      const data = await this.storage.load();
+      await setupAppStateListener(this.refreshWidgets.bind(this));
+      if (data.habits.length > 0) {
+        await syncWithWidgets(this.storage, data);
+      }
+      return data;
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to initialize habit storage');
+      throw error;
     }
   },
 
-  setDebugToastCallback: (callback: ToastCallback) => {
-    showDebugToast = callback;
-  },
-
-
-  handleHabitData: async (
+  async handleHabitData(
     action: 'load' | 'save',
     data?: HabitData
-  ): Promise<HabitData | void> => {
-    const defaultData: HabitData = { habits: [], history: {} };
-    const storageKey = 'habitData';
-    const storageGroup = 'group.io.ionic.tracker';
-
+  ): Promise<HabitData> {
     switch (action) {
       case 'load':
-        try {
-          // Check cache first
-          const cachedData = storageCache.getData();
-          if (cachedData) {
-            console.log('Returning cached data:', cachedData);
-            return cachedData;
-          }
-
-          console.log('Loading data from storage...');
-          const result = await WidgetsBridgePlugin.getItem({
-            key: storageKey,
-            group: storageGroup
-          }) as StorageResult;
-
-          console.log('Raw load result:', result);
-
-          // Handle case where result is empty or undefined
-          if (!result || !result.value) {
-            console.log('No data in storage, returning default');
-            return defaultData;
-          }
-
-          try {
-            const parsed = JSON.parse(result.value);
-            const validatedData: HabitData = {
-              habits: Array.isArray(parsed.habits) ? parsed.habits : [],
-              history: parsed.history && typeof parsed.history === 'object' ? parsed.history : {}
-            };
-
-            // Update cache
-            storageCache.setData(validatedData);
-            console.log('Loaded and validated data:', validatedData);
-            return validatedData;
-          } catch (parseError) {
-            console.error('Parse error:', parseError);
-            return defaultData;
-          }
-
-        } catch (e) {
-          console.error('Load error:', e);
-          return defaultData;
-        }
-
+        return this.storage.load();
+      
       case 'save':
-        if (!data) return;
-        try {
-          console.log('Starting save operation...');
-          
-          // Validate and prepare data
-          const validData: HabitData = {
-            habits: Array.isArray(data.habits) ? data.habits : [],
-            history: data.history && typeof data.history === 'object' ? data.history : {}
-          };
-
-          // Prepare storage item
-          const storageItem = {
-            key: storageKey,
-            value: JSON.stringify(validData),
-            group: storageGroup
-          };
-
-          console.log('Saving data:', storageItem);
-
-          // Attempt save
-          await WidgetsBridgePlugin.setItem(storageItem);
-
-          // Update cache immediately after successful save
-          storageCache.setData(validData);
-
-          // Reload widget timelines
-          await WidgetsBridgePlugin.reloadAllTimelines();
-
-          console.log('Save completed successfully');
-          return validData;
-        } catch (e) {
-          console.error('Save error:', e);
-          throw e;
+        if (!data) {
+          throw new Error('No data provided for save operation');
         }
+        await this.storage.save(data);
+        return data;
+      
+      default:
+        throw new Error(`Invalid storage action: ${action}`);
     }
   },
 
-  clearCache: () => {
-    console.log('Clearing data cache');
-    storageCache.clear();
-  },
-
-  refreshWidgets: async (): Promise<void> => {
+  async refreshWidgets(): Promise<void> {
     try {
-      console.log('Refreshing widgets...');
-      const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-      if (data && data.habits.length > 0) {
-        console.log('Found data to sync:', data.habits.length, 'habits');
-        await syncWithWidgets(data);
-      } else {
-        console.log('No data to sync with widgets');
+      const data = await this.storage.load();
+      if (data.habits.length > 0) {
+        await syncWithWidgets(this.storage, data);
       }
-    } catch (e) {
-      console.error('Widget refresh error:', e);
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to refresh widgets');
     }
   },
 
-  removeWidgetData: async (widgetId: string): Promise<void> => {
+  async removeWidgetData(widgetId: string): Promise<void> {
     try {
-      console.log('Removing widget data...');
       await WidgetsBridgePlugin.removeItem({
         key: 'habitData',
         group: 'group.io.ionic.tracker'
       });
       
       await WidgetsBridgePlugin.reloadAllTimelines();
-      storageCache.clear();
-      console.log('Widget data removed and timelines reloaded');
-    } catch (e) {
-      console.error('Remove widget data error:', e);
-    }
-  },
-
-  getStatusColor: (status: 'complete' | 'partial' | 'none'): string => {
-    switch (status) {
-      case 'complete':
-        return '#2dd36f';
-      case 'partial':
-        return '#ffc409';
-      case 'none':
-        return 'transparent';
-    }
-  },
-
-  debugStorage: async (): Promise<void> => {
-    try {
-      const result = await WidgetsBridgePlugin.getItem({
-        key: 'habitData',
-        group: 'group.io.ionic.tracker'
-      });
-      
-      console.log('Debug - Storage contents:', result);
-      console.log('Debug - Cache contents:', storageCache.getData());
-      
-    } catch (e) {
-      console.error('Debug - Storage error:', e);
+      this.storage.clear();
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to remove widget data');
     }
   }
 };
 
-// Private helper functions
-async function syncWithWidgets(data: HabitData) {
-  try {
-    console.log('Starting widget sync...');
-    
-    const storageItem = {
-      key: 'habitData',
-      value: JSON.stringify(data),
-      group: 'group.io.ionic.tracker'
-    };
-
-    // Perform save
-    await WidgetsBridgePlugin.setItem(storageItem);
-    
-    // Update cache after successful save
-    storageCache.setData(data);
-
-    // Reload timelines
-    await WidgetsBridgePlugin.reloadAllTimelines();
-    
-    console.log('Widget sync completed');
-  } catch (e) {
-    console.error('Widget sync error:', e);
-    throw e;
-  }
-}
-
-async function setupAppStateListener() {
-  App.addListener('appStateChange', async ({ isActive }) => {
-    if (isActive) {
-      console.log('App became active, refreshing data');
-      try {
-        await HabitStorageAPI.refreshWidgets();
-      } catch (e) {
-        console.error('Error refreshing widgets on app state change:', e);
-      }
-    }
-  });
-}
-
-// Re-export individual functions for backward compatibility
-export const { handleHabitData, refreshWidgets, removeWidgetData, getStatusColor, debugStorage } = HabitStorageAPI;
+export const { handleHabitData, refreshWidgets, removeWidgetData } = HabitStorageAPI;

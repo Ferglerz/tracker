@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// HabitDetails.tsx
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   IonContent,
   IonHeader,
@@ -12,9 +14,11 @@ import {
   IonCardContent
 } from '@ionic/react';
 import { useLocation } from 'react-router-dom';
-import { HabitStorageAPI, type Habit, type HabitData} from './HabitStorage';
-import { updateHabitHistory, useSampleData } from './home.functions';
+import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
+import { updateHabitHistory } from './HabitOperations';
 import HabitDateEditModal from './HabitDateEditModal';
+import { errorHandler } from './ErrorUtils';
+import { formatDateKey, getHighlightStyle } from './HabitUtils';
 
 interface LocationState {
   habit: Habit;
@@ -22,7 +26,8 @@ interface LocationState {
 
 const HabitDetails: React.FC = () => {
   const location = useLocation<LocationState>();
-  const habit = location.state?.habit;
+  const habit = useMemo(() => location.state?.habit, [location.state]);
+  
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
   const [habitHistory, setHabitHistory] = useState<Record<string, number | boolean>>({});
   const [showEditModal, setShowEditModal] = useState(false);
@@ -30,83 +35,59 @@ const HabitDetails: React.FC = () => {
 
   useEffect(() => {
     const loadHabitData = async () => {
-      if (habit?.id) {
+      if (!habit?.id) return;
+      
+      try {
         const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
         setHabitHistory(data.history[habit.id] || {});
+      } catch (error) {
+        errorHandler.handleError(error, 'Failed to load habit history');
       }
     };
-    loadHabitData();
-  }, [habit]);
-
-  const handleDateClick = async (isoString: string) => {
-    const dateKey = isoString.split('T')[0];
     
-    if (habit.type === 'checkbox') {
-      const currentValue = !!habitHistory[dateKey];
-      if (useSampleData) {
-        setHabitHistory(prev => ({
-          ...prev,
-          [dateKey]: !currentValue
-        }));
-      } else {
+    loadHabitData();
+  }, [habit?.id]);
+
+  const handleDateClick = useCallback(async (isoString: string) => {
+    if (!habit?.id) return;
+    
+    const dateKey = formatDateKey(new Date(isoString));
+    
+    try {
+      if (habit.type === 'checkbox') {
+        const currentValue = !!habitHistory[dateKey];
         const date = new Date(dateKey + 'T12:00:00');
         const data = await updateHabitHistory(habit.id, !currentValue, date);
         setHabitHistory(data.history[habit.id] || {});
+      } else {
+        setEditingDate(dateKey);
+        setShowEditModal(true);
       }
-    } else {
-      setEditingDate(dateKey);
-      setShowEditModal(true);
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to update habit');
     }
-  };
+  }, [habit?.id, habit?.type, habitHistory]);
 
-  const handleSaveDate = async (value: number | boolean) => {
+  const handleSaveDate = useCallback(async (value: number | boolean) => {
     if (!habit?.id) return;
   
-    if (useSampleData) {
-      setHabitHistory(prev => ({
-        ...prev,
-        [editingDate]: value
-      }));
-    } else {
-      const date = new Date(editingDate + 'T12:00:00');
-      const data = await updateHabitHistory(habit.id, value, date);
-      setHabitHistory(data.history[habit.id] || {});
+    try {
+        const date = new Date(editingDate + 'T12:00:00');
+        const data = await updateHabitHistory(habit.id, value, date);
+        setHabitHistory(data.history[habit.id] || {});
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to save habit value');
     }
-  };
+  }, [habit?.id, editingDate]);
 
-  const getHighlightedDates = (isoString: string) => {
-    const dateKey = isoString.split('T')[0];
+  const getHighlightedDates = useCallback((isoString: string) => {
+    const dateKey = formatDateKey(new Date(isoString));
     const value = habitHistory[dateKey];
     
     if (value === undefined) return undefined;
-
-    if (typeof value === 'boolean') {
-      return {
-        textColor: value ? '#ffffff' : '#000000',
-        backgroundColor: value ? '#10b981' : '#374151'
-      };
-    }
-
-    if (habit?.goal) {
-      if (value >= habit.goal) {
-        return {
-          textColor: '#ffffff',
-          backgroundColor: '#10b981'
-        };
-      }
-      if (value > 0) {
-        return {
-          textColor: '#000000',
-          backgroundColor: '#f97316'
-        };
-      }
-    }
     
-    return {
-      textColor: '#000000',
-      backgroundColor: '#374151'
-    };
-  };
+    return getHighlightStyle(value, habit!);
+  }, [habit, habitHistory]);
 
   if (!habit?.id) {
     return (
@@ -163,7 +144,7 @@ const HabitDetails: React.FC = () => {
               onSave={handleSaveDate}
               habit={habit}
               date={editingDate}
-              currentValue={habitHistory[editingDate]}
+              currentValue={habitHistory[editingDate] as number}
             />
           )}
         </div>
@@ -172,4 +153,4 @@ const HabitDetails: React.FC = () => {
   );
 };
 
-export default HabitDetails;
+export default React.memo(HabitDetails);
