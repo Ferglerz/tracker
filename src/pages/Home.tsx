@@ -1,20 +1,16 @@
-// Home.tsx
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
-  IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList,
-  IonItem, IonLabel, IonButton, IonFab, IonFabButton, IonIcon,
-  IonCheckbox, IonBadge, IonItemSliding, IonItemOption,
-  IonItemOptions, IonAlert, IonToast, IonRippleEffect, IonButtons, 
-  IonFooter,
+  IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonButton, IonFab, 
+  IonFabButton, IonIcon, IonAlert, IonToast, IonButtons,
 } from '@ionic/react';
-import { add, remove, pencil, trash, calendar, downloadOutline, checkmark } from 'ionicons/icons';
+import { add, downloadOutline } from 'ionicons/icons';
 import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
 import { updateHabitValue, deleteHabit, exportHabitHistoryToCSV } from './HabitOperations';
-import { UpdateAction, HabitFormData } from './HabitTypes';
+import { UpdateAction } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 import HabitForm from './HabitForm';
+import { HabitListItem } from './HabitListItem';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -24,10 +20,6 @@ const Home: React.FC = () => {
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
   const [showLongPressToast, setShowLongPressToast] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
-
-  useEffect(() => {
-    console.log('Habits data changed:', habitsData);
-  }, [habitsData]);
 
   const handleLongPress = useCallback((habit: Habit) => {
     const timer = setTimeout(() => {
@@ -44,10 +36,8 @@ const Home: React.FC = () => {
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
-      console.log('Loading initial data...');
       try {
-        const data = await HabitStorageAPI.handleHabitData('load');
-        console.log('Initial data loaded:', data);
+        const data = await HabitStorageAPI.init();
         setHabitsData(data);
       } catch (error) {
         console.error('Failed to load initial data:', error);
@@ -55,9 +45,10 @@ const Home: React.FC = () => {
       }
     };
 
+    loadData();
+
     // Subscribe to storage changes
     const handleStorageChange = async () => {
-      console.log('Storage changed, reloading data');
       loadData();
     };
 
@@ -93,8 +84,9 @@ const Home: React.FC = () => {
   }, [habitsData.habits]);
 
   const handleSaveHabit = useCallback(async (formData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => {
-    console.log('Saving habit with form data:', formData);
     try {
+      const currentData = await HabitStorageAPI.handleHabitData('load');
+      
       const habitData = {
         ...formData,
         id: editingHabit?.id || Date.now().toString(),
@@ -103,29 +95,25 @@ const Home: React.FC = () => {
         isComplete: editingHabit?.isComplete || false,
         isBegun: editingHabit?.isBegun || false
       };
-      console.log('Created habit data:', habitData);
   
       const updatedHabits = editingHabit 
-        ? habitsData.habits.map(h => h.id === editingHabit.id ? habitData : h)
-        : [...habitsData.habits, habitData];
-      console.log('Updated habits array:', updatedHabits);
+        ? currentData.habits.map(h => h.id === editingHabit.id ? habitData : h)
+        : [...currentData.habits, habitData];
   
       const newData = {
-        ...habitsData,
+        ...currentData,
         habits: updatedHabits
       };
       
       await HabitStorageAPI.handleHabitData('save', newData);
-      console.log('Saved to storage, setting state with:', newData);
-      
       setHabitsData(newData);
-      setShowForm(false);
-      setEditingHabit(null);
+      // Don't set showForm and editingHabit here - let the form component handle its own closure
     } catch (error) {
       console.error('Save habit error:', error);
       errorHandler.handleError(error, 'Failed to save habit');
+      throw error; // Re-throw the error to be caught by the form
     }
-  }, [editingHabit, habitsData]);
+  }, [editingHabit]);
 
   return (
     <IonPage>
@@ -164,44 +152,42 @@ const Home: React.FC = () => {
             ))}
           </IonList>
         )}
-    {showForm && (
-  <HabitForm
-    title={editingHabit ? "Edit Habit" : "New Habit"}
-    initialData={editingHabit || undefined}
-    onClose={() => {
-      setShowForm(false);
-      setEditingHabit(null);
-    }}
-    onSave={(data) => {
-      console.log('Form onSave wrapper called with data:', data);
-      return handleSaveHabit(data);
-    }}
-  />
-)}
 
-<IonAlert
-  isOpen={!!habitToDelete}
-  onDidDismiss={() => setHabitToDelete(null)}
-  header="Delete Habit"
-  message="Are you sure you want to delete this habit? This action cannot be undone."
-  buttons={[
-    {
-      text: 'Cancel',
-      role: 'cancel',
-      handler: () => true
-    },
-    {
-      text: 'Delete',
-      role: 'destructive',
-      handler: () => {
-        if (habitToDelete) {
-          handleDeleteHabit(habitToDelete);
-        }
-        return true;
-      }
-    }
-  ]}
-/>
+        {showForm && (
+          <HabitForm
+            title={editingHabit ? "Edit Habit" : "New Habit"}
+            initialData={editingHabit || undefined}
+            onClose={() => {
+              setShowForm(false);
+              setEditingHabit(null);
+            }}
+            onSave={handleSaveHabit}
+          />
+        )}
+
+        <IonAlert
+          isOpen={!!habitToDelete}
+          onDidDismiss={() => setHabitToDelete(null)}
+          header="Delete Habit"
+          message="Are you sure you want to delete this habit? This action cannot be undone."
+          buttons={[
+            {
+              text: 'Cancel',
+              role: 'cancel',
+              handler: () => true
+            },
+            {
+              text: 'Delete',
+              role: 'destructive',
+              handler: () => {
+                if (habitToDelete) {
+                  handleDeleteHabit(habitToDelete);
+                }
+                return true;
+              }
+            }
+          ]}
+        />
 
         <IonToast
           isOpen={showLongPressToast}
@@ -223,83 +209,5 @@ const Home: React.FC = () => {
     </IonPage>
   );
 };
-
-// Separate HabitListItem component for better performance
-const HabitListItem: React.FC<{
-  habit: Habit;
-  onUpdate: (id: string, action: UpdateAction) => Promise<void>;
-  onEdit: () => void;
-  onDelete: () => void;
-  onViewCalendar: () => void;
-  onLongPress: (habit: Habit) => void;
-}> = React.memo(({
-  habit,
-  onUpdate,
-  onEdit,
-  onDelete,
-  onViewCalendar,
-  onLongPress
-}) => {
-  return (
-    <IonItemSliding>
-      <IonItem
-        className="ion-activatable habit"
-        onTouchStart={() => onLongPress(habit)}
-        style={{ backgroundColor: habit.bgColor }}
-      >
-        {habit.type === 'checkbox' ? (
-          <>
-            <IonCheckbox
-              slot="start"
-              checked={habit.isChecked}
-              onIonChange={(e) => onUpdate(habit.id, { 
-                type: 'checkbox', 
-                checked: e.detail.checked 
-              })}
-              style={{ zIndex: 1 }}
-            />
-            {habit.name}
-          </>
-        ) : (
-          <>
-            <IonLabel>
-              <h2>{habit.name}</h2>
-              <p>{habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}</p>
-            </IonLabel>
-            {habit.isComplete && (
-              <IonBadge color="success">Complete!</IonBadge>
-            )}
-            <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
-              <IonButton 
-                fill="clear" 
-                onClick={() => onUpdate(habit.id, { type: 'quantity', delta: -1 })}
-              >
-                <IonIcon icon={remove} />
-              </IonButton>
-              <IonButton 
-                fill="clear" 
-                onClick={() => onUpdate(habit.id, { type: 'quantity', delta: 1 })}
-              >
-                <IonIcon icon={add} />
-              </IonButton>
-            </div>
-          </>
-        )}
-        <IonRippleEffect />
-      </IonItem>
-      <IonItemOptions side="end">
-        <IonItemOption color="primary" onClick={onViewCalendar}>
-          <IonIcon slot="icon-only" icon={calendar} />
-        </IonItemOption>
-        <IonItemOption color="warning" onClick={onEdit}>
-          <IonIcon slot="icon-only" icon={pencil} />
-        </IonItemOption>
-        <IonItemOption color="danger" onClick={onDelete}>
-          <IonIcon slot="icon-only" icon={trash} />
-        </IonItemOption>
-      </IonItemOptions>
-    </IonItemSliding>
-  );
-});
 
 export default Home;

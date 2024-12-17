@@ -17,7 +17,6 @@ import {
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
 import type { Habit } from './HabitStorage';
-import { HabitFormData } from './HabitTypes';
 
 const PRESET_COLORS = [
   '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
@@ -26,7 +25,7 @@ const PRESET_COLORS = [
 
 export interface HabitFormProps {
   onClose: () => void;
-  onSave: (habit: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => void;
+  onSave: (habit: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => Promise<void>;
   initialData?: Habit;
   title: string;
 }
@@ -37,30 +36,31 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
   const [unit, setUnit] = useState(initialData?.unit || '');
   const [goal, setGoal] = useState<number | undefined>(initialData?.goal);
   const [color, setColor] = useState(initialData?.bgColor || PRESET_COLORS[0]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log('Form submission starting');
     e.preventDefault();
     if (!name.trim()) {
       alert('Please enter a habit name');
       return;
     }
-    console.log('Calling onSave with data:', {
-      name,
-      type,
-      unit: type === 'quantity' ? unit : undefined,
-      goal: type === 'quantity' ? goal : undefined,
-      bgColor: color
-    });
-    await onSave({
-      name,
-      type,
-      unit: type === 'quantity' ? unit : undefined,
-      goal: type === 'quantity' ? goal : undefined,
-      bgColor: color
-    });
-    console.log('onSave completed');
-    onClose();
+
+    setIsSaving(true);
+    try {
+      await onSave({
+        name,
+        type,
+        unit: type === 'quantity' ? unit : undefined,
+        goal: type === 'quantity' ? goal : undefined,
+        bgColor: color
+      });
+      onClose(); // Move this inside the try block after successful save
+    } catch (error) {
+      console.error('Error saving habit:', error);
+      alert('Failed to save habit. Please try again.');
+    } finally {
+      setIsSaving(false); // Always reset saving state
+    }
   };
 
   return (
@@ -171,6 +171,7 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
               onClick={onClose}
               fill="outline"
               style={{ flex: 1 }}
+              disabled={isSaving}
             >
               Cancel
             </IonButton>
@@ -178,8 +179,9 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
               expand="block" 
               onClick={handleSubmit}
               style={{ flex: 1 }}
+              disabled={isSaving}
             >
-              Save
+              {isSaving ? 'Saving...' : 'Save'}
             </IonButton>
           </div>
         </IonToolbar>

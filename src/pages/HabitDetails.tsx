@@ -1,21 +1,104 @@
-// HabitDetails.tsx
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  IonContent,  IonHeader,  IonPage,  IonTitle,
-  IonToolbar,  IonButtons,  IonBackButton,  IonDatetime,
-  IonCard,  IonCardContent
+  IonContent,
+  IonHeader,
+  IonPage,
+  IonTitle,
+  IonToolbar,
+  IonButtons,
+  IonBackButton,
+  IonDatetime,
+  IonCard,
+  IonCardContent,
+  IonModal,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonButton
 } from '@ionic/react';
 import { useLocation } from 'react-router-dom';
 import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
 import { updateHabitHistory } from './HabitOperations';
-import HabitDateEditModal from './HabitDateEditModal';
 import { errorHandler } from './ErrorUtils';
 import { formatDateKey, getHighlightStyle } from './HabitUtils';
 
 interface LocationState {
   habit: Habit;
 }
+
+interface DateEditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (value: number) => Promise<void>;
+  habit: Habit;
+  date: string;
+  currentValue?: number;
+}
+
+const DateEditModal: React.FC<DateEditModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  habit,
+  date,
+  currentValue
+}) => {
+  const [value, setValue] = React.useState<number>(currentValue || 0);
+
+  React.useEffect(() => {
+    setValue(currentValue || 0);
+  }, [currentValue, isOpen]);
+
+  const handleSave = useCallback(async () => {
+    try {
+      await onSave(value);
+      onClose();
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to save habit value');
+    }
+  }, [value, onSave, onClose]);
+
+  const dateDisplay = useMemo(() => {
+    return new Date(date).toLocaleDateString();
+  }, [date]);
+
+  const inputLabel = useMemo(() => {
+    return `${habit.name} ${habit.unit ? `(${habit.unit})` : ''}`;
+  }, [habit.name, habit.unit]);
+
+  return (
+    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>{dateDisplay}</IonTitle>
+          <IonButtons slot="start">
+            <IonButton onClick={onClose}>Cancel</IonButton>
+          </IonButtons>
+          <IonButtons slot="end">
+            <IonButton strong onClick={handleSave}>Save</IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent className="ion-padding">
+        <IonItem>
+          <IonLabel position="stacked">{inputLabel}</IonLabel>
+          <IonInput
+            type="number"
+            value={value}
+            onIonInput={e => setValue(Number(e.detail.value))}
+            min="0"
+            step="1"
+          />
+        </IonItem>
+        {habit.goal && (
+          <div className="ion-padding-top ion-text-center">
+            Goal: {habit.goal} {habit.unit}
+          </div>
+        )}
+      </IonContent>
+    </IonModal>
+  );
+};
 
 const HabitDetails: React.FC = () => {
   const location = useLocation<LocationState>();
@@ -131,7 +214,7 @@ const HabitDetails: React.FC = () => {
           </IonCard>
 
           {habit.type === 'quantity' && (
-            <HabitDateEditModal
+            <DateEditModal
               isOpen={showEditModal}
               onClose={() => setShowEditModal(false)}
               onSave={handleSaveDate}
