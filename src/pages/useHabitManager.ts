@@ -62,11 +62,20 @@ export function useHabitManager() {
       const updatedHabits = await deleteHabit(state.habitsData.habits, state.habitToDelete);
       setState(prev => ({
         ...prev,
-        habitsData: { ...prev.habitsData, habits: updatedHabits },
+        habitsData: { 
+          ...prev.habitsData, 
+          habits: updatedHabits 
+        },
         habitToDelete: null
       }));
     } catch (error) {
       errorHandler.handleError(error, 'Failed to delete habit');
+      // Reload original data if deletion failed
+      const originalData = await HabitStorageAPI.handleHabitData('load');
+      setState(prev => ({
+        ...prev,
+        habitsData: originalData
+      }));
     }
   }, [state.habitToDelete, state.habitsData.habits]);
 
@@ -81,6 +90,7 @@ export function useHabitManager() {
 
   const handleSaveHabit = useCallback(async (formData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => {
     try {
+      // First, get the latest data to ensure we're working with current state
       const currentData = await HabitStorageAPI.handleHabitData('load');
       
       const habitData = {
@@ -92,22 +102,41 @@ export function useHabitManager() {
         isBegun: state.editingHabit?.isBegun || false
       };
   
+      // Update habits array
       const updatedHabits = state.editingHabit 
-        ? currentData.habits.map(h => h.id === state.editingHabit.id ? habitData : h)
+        ? currentData.habits.map(h => h.id === habitData.id ? habitData : h)
         : [...currentData.habits, habitData];
   
+      // Create new data object
       const newData = {
         ...currentData,
-        habits: updatedHabits
+        habits: updatedHabits,
+        history: {
+          ...currentData.history,
+          [habitData.id]: currentData.history[habitData.id] || {}
+        }
       };
       
+      // Save to storage
       await HabitStorageAPI.handleHabitData('save', newData);
+      
+      // Update local state
       setState(prev => ({
         ...prev,
         habitsData: newData,
         isFormOpen: false,
         editingHabit: null
       }));
+  
+      // Trigger a widget refresh if available
+      try {
+        await HabitStorageAPI.refreshWidgets();
+      } catch (error) {
+        console.warn('Failed to refresh widgets:', error);
+        // Don't fail the save operation if widget refresh fails
+      }
+  
+      return true;
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit');
       throw error;

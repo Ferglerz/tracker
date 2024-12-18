@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  IonContent,
+  IonModal,
   IonHeader,
   IonTitle,
   IonToolbar,
+  IonContent,
   IonList,
   IonItem,
   IonLabel,
@@ -12,25 +13,31 @@ import {
   IonInput,
   IonRadioGroup,
   IonRadio,
-  IonModal,
   IonFooter,
+  IonButtons,
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
-import type { Habit } from './HabitStorage';
+import { HabitStorageAPI, type Habit } from './HabitStorage';
+import { errorHandler } from './ErrorUtils';
 
 const PRESET_COLORS = [
   '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
   '#b5ead7', '#c7ceea', '#9b9b9b', '#f8c8dc'
 ] as const;
 
-export interface HabitFormProps {
+interface HabitFormProps {
+  isOpen: boolean;
   onClose: () => void;
-  onSave: (habit: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => Promise<void>;
   initialData?: Habit;
   title: string;
 }
 
-const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, title }) => {
+const HabitForm: React.FC<HabitFormProps> = ({
+  isOpen,
+  onClose,
+  initialData,
+  title
+}) => {
   const [name, setName] = useState(initialData?.name || '');
   const [type, setType] = useState<'checkbox' | 'quantity'>(initialData?.type || 'checkbox');
   const [unit, setUnit] = useState(initialData?.unit || '');
@@ -47,145 +54,155 @@ const HabitForm: React.FC<HabitFormProps> = ({ onClose, onSave, initialData, tit
 
     setIsSaving(true);
     try {
-      await onSave({
+      // Load current data
+      const currentData = await HabitStorageAPI.handleHabitData('load');
+      
+      // Create new habit data
+      const habitData = {
+        id: initialData?.id || Date.now().toString(),
         name,
         type,
         unit: type === 'quantity' ? unit : undefined,
         goal: type === 'quantity' ? goal : undefined,
-        bgColor: color
+        bgColor: color,
+        quantity: initialData?.quantity || 0,
+        isChecked: initialData?.isChecked || false,
+        isComplete: initialData?.isComplete || false,
+        isBegun: initialData?.isBegun || false
+      };
+
+      // Update habits array directly
+      const updatedHabits = initialData 
+        ? currentData.habits.map(h => h.id === habitData.id ? habitData : h)
+        : [...currentData.habits, habitData];
+
+      // Save directly to storage
+      await HabitStorageAPI.handleHabitData('save', {
+        ...currentData,
+        habits: updatedHabits,
+        history: {
+          ...currentData.history,
+          [habitData.id]: currentData.history[habitData.id] || {}
+        }
       });
-      onClose(); // Move this inside the try block after successful save
+
+      onClose();
     } catch (error) {
-      console.error('Error saving habit:', error);
-      alert('Failed to save habit. Please try again.');
+      errorHandler.handleError(error, 'Failed to save habit');
     } finally {
-      setIsSaving(false); // Always reset saving state
+      setIsSaving(false);
     }
   };
 
   return (
-    <IonModal isOpen={true} onDidDismiss={onClose}>
+    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{title}</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      
-      <IonContent className="ion-padding">
-        <form onSubmit={handleSubmit}>
-          <IonList>
-            <IonItem>
-              <IonLabel position="stacked">Habit Name</IonLabel>
-              <IonInput
-                value={name}
-                onIonChange={e => setName(e.detail.value || '')}
-                placeholder="Enter habit name"
-                required
-              />
-            </IonItem>
-
-            <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
-              <div style={{ display: 'flex', width: '100%' }}>
-                <IonItem 
-                  style={{ flex: 1, cursor: 'pointer' }}
-                  onClick={() => setType('checkbox')}
-                >
-                  <IonLabel>Checkbox</IonLabel>
-                  <IonRadio slot="start" value="checkbox" />
-                </IonItem>
-                <IonItem 
-                  style={{ flex: 1, cursor: 'pointer' }}
-                  onClick={() => setType('quantity')}
-                >
-                  <IonLabel>Quantity</IonLabel>
-                  <IonRadio slot="start" value="quantity" />
-                </IonItem>
-              </div>
-            </IonRadioGroup>
-
-            {type === 'quantity' && (
-              <>
-                <IonItem>
-                  <IonLabel position="stacked">Unit</IonLabel>
-                  <IonInput
-                    value={unit}
-                    onIonChange={e => setUnit(e.detail.value || '')}
-                    placeholder="Enter unit (e.g., cups, minutes)"
-                  />
-                </IonItem>
-                <IonItem>
-                  <IonLabel position="stacked">Goal (optional)</IonLabel>
-                  <IonInput
-                    type="number"
-                    min="0"
-                    value={goal}
-                    onIonChange={e => setGoal(e.detail.value ? parseInt(e.detail.value, 10) : undefined)}
-                    placeholder="Enter target quantity"
-                  />
-                </IonItem>
-              </>
-            )}
-
-            <IonItem>
-              <IonLabel position="stacked">Color</IonLabel>
-              <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
-                {PRESET_COLORS.map((presetColor) => (
-                  <div
-                    key={presetColor}
-                    onClick={() => setColor(presetColor)}
-                    style={{
-                      width: '30px',
-                      height: '30px',
-                      borderRadius: '50%',
-                      backgroundColor: presetColor,
-                      cursor: 'pointer',
-                      border: color === presetColor ? '2px solid #000' : '2px solid transparent',
-                      position: 'relative'
-                    }}
-                  >
-                    {color === presetColor && (
-                      <IonIcon
-                        icon={checkmark}
-                        style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          color: '#000'
-                        }}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </IonItem>
-          </IonList>
-        </form>
-      </IonContent>
-
-      <IonFooter>
-        <IonToolbar>
-          <div className="ion-padding" style={{ display: 'flex', gap: '8px' }}>
+          <IonButtons slot="start">
+            <IonButton onClick={onClose}>Cancel</IonButton>
+          </IonButtons>
+          <IonButtons slot="end">
             <IonButton 
-              expand="block" 
-              onClick={onClose}
-              fill="outline"
-              style={{ flex: 1 }}
-              disabled={isSaving}
-            >
-              Cancel
-            </IonButton>
-            <IonButton 
-              expand="block" 
+              strong 
               onClick={handleSubmit}
-              style={{ flex: 1 }}
               disabled={isSaving}
             >
               {isSaving ? 'Saving...' : 'Save'}
             </IonButton>
-          </div>
+          </IonButtons>
         </IonToolbar>
-      </IonFooter>
+      </IonHeader>
+      
+      <IonContent className="ion-padding">
+        <IonList>
+          <IonItem>
+            <IonLabel position="stacked">Habit Name</IonLabel>
+            <IonInput
+              value={name}
+              onIonChange={e => setName(e.detail.value || '')}
+              placeholder="Enter habit name"
+              required
+            />
+          </IonItem>
+
+          <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
+            <div style={{ display: 'flex', width: '100%' }}>
+              <IonItem 
+                style={{ flex: 1, cursor: 'pointer' }}
+                onClick={() => setType('checkbox')}
+              >
+                <IonLabel>Checkbox</IonLabel>
+                <IonRadio slot="start" value="checkbox" />
+              </IonItem>
+              <IonItem 
+                style={{ flex: 1, cursor: 'pointer' }}
+                onClick={() => setType('quantity')}
+              >
+                <IonLabel>Quantity</IonLabel>
+                <IonRadio slot="start" value="quantity" />
+              </IonItem>
+            </div>
+          </IonRadioGroup>
+
+          {type === 'quantity' && (
+            <>
+              <IonItem>
+                <IonLabel position="stacked">Unit</IonLabel>
+                <IonInput
+                  value={unit}
+                  onIonChange={e => setUnit(e.detail.value || '')}
+                  placeholder="Enter unit (e.g., cups, minutes)"
+                />
+              </IonItem>
+              <IonItem>
+                <IonLabel position="stacked">Goal (optional)</IonLabel>
+                <IonInput
+                  type="number"
+                  min="0"
+                  value={goal}
+                  onIonChange={e => setGoal(e.detail.value ? parseInt(e.detail.value, 10) : undefined)}
+                  placeholder="Enter target quantity"
+                />
+              </IonItem>
+            </>
+          )}
+
+          <IonItem>
+            <IonLabel position="stacked">Color</IonLabel>
+            <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
+              {PRESET_COLORS.map((presetColor) => (
+                <div
+                  key={presetColor}
+                  onClick={() => setColor(presetColor)}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    backgroundColor: presetColor,
+                    cursor: 'pointer',
+                    border: color === presetColor ? '2px solid #000' : '2px solid transparent',
+                    position: 'relative'
+                  }}
+                >
+                  {color === presetColor && (
+                    <IonIcon
+                      icon={checkmark}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: '#000'
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </IonItem>
+        </IonList>
+      </IonContent>
     </IonModal>
   );
 };
