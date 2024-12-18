@@ -1,5 +1,3 @@
-// HabitDateEditModal.tsx
-
 import React, { useCallback, useMemo } from 'react';
 import {
   IonModal,
@@ -13,14 +11,13 @@ import {
   IonButton,
   IonButtons
 } from '@ionic/react';
-import type { Habit } from './HabitStorage';
-import { errorHandler } from './ErrorUtils';
+import type { HabitModel } from './HabitModel';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (value: number) => Promise<void>;
-  habit: Habit;
+  habit: HabitModel;
   date: string;
   currentValue?: number;
 }
@@ -45,7 +42,7 @@ const HabitDateEditModal: React.FC<Props> = ({
       await onSave(value);
       onClose();
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit value');
+      // Error handling is done by the parent component
     }
   }, [value, onSave, onClose]);
 
@@ -55,7 +52,7 @@ const HabitDateEditModal: React.FC<Props> = ({
 
   const inputLabel = useMemo(() => {
     return `${habit.name} ${habit.unit ? `(${habit.unit})` : ''}`;
-  }, [habit.name, habit.unit]);
+  }, [habit]);
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>

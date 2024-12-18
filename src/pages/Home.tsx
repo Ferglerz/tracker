@@ -1,4 +1,3 @@
-// Home.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
@@ -17,26 +16,25 @@ import {
   IonButtons,
 } from '@ionic/react';
 import { add, downloadOutline } from 'ionicons/icons';
-import { HabitStorageAPI, type Habit } from './HabitStorage';
+import { HabitModel } from './HabitModel';
 import { HabitListItem } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { errorHandler } from './ErrorUtils';
-import { deleteHabit, exportHabitHistoryToCSV, updateHabitValue } from './HabitOperations';
-import { UpdateAction } from './HabitTypes';
+import { exportHabitHistoryToCSV } from './HabitOperations';
 
 const Home: React.FC = () => {
   const history = useHistory();
-  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habits, setHabits] = useState<HabitModel[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
+  const [editingHabit, setEditingHabit] = useState<HabitModel | undefined>(undefined);
+  const [habitToDelete, setHabitToDelete] = useState<HabitModel | null>(null);
   const [showLongPressToast, setShowLongPressToast] = useState(false);
-  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<HabitModel | null>(null);
 
   const loadHabits = useCallback(async () => {
     try {
-      const data = await HabitStorageAPI.handleHabitData('load');
-      setHabits(data.habits);
+      const loadedHabits = await HabitModel.getAll();
+      setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
     }
@@ -46,26 +44,17 @@ const Home: React.FC = () => {
     loadHabits();
   }, [loadHabits]);
 
-  const handleHabitUpdate = useCallback(async (id: string, action: UpdateAction) => {
-    try {
-      const updatedHabits = await updateHabitValue(habits, id, action);
-      setHabits(updatedHabits);
-    } catch (error) {
-      errorHandler.handleError(error, `Failed to update habit ${action.type}`);
-    }
-  }, [habits]);
-
   const handleDeleteHabit = useCallback(async () => {
     if (!habitToDelete) return;
 
     try {
-      const updatedHabits = await deleteHabit(habits, habitToDelete);
-      setHabits(updatedHabits);
+      await HabitModel.delete(habitToDelete.id);
+      await loadHabits();
       setHabitToDelete(null);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to delete habit');
     }
-  }, [habitToDelete, habits]);
+  }, [habitToDelete, loadHabits]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -78,24 +67,25 @@ const Home: React.FC = () => {
 
   const handleCloseForm = useCallback(async () => {
     setIsFormOpen(false);
-    setEditingHabit(null);
-    await loadHabits(); // Refresh list after form closes
+    setEditingHabit(undefined);
+    await loadHabits();
   }, [loadHabits]);
 
-  const openForm = useCallback((habit?: Habit) => {
-    setEditingHabit(habit || null);
+  const openForm = useCallback((habit?: HabitModel) => {
+    setEditingHabit(habit);
     setIsFormOpen(true);
   }, []);
 
-  const handleLongPress = useCallback((habit: Habit) => {
-    const timer = setTimeout(() => {
-      setSelectedHabit(habit);
-      setShowLongPressToast(true);
-    }, 500);
-    return () => clearTimeout(timer);
+  const handleLongPress = useCallback((habit: HabitModel) => {
+    setSelectedHabit(habit);
+    setShowLongPressToast(true);
+    console.log('Long press triggered', { 
+      selectedHabit: selectedHabit?.name,
+      showToast: showLongPressToast 
+    });
   }, []);
 
-  const handleViewCalendar = useCallback((habit: Habit) => {
+  const handleViewCalendar = useCallback((habit: HabitModel) => {
     history.push(`/habit/${habit.id}/calendar`, { habit });
   }, [history]);
 
@@ -125,9 +115,8 @@ const Home: React.FC = () => {
               <HabitListItem
                 key={habit.id}
                 habit={habit}
-                onUpdate={handleHabitUpdate}
                 onEdit={() => openForm(habit)}
-                onDelete={() => setHabitToDelete(habit.id)}
+                onDelete={() => setHabitToDelete(habit)}
                 onViewCalendar={() => handleViewCalendar(habit)}
                 onLongPress={handleLongPress}
               />
@@ -138,7 +127,7 @@ const Home: React.FC = () => {
         <HabitForm
           isOpen={isFormOpen}
           title={editingHabit ? "Edit Habit" : "New Habit"}
-          initialData={editingHabit || undefined}
+          initialHabit={editingHabit}
           onClose={handleCloseForm}
         />
 
@@ -146,7 +135,7 @@ const Home: React.FC = () => {
           isOpen={!!habitToDelete}
           onDidDismiss={() => setHabitToDelete(null)}
           header="Delete Habit"
-          message="Are you sure you want to delete this habit? This action cannot be undone."
+          message={`Are you sure you want to delete "${habitToDelete?.name}"? This action cannot be undone.`}
           buttons={[
             {
               text: 'Cancel',
@@ -178,5 +167,4 @@ const Home: React.FC = () => {
     </IonPage>
   );
 };
-
 export default Home;

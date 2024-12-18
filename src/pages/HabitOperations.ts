@@ -1,113 +1,21 @@
 // HabitOperations.ts
-
 import { format } from 'date-fns';
-import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
 import { errorHandler } from './ErrorUtils';
+import { HabitModel } from './HabitModel';
 import { formatDateKey } from './HabitUtils';
 
-export const updateHabitHistory = async (
-  habitId: string, 
-  value: number | boolean,
-  date: Date = new Date()
-): Promise<HabitData> => {
+export const exportHabitHistoryToCSV = async (habits: HabitModel[]): Promise<void> => {
   try {
-    const data = await HabitStorageAPI.handleHabitData('load');
-    const dateKey = formatDateKey(date);
-    
-    if (!data.history[habitId]) {
-      data.history[habitId] = {};
-    }
-    
-    data.history[habitId][dateKey] = value;
-    
-    await HabitStorageAPI.handleHabitData('save', data);
-    
-    return data;
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to update habit history');
-    throw error;
-  }
-};
-
-
-export const updateHabitValue = async (
-  habits: Habit[], 
-  id: string, 
-  action: { type: 'quantity'; delta: number } | { type: 'checkbox'; checked: boolean }
-): Promise<Habit[]> => {
-  try {
-    const data = await HabitStorageAPI.handleHabitData('load');
-    const updatedHabits = habits.map(habit => {
-      if (habit.id !== id) return habit;
-
-      let updatedHabit;
-      switch (action.type) {
-        case 'quantity':
-          const newQuantity = Math.max(0, habit.quantity + action.delta);
-          updatedHabit = {
-            ...habit,
-            quantity: newQuantity,
-            isBegun: newQuantity > 0,
-            isComplete: habit.goal ? newQuantity >= habit.goal : false
-          };
-          data.history[id] = data.history[id] || {};
-          data.history[id][formatDateKey(new Date())] = newQuantity;
-          break;
-
-        case 'checkbox':
-          updatedHabit = {
-            ...habit,
-            isChecked: action.checked,
-            isComplete: action.checked,
-            isBegun: action.checked
-          };
-          data.history[id] = data.history[id] || {};
-          data.history[id][formatDateKey(new Date())] = action.checked;
-          break;
-      }
-      return updatedHabit;
-    });
-
-    await HabitStorageAPI.handleHabitData('save', { habits: updatedHabits, history: data.history });
-    return updatedHabits;
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to update habit');
-    return habits;
-  }
-};
-
-export const deleteHabit = async (habits: Habit[], id: string): Promise<Habit[]> => {
-  try {
-    const data = await HabitStorageAPI.handleHabitData('load');
-    const updatedHabits = habits.filter(habit => habit.id !== id);
-    const { [id]: deletedHistory, ...remainingHistory } = data.history;
-    
-    await HabitStorageAPI.handleHabitData('save', {
-      habits: updatedHabits,
-      history: remainingHistory
-    });
-    
-    return updatedHabits;
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to delete habit');
-    return habits; // Return original habits on error
-  }
-};
-
-export const exportHabitHistoryToCSV = async (habits: Habit[]): Promise<void> => {
-  try {
-    const data = await HabitStorageAPI.handleHabitData('load');
-    const history = data.history;
-    
-    if (!Object.keys(history).length) {
-      throw new Error('No history data available to export');
+    if (!habits.length) {
+      throw new Error('No habits available to export');
     }
 
-    // Get all unique dates from history
+    // Get all unique dates across all habits
     const allDates = new Set<string>();
-    Object.values(history).forEach(habitDates => {
-      Object.keys(habitDates).forEach(date => allDates.add(date));
-    });
+    for (const habit of habits) {
+      const dates = Object.keys(await habit.getAllHistory());
+      dates.forEach(date => allDates.add(date));
+    }
 
     const sortedDates = Array.from(allDates).sort();
     
@@ -124,15 +32,15 @@ export const exportHabitHistoryToCSV = async (habits: Habit[]): Promise<void> =>
     // Create CSV rows
     const csvRows = [headers.join(',')];
     
-    sortedDates.forEach(date => {
+    for (const date of sortedDates) {
       const row = [date];
-      habits.forEach(habit => {
-        const value = history[habit.id]?.[date];
+      for (const habit of habits) {
+        const value = habit.getValueForDate(new Date(date));
         row.push(typeof value === 'boolean' ? (value ? '1' : '0') : 
                 typeof value === 'number' ? value.toString() : '');
-      });
+      }
       csvRows.push(row.join(','));
-    });
+    }
 
     // Add BOM for proper UTF-8 encoding
     const BOM = '\uFEFF';
@@ -155,6 +63,164 @@ export const exportHabitHistoryToCSV = async (habits: Habit[]): Promise<void> =>
     
   } catch (error) {
     errorHandler.handleError(error, 'Failed to export habit history');
-    throw error; // Re-throw to let calling code handle the error
+    throw error;
+  }
+};
+export const importHabitsFromCSV = async (file: File): Promise<void> => {
+  try {
+    const text = await file.text();
+    const [headerRow, ...dataRows] = text
+      .trim()
+      .split('\n')
+      .map(row => row.split(','));
+
+    // Parse headers to get habit names and units
+    const habitColumns = headerRow.slice(1).map(header => {
+      const match = header.match(/^"?([^"]+)"?(?:\s*\(([^)]+)\))?$/);
+      return {
+        name: match?.[1] || header,
+        unit: match?.[2],
+      };
+    });
+
+    // Create habit models for each column
+    const habits: HabitModel[] = [];
+    for (const { name, unit } of habitColumns) {
+      const habitProps = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name,
+        type: unit ? 'quantity' as const : 'checkbox' as const,
+        unit,
+        bgColor: '#b5ead7', // Default color
+      };
+      
+      const habit = await HabitModel.create(habitProps);
+      habits.push(habit);
+    }
+
+    // Import data for each habit
+    for (const row of dataRows) {
+      const date = new Date(row[0]);
+      if (isNaN(date.getTime())) continue;
+
+      for (let i = 0; i < habits.length; i++) {
+        const value = row[i + 1];
+        const habit = habits[i];
+
+        if (value && habit) {
+          if (habit.type === 'checkbox') {
+            await habit.setChecked(value === '1', date);
+          } else {
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue)) {
+              await habit.setValue(numValue, date);
+            }
+          }
+        }
+      }
+    }
+
+    errorHandler.showInfo('Import completed successfully');
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to import habits');
+    throw error;
+  }
+};
+
+export const bulkDeleteHabits = async (habitIds: string[]): Promise<void> => {
+  try {
+    for (const id of habitIds) {
+      await HabitModel.delete(id);
+    }
+    errorHandler.showInfo(`Successfully deleted ${habitIds.length} habits`);
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to delete habits');
+    throw error;
+  }
+};
+
+export const bulkUpdateHabits = async (updates: { id: string, value: number | boolean }[]): Promise<void> => {
+  try {
+    for (const update of updates) {
+      const habit = await HabitModel.create({ id: update.id } as any); // We only need the ID
+      if (typeof update.value === 'boolean') {
+        await habit.setChecked(update.value);
+      } else {
+        await habit.setValue(update.value);
+      }
+    }
+    errorHandler.showInfo(`Successfully updated ${updates.length} habits`);
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to update habits');
+    throw error;
+  }
+};
+
+export const duplicateHabit = async (sourceHabit: HabitModel): Promise<HabitModel> => {
+  try {
+    const props = sourceHabit.toJSON();
+    const newProps = {
+      ...props,
+      id: Date.now().toString(),
+      name: `${props.name} (Copy)`,
+    };
+    
+    return await HabitModel.create(newProps);
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to duplicate habit');
+    throw error;
+  }
+};
+
+export const getHabitStats = async (habit: HabitModel, startDate: Date, endDate: Date) => {
+  try {
+    const history = await habit.getAllHistory();
+    const stats = {
+      totalDays: 0,
+      completedDays: 0,
+      partialDays: 0,
+      streak: 0,
+      longestStreak: 0,
+      averageValue: 0,
+    };
+
+    let currentDate = new Date(startDate);
+    let totalValue = 0;
+    let currentStreak = 0;
+
+    while (currentDate <= endDate) {
+      const dateKey = formatDateKey(currentDate);
+      const value = history[dateKey];
+      
+      if (value !== undefined) {
+        stats.totalDays++;
+        const status = habit.getStatusForDate(currentDate);
+        
+        if (status === 'complete') {
+          stats.completedDays++;
+          currentStreak++;
+          stats.longestStreak = Math.max(stats.longestStreak, currentStreak);
+        } else if (status === 'partial') {
+          stats.partialDays++;
+          currentStreak = 0;
+        } else {
+          currentStreak = 0;
+        }
+
+        if (typeof value === 'number') {
+          totalValue += value;
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    stats.streak = currentStreak;
+    stats.averageValue = stats.totalDays ? totalValue / stats.totalDays : 0;
+
+    return stats;
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to calculate habit statistics');
+    throw error;
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -13,11 +13,10 @@ import {
   IonInput,
   IonRadioGroup,
   IonRadio,
-  IonFooter,
   IonButtons,
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
-import { HabitStorageAPI, type Habit } from './HabitStorage';
+import { HabitModel, type HabitProperties } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
 
 const PRESET_COLORS = [
@@ -28,22 +27,32 @@ const PRESET_COLORS = [
 interface HabitFormProps {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: Habit;
+  initialHabit?: HabitModel;
   title: string;
 }
 
 const HabitForm: React.FC<HabitFormProps> = ({
   isOpen,
   onClose,
-  initialData,
+  initialHabit,
   title
 }) => {
-  const [name, setName] = useState(initialData?.name || '');
-  const [type, setType] = useState<'checkbox' | 'quantity'>(initialData?.type || 'checkbox');
-  const [unit, setUnit] = useState(initialData?.unit || '');
-  const [goal, setGoal] = useState<number | undefined>(initialData?.goal);
-  const [color, setColor] = useState(initialData?.bgColor || PRESET_COLORS[0]);
+  const [name, setName] = useState(initialHabit?.name || '');
+  const [type, setType] = useState<'checkbox' | 'quantity'>(initialHabit?.type || 'checkbox');
+  const [unit, setUnit] = useState(initialHabit?.unit || '');
+  const [goal, setGoal] = useState<number | undefined>(initialHabit?.goal);
+  const [color, setColor] = useState(initialHabit?.bgColor || PRESET_COLORS[0]);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(initialHabit?.name || '');
+      setType(initialHabit?.type || 'checkbox');
+      setUnit(initialHabit?.unit || '');
+      setGoal(initialHabit?.goal);
+      setColor(initialHabit?.bgColor || PRESET_COLORS[0]);
+    }
+  }, [isOpen, initialHabit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,38 +63,16 @@ const HabitForm: React.FC<HabitFormProps> = ({
 
     setIsSaving(true);
     try {
-      // Load current data
-      const currentData = await HabitStorageAPI.handleHabitData('load');
-      
-      // Create new habit data
-      const habitData = {
-        id: initialData?.id || Date.now().toString(),
-        name,
+      const habitProps: HabitProperties = {
+        id: initialHabit?.id || Date.now().toString(),
+        name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
         goal: type === 'quantity' ? goal : undefined,
         bgColor: color,
-        quantity: initialData?.quantity || 0,
-        isChecked: initialData?.isChecked || false,
-        isComplete: initialData?.isComplete || false,
-        isBegun: initialData?.isBegun || false
       };
 
-      // Update habits array directly
-      const updatedHabits = initialData 
-        ? currentData.habits.map(h => h.id === habitData.id ? habitData : h)
-        : [...currentData.habits, habitData];
-
-      // Save directly to storage
-      await HabitStorageAPI.handleHabitData('save', {
-        ...currentData,
-        habits: updatedHabits,
-        history: {
-          ...currentData.history,
-          [habitData.id]: currentData.history[habitData.id] || {}
-        }
-      });
-
+      const habitModel = await HabitModel.create(habitProps);
       onClose();
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit');
@@ -106,7 +93,7 @@ const HabitForm: React.FC<HabitFormProps> = ({
             <IonButton 
               strong 
               onClick={handleSubmit}
-              disabled={isSaving}
+              disabled={isSaving || !name.trim()}
             >
               {isSaving ? 'Saving...' : 'Save'}
             </IonButton>
@@ -126,24 +113,26 @@ const HabitForm: React.FC<HabitFormProps> = ({
             />
           </IonItem>
 
-          <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
-            <div style={{ display: 'flex', width: '100%' }}>
-              <IonItem 
-                style={{ flex: 1, cursor: 'pointer' }}
-                onClick={() => setType('checkbox')}
-              >
-                <IonLabel>Checkbox</IonLabel>
-                <IonRadio slot="start" value="checkbox" />
-              </IonItem>
-              <IonItem 
-                style={{ flex: 1, cursor: 'pointer' }}
-                onClick={() => setType('quantity')}
-              >
-                <IonLabel>Quantity</IonLabel>
-                <IonRadio slot="start" value="quantity" />
-              </IonItem>
-            </div>
-          </IonRadioGroup>
+          {!initialHabit && ( // Only show if creating new habit
+            <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
+              <div style={{ display: 'flex', width: '100%' }}>
+                <IonItem 
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => setType('checkbox')}
+                >
+                  <IonLabel>Checkbox</IonLabel>
+                  <IonRadio slot="start" value="checkbox" />
+                </IonItem>
+                <IonItem 
+                  style={{ flex: 1, cursor: 'pointer' }}
+                  onClick={() => setType('quantity')}
+                >
+                  <IonLabel>Quantity</IonLabel>
+                  <IonRadio slot="start" value="quantity" />
+                </IonItem>
+              </div>
+            </IonRadioGroup>
+          )}
 
           {type === 'quantity' && (
             <>

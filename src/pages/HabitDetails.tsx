@@ -10,131 +10,86 @@ import {
   IonDatetime,
   IonCard,
   IonCardContent,
-  IonModal,
-  IonItem,
-  IonLabel,
-  IonInput,
-  IonButton
 } from '@ionic/react';
-import { useLocation } from 'react-router-dom';
-import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
-import { updateHabitHistory } from './HabitOperations';
+import { useLocation, useParams } from 'react-router-dom';
+import { HabitModel } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
-import { formatDateKey, getHighlightStyle } from './HabitUtils';
+import { formatDateKey } from './HabitUtils';
+import HabitDateEditModal from './HabitDateEditModal';
+
+interface RouteParams {
+  id: string;
+}
 
 interface LocationState {
-  habit: Habit;
+  habitData?: {
+    id: string;
+    name: string;
+    type: 'checkbox' | 'quantity';
+    unit?: string;
+    goal?: number;
+    bgColor: string;
+  };
 }
-
-interface DateEditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (value: number) => Promise<void>;
-  habit: Habit;
-  date: string;
-  currentValue?: number;
-}
-
-const DateEditModal: React.FC<DateEditModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  habit,
-  date,
-  currentValue
-}) => {
-  const [value, setValue] = React.useState<number>(currentValue || 0);
-
-  React.useEffect(() => {
-    setValue(currentValue || 0);
-  }, [currentValue, isOpen]);
-
-  const handleSave = useCallback(async () => {
-    try {
-      await onSave(value);
-      onClose();
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit value');
-    }
-  }, [value, onSave, onClose]);
-
-  const dateDisplay = useMemo(() => {
-    return new Date(date).toLocaleDateString();
-  }, [date]);
-
-  const inputLabel = useMemo(() => {
-    return `${habit.name} ${habit.unit ? `(${habit.unit})` : ''}`;
-  }, [habit.name, habit.unit]);
-
-  return (
-    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>{dateDisplay}</IonTitle>
-          <IonButtons slot="start">
-            <IonButton onClick={onClose}>Cancel</IonButton>
-          </IonButtons>
-          <IonButtons slot="end">
-            <IonButton strong onClick={handleSave}>Save</IonButton>
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent className="ion-padding">
-        <IonItem>
-          <IonLabel position="stacked">{inputLabel}</IonLabel>
-          <IonInput
-            type="number"
-            value={value}
-            onIonInput={e => setValue(Number(e.detail.value))}
-            min="0"
-            step="1"
-          />
-        </IonItem>
-        {habit.goal && (
-          <div className="ion-padding-top ion-text-center">
-            Goal: {habit.goal} {habit.unit}
-          </div>
-        )}
-      </IonContent>
-    </IonModal>
-  );
-};
 
 const HabitDetails: React.FC = () => {
   const location = useLocation<LocationState>();
-  const habit = useMemo(() => location.state?.habit, [location.state]);
-  
+  const { id } = useParams<RouteParams>();
+  const [habit, setHabit] = useState<HabitModel | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
-  const [habitHistory, setHabitHistory] = useState<Record<string, number | boolean>>({});
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDate, setEditingDate] = useState<string>('');
+  const [, setForceUpdate] = useState(0);
 
   useEffect(() => {
-    const loadHabitData = async () => {
-      if (!habit?.id) return;
-      
+    const loadHabit = async () => {
       try {
-        const data = await HabitStorageAPI.handleHabitData('load') as HabitData;
-        setHabitHistory(data.history[habit.id] || {});
+        let habitModel: HabitModel;
+        
+        if (location.state?.habitData) {
+          habitModel = await HabitModel.create(location.state.habitData);
+        } else if (id) {
+          const habits = await HabitModel.getAll();
+          const existingHabit = habits.find(h => h.id === id);
+          if (!existingHabit) {
+            throw new Error('Habit not found');
+          }
+          habitModel = await HabitModel.create(existingHabit);
+        } else {
+          throw new Error('No habit ID provided');
+        }
+
+        setHabit(habitModel);
+
+        const subscription = habitModel.changes.subscribe(() => {
+          setForceUpdate(prev => prev + 1);
+        });
+
+        return () => subscription.unsubscribe();
       } catch (error) {
-        errorHandler.handleError(error, 'Failed to load habit history');
+        errorHandler.handleError(error, 'Failed to load habit');
       }
     };
-    
-    loadHabitData();
-  }, [habit?.id]);
+
+    loadHabit();
+  }, [location.state?.habitData, id]);
 
   const handleDateClick = useCallback(async (isoString: string) => {
-    if (!habit?.id) return;
+    if (!habit) return;
     
-    const dateKey = formatDateKey(new Date(isoString));
+    // Ensure we have a valid date by creating a new Date object
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+      errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
+      return;
+    }
+    
+    const dateKey = formatDateKey(date);
     
     try {
       if (habit.type === 'checkbox') {
-        const currentValue = !!habitHistory[dateKey];
-        const date = new Date(dateKey + 'T12:00:00');
-        const data = await updateHabitHistory(habit.id, !currentValue, date);
-        setHabitHistory(data.history[habit.id] || {});
+        const currentValue = habit.getValueForDate(date) as boolean;
+        await habit.setChecked(!currentValue, date);
       } else {
         setEditingDate(dateKey);
         setShowEditModal(true);
@@ -142,30 +97,39 @@ const HabitDetails: React.FC = () => {
     } catch (error) {
       errorHandler.handleError(error, 'Failed to update habit');
     }
-  }, [habit?.id, habit?.type, habitHistory]);
+  }, [habit]);
 
-  const handleSaveDate = useCallback(async (value: number | boolean) => {
-    if (!habit?.id) return;
+  const handleSaveDate = useCallback(async (value: number) => {
+    if (!habit) return;
   
     try {
-        const date = new Date(editingDate + 'T12:00:00');
-        const data = await updateHabitHistory(habit.id, value, date);
-        setHabitHistory(data.history[habit.id] || {});
+      const date = new Date(editingDate);
+      await habit.setValue(value, date);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit value');
     }
-  }, [habit?.id, editingDate]);
+  }, [habit, editingDate]);
 
   const getHighlightedDates = useCallback((isoString: string) => {
-    const dateKey = formatDateKey(new Date(isoString));
-    const value = habitHistory[dateKey];
+    if (!habit) return undefined;
     
-    if (value === undefined) return undefined;
-    
-    return getHighlightStyle(value, habit!);
-  }, [habit, habitHistory]);
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return undefined;
+      
+      const status = habit.getStatusForDate(date);
+      if (status === 'none') return undefined;
+      
+      return {
+        textColor: '#ffffff',
+        backgroundColor: status === 'complete' ? '#2dd36f' : '#ffc409'
+      };
+    } catch {
+      return undefined;
+    }
+  }, [habit]);
 
-  if (!habit?.id) {
+  if (!habit) {
     return (
       <IonPage>
         <IonHeader>
@@ -197,30 +161,34 @@ const HabitDetails: React.FC = () => {
         <div className="ion-padding">
           <IonCard>
             <IonCardContent>
-              <IonDatetime
-                presentation="date"
-                preferWheel={false}
-                value={selectedDate}
-                onIonChange={e => {
-                  if (e.detail.value) {
-                    setSelectedDate(e.detail.value.toString());
-                    handleDateClick(e.detail.value.toString());
+            <IonDatetime
+              presentation="date"
+              preferWheel={false}
+              value={selectedDate}
+              onIonChange={e => {
+                if (e.detail.value) {
+                  const dateValue = Array.isArray(e.detail.value) ? e.detail.value[0] : e.detail.value;
+                  const date = new Date(dateValue);
+                  if (!isNaN(date.getTime())) {
+                    setSelectedDate(dateValue);
+                    handleDateClick(dateValue);
                   }
-                }}
-                highlightedDates={getHighlightedDates}
-                className="calendar-custom"
-              />
+                }
+              }}
+              highlightedDates={getHighlightedDates}
+              className="calendar-custom"
+            />
             </IonCardContent>
           </IonCard>
 
           {habit.type === 'quantity' && (
-            <DateEditModal
+            <HabitDateEditModal
               isOpen={showEditModal}
               onClose={() => setShowEditModal(false)}
               onSave={handleSaveDate}
               habit={habit}
               date={editingDate}
-              currentValue={habitHistory[editingDate] as number}
+              currentValue={habit.getValueForDate(new Date(editingDate)) as number}
             />
           )}
         </div>

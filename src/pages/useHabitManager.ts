@@ -1,149 +1,165 @@
 // useHabitManager.ts
-import { useState, useCallback, useEffect } from 'react';
-import { HabitStorageAPI, type Habit, type HabitData } from './HabitStorage';
-import { updateHabitValue, deleteHabit, exportHabitHistoryToCSV } from './HabitOperations';
-import { UpdateAction } from './HabitTypes';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { HabitModel } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
+import { 
+  bulkDeleteHabits, 
+  bulkUpdateHabits, 
+  duplicateHabit, 
+  getHabitStats,
+  exportHabitHistoryToCSV,
+  importHabitsFromCSV 
+} from './HabitOperations';
 
 interface HabitManagerState {
-  habitsData: HabitData;
+  habits: HabitModel[];
   isFormOpen: boolean;
-  editingHabit: Habit | null;
-  habitToDelete: string | null;
+  editingHabit: HabitModel | null;
+  habitToDelete: HabitModel | null;
+  selectedHabits: Set<string>;
+  isLoading: boolean;
+  sortBy: 'name' | 'created' | 'lastUpdated';
+  sortDirection: 'asc' | 'desc';
+  filterType: 'all' | 'checkbox' | 'quantity';
+  searchTerm: string;
 }
 
-export function useHabitManager() {
+export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
   const [state, setState] = useState<HabitManagerState>({
-    habitsData: { habits: [], history: {} },
+    habits: [],
     isFormOpen: false,
     editingHabit: null,
-    habitToDelete: null
+    habitToDelete: null,
+    selectedHabits: new Set(),
+    isLoading: false,
+    sortBy: 'created',
+    sortDirection: 'desc',
+    filterType: 'all',
+    searchTerm: '',
+    ...initialFilters
   });
 
-  // Load initial data
+  // Load initial habits and setup subscriptions
   useEffect(() => {
-    const loadData = async () => {
+    const subscriptions = new Set<{ unsubscribe: () => void }>();
+    
+    const loadHabits = async () => {
+      setState(prev => ({ ...prev, isLoading: true }));
       try {
-        const data = await HabitStorageAPI.init();
-        setState(prev => ({ ...prev, habitsData: data }));
+        const habits = await HabitModel.getAll();
+        
+        // Subscribe to each habit's changes
+        habits.forEach(habit => {
+          const subscription = habit.changes.subscribe(() => {
+            setState(prev => ({ ...prev })); // Force re-render on habit changes
+          });
+          subscriptions.add(subscription);
+        });
+
+        setState(prev => ({ ...prev, habits, isLoading: false }));
       } catch (error) {
         errorHandler.handleError(error, 'Failed to load habits');
+        setState(prev => ({ ...prev, isLoading: false }));
       }
     };
 
-    loadData();
+    loadHabits();
 
-    // Subscribe to storage changes
-    const handleStorageChange = () => loadData();
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Cleanup subscriptions
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
   }, []);
 
-  const updateHabits = useCallback((newHabits: Habit[]) => {
-    setState(prev => ({
-      ...prev,
-      habitsData: { ...prev.habitsData, habits: newHabits }
-    }));
-  }, []);
+  // Filtered and sorted habits
+  const filteredAndSortedHabits = useMemo(() => {
+    let result = [...state.habits];
 
-  const handleHabitUpdate = useCallback(async (id: string, action: UpdateAction) => {
-    try {
-      const updatedHabits = await updateHabitValue(state.habitsData.habits, id, action);
-      updateHabits(updatedHabits);
-    } catch (error) {
-      errorHandler.handleError(error, `Failed to update habit ${action.type}`);
+    // Apply type filter
+    if (state.filterType !== 'all') {
+      result = result.filter(h => h.type === state.filterType);
     }
-  }, [state.habitsData.habits, updateHabits]);
+
+    // Apply search filter
+    if (state.searchTerm) {
+      const term = state.searchTerm.toLowerCase();
+      result = result.filter(h => 
+        h.name.toLowerCase().includes(term) || 
+        h.unit?.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (state.sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'created':
+          comparison = parseInt(a.id) - parseInt(b.id);
+          break;
+        case 'lastUpdated':
+          const aDate = new Date(parseInt(a.id));
+          const bDate = new Date(parseInt(b.id));
+          comparison = aDate.getTime() - bDate.getTime();
+          break;
+      }
+      return state.sortDirection === 'desc' ? -comparison : comparison;
+    });
+
+    return result;
+  }, [state.habits, state.filterType, state.searchTerm, state.sortBy, state.sortDirection]);
+
+  // Core CRUD operations
+  const refreshHabits = useCallback(async () => {
+    try {
+      const habits = await HabitModel.getAll();
+      setState(prev => ({ ...prev, habits }));
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to refresh habits');
+    }
+  }, []);
 
   const handleDeleteHabit = useCallback(async () => {
     if (!state.habitToDelete) return;
 
     try {
-      const updatedHabits = await deleteHabit(state.habitsData.habits, state.habitToDelete);
-      setState(prev => ({
-        ...prev,
-        habitsData: { 
-          ...prev.habitsData, 
-          habits: updatedHabits 
-        },
-        habitToDelete: null
-      }));
+      await HabitModel.delete(state.habitToDelete.id);
+      await refreshHabits();
+      setState(prev => ({ ...prev, habitToDelete: null }));
     } catch (error) {
       errorHandler.handleError(error, 'Failed to delete habit');
-      // Reload original data if deletion failed
-      const originalData = await HabitStorageAPI.handleHabitData('load');
-      setState(prev => ({
-        ...prev,
-        habitsData: originalData
-      }));
     }
-  }, [state.habitToDelete, state.habitsData.habits]);
+  }, [state.habitToDelete, refreshHabits]);
 
-  const handleExport = useCallback(async () => {
+  // Bulk operations
+  const handleBulkDelete = useCallback(async () => {
+    if (!state.selectedHabits.size) return;
+    
     try {
-      await exportHabitHistoryToCSV(state.habitsData.habits);
-      errorHandler.showInfo('Export completed successfully');
+      await bulkDeleteHabits(Array.from(state.selectedHabits));
+      await refreshHabits();
+      setState(prev => ({ ...prev, selectedHabits: new Set() }));
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to export habit data');
+      errorHandler.handleError(error, 'Failed to delete selected habits');
     }
-  }, [state.habitsData.habits]);
+  }, [state.selectedHabits, refreshHabits]);
 
-  const handleSaveHabit = useCallback(async (formData: Omit<Habit, 'id' | 'isChecked' | 'isComplete' | 'isBegun' | 'quantity'>) => {
+  const handleBulkUpdate = useCallback(async (value: number | boolean) => {
+    if (!state.selectedHabits.size) return;
+
     try {
-      // First, get the latest data to ensure we're working with current state
-      const currentData = await HabitStorageAPI.handleHabitData('load');
-      
-      const habitData = {
-        ...formData,
-        id: state.editingHabit?.id || Date.now().toString(),
-        quantity: state.editingHabit?.quantity || 0,
-        isChecked: state.editingHabit?.isChecked || false,
-        isComplete: state.editingHabit?.isComplete || false,
-        isBegun: state.editingHabit?.isBegun || false
-      };
-  
-      // Update habits array
-      const updatedHabits = state.editingHabit 
-        ? currentData.habits.map(h => h.id === habitData.id ? habitData : h)
-        : [...currentData.habits, habitData];
-  
-      // Create new data object
-      const newData = {
-        ...currentData,
-        habits: updatedHabits,
-        history: {
-          ...currentData.history,
-          [habitData.id]: currentData.history[habitData.id] || {}
-        }
-      };
-      
-      // Save to storage
-      await HabitStorageAPI.handleHabitData('save', newData);
-      
-      // Update local state
-      setState(prev => ({
-        ...prev,
-        habitsData: newData,
-        isFormOpen: false,
-        editingHabit: null
-      }));
-  
-      // Trigger a widget refresh if available
-      try {
-        await HabitStorageAPI.refreshWidgets();
-      } catch (error) {
-        console.warn('Failed to refresh widgets:', error);
-        // Don't fail the save operation if widget refresh fails
-      }
-  
-      return true;
+      const updates = Array.from(state.selectedHabits).map(id => ({ id, value }));
+      await bulkUpdateHabits(updates);
+      await refreshHabits();
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit');
-      throw error;
+      errorHandler.handleError(error, 'Failed to update selected habits');
     }
-  }, [state.editingHabit]);
+  }, [state.selectedHabits, refreshHabits]);
 
-  const openForm = useCallback((habit?: Habit) => {
+  // Form management
+  const openForm = useCallback((habit?: HabitModel) => {
     setState(prev => ({
       ...prev,
       isFormOpen: true,
@@ -151,34 +167,137 @@ export function useHabitManager() {
     }));
   }, []);
 
-  const closeForm = useCallback(() => {
+  const closeForm = useCallback(async () => {
     setState(prev => ({
       ...prev,
       isFormOpen: false,
       editingHabit: null
     }));
+    await refreshHabits();
+  }, [refreshHabits]);
+
+  // Selection management
+  const toggleHabitSelection = useCallback((habitId: string) => {
+    setState(prev => {
+      const newSelected = new Set(prev.selectedHabits);
+      if (newSelected.has(habitId)) {
+        newSelected.delete(habitId);
+      } else {
+        newSelected.add(habitId);
+      }
+      return { ...prev, selectedHabits: newSelected };
+    });
   }, []);
 
-  const confirmDelete = useCallback((habitId: string) => {
-    setState(prev => ({ ...prev, habitToDelete: habitId }));
+  const selectAllHabits = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      selectedHabits: new Set(prev.habits.map(h => h.id))
+    }));
   }, []);
 
-  const cancelDelete = useCallback(() => {
-    setState(prev => ({ ...prev, habitToDelete: null }));
+  const clearSelection = useCallback(() => {
+    setState(prev => ({ ...prev, selectedHabits: new Set() }));
+  }, []);
+
+  // Filter and sort management
+  const setFilterType = useCallback((filterType: 'all' | 'checkbox' | 'quantity') => {
+    setState(prev => ({ ...prev, filterType }));
+  }, []);
+
+  const setSearchTerm = useCallback((searchTerm: string) => {
+    setState(prev => ({ ...prev, searchTerm }));
+  }, []);
+
+  const setSortCriteria = useCallback((sortBy: HabitManagerState['sortBy'], sortDirection: 'asc' | 'desc') => {
+    setState(prev => ({ ...prev, sortBy, sortDirection }));
+  }, []);
+
+  // Import/Export operations
+  const handleExport = useCallback(async () => {
+    try {
+      await exportHabitHistoryToCSV(state.habits);
+      errorHandler.showInfo('Export completed successfully');
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to export habits');
+    }
+  }, [state.habits]);
+
+  const handleImport = useCallback(async (file: File) => {
+    try {
+      await importHabitsFromCSV(file);
+      await refreshHabits();
+      errorHandler.showInfo('Import completed successfully');
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to import habits');
+    }
+  }, [refreshHabits]);
+
+  // Utility operations
+  const duplicateSelectedHabit = useCallback(async (habit: HabitModel) => {
+    try {
+      await duplicateHabit(habit);
+      await refreshHabits();
+      errorHandler.showInfo('Habit duplicated successfully');
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to duplicate habit');
+    }
+  }, [refreshHabits]);
+
+  const getHabitStatistics = useCallback(async (
+    habit: HabitModel,
+    startDate: Date,
+    endDate: Date
+  ) => {
+    try {
+      return await getHabitStats(habit, startDate, endDate);
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to get habit statistics');
+      return null;
+    }
   }, []);
 
   return {
-    habits: state.habitsData.habits,
+    // State
+    habits: filteredAndSortedHabits,
+    isLoading: state.isLoading,
     isFormOpen: state.isFormOpen,
     editingHabit: state.editingHabit,
     habitToDelete: state.habitToDelete,
-    handleHabitUpdate,
+    selectedHabits: state.selectedHabits,
+    filterType: state.filterType,
+    searchTerm: state.searchTerm,
+    sortBy: state.sortBy,
+    sortDirection: state.sortDirection,
+
+    // Core operations
+    refreshHabits,
     handleDeleteHabit,
-    handleExport,
-    handleSaveHabit,
+    
+    // Bulk operations
+    handleBulkDelete,
+    handleBulkUpdate,
+    
+    // Form management
     openForm,
     closeForm,
-    confirmDelete,
-    cancelDelete
+    
+    // Selection management
+    toggleHabitSelection,
+    selectAllHabits,
+    clearSelection,
+    
+    // Filter and sort management
+    setFilterType,
+    setSearchTerm,
+    setSortCriteria,
+    
+    // Import/Export
+    handleExport,
+    handleImport,
+    
+    // Utility operations
+    duplicateSelectedHabit,
+    getHabitStatistics
   };
 }
