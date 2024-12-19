@@ -18,6 +18,7 @@ import {
 import { checkmark } from 'ionicons/icons';
 import { HabitModel, type HabitProperties } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
+import { HabitStorageAPI } from './HabitStorage';
 
 const PRESET_COLORS = [
   '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
@@ -63,16 +64,48 @@ const HabitForm: React.FC<HabitFormProps> = ({
 
     setIsSaving(true);
     try {
-      const habitProps: HabitProperties = {
-        id: initialHabit?.id || Date.now().toString(),
-        name: name.trim(),
-        type,
-        unit: type === 'quantity' ? unit : undefined,
-        goal: type === 'quantity' ? goal : undefined,
-        bgColor: color,
-      };
+      const data = await HabitStorageAPI.handleHabitData('load');
+      
+      if (initialHabit) {
+        // Update existing habit - preserve existing state
+        const habitIndex = data.habits.findIndex(h => h.id === initialHabit.id);
+        if (habitIndex !== -1) {
+          const existingHabit = data.habits[habitIndex];
+          data.habits[habitIndex] = {
+            ...existingHabit, // Keep existing state
+            name: name.trim(),
+            unit: type === 'quantity' ? unit : undefined,
+            goal: type === 'quantity' ? goal : undefined,
+            bgColor: color,
+          };
+          await HabitStorageAPI.handleHabitData('save', data);
+          
+          // Update model with preserved state
+          await HabitModel.create({
+            id: initialHabit.id,
+            name: name.trim(),
+            type: existingHabit.type, // Keep original type
+            unit: type === 'quantity' ? unit : undefined,
+            goal: type === 'quantity' ? goal : undefined,
+            bgColor: color,
+          });
+        }
+      } else {
+        // Create new habit
+        const habitProps: HabitProperties = {
+          id: Date.now().toString(),
+          name: name.trim(),
+          type,
+          unit: type === 'quantity' ? unit : undefined,
+          goal: type === 'quantity' ? goal : undefined,
+          bgColor: color,
+        };
+        
+        const newHabit = await HabitModel.create(habitProps);
+        data.habits.push(newHabit.toJSON());
+        await HabitStorageAPI.handleHabitData('save', data);
+      }
 
-      const habitModel = await HabitModel.create(habitProps);
       onClose();
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit');

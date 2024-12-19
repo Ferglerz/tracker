@@ -1,5 +1,4 @@
 // HabitModel.ts
-
 import { Subject, Observable } from 'rxjs';
 import { errorHandler } from './ErrorUtils';
 import { HabitStorageAPI, type Habit} from './HabitStorage';
@@ -30,20 +29,46 @@ export class HabitModel {
 
   // Factory method to ensure single instance per habit ID and persist to storage
   static async create(props: HabitProperties): Promise<HabitModel> {
-    if (HabitModel.instances.has(props.id)) {
-      return HabitModel.instances.get(props.id)!;
-    }
-  
+    let instance = HabitModel.instances.get(props.id);
     const data = await HabitStorageAPI.handleHabitData('load');
-    const history = data.history[props.id] || {};
-    const instance = new HabitModel(props, history);
-    HabitModel.instances.set(props.id, instance);
-  
-    if (!data.habits.find(h => h.id === props.id)) {
-      data.habits.push(instance.toJSON());
-      await HabitStorageAPI.handleHabitData('save', data);
+    
+    if (instance) {
+      // Update all properties including state from storage
+      const existingHabit = data.habits.find(h => h.id === props.id);
+      if (existingHabit) {
+        instance.props = {
+          ...instance.props,
+          name: props.name,
+          unit: props.unit,
+          goal: props.goal,
+          bgColor: props.bgColor,
+        };
+        // Update state values from storage and notify if changed
+        if (instance._quantity !== existingHabit.quantity ||
+            instance._isChecked !== existingHabit.isChecked ||
+            instance._isComplete !== existingHabit.isComplete ||
+            instance._isBegun !== existingHabit.isBegun) {
+          instance._quantity = existingHabit.quantity;
+          instance._isChecked = existingHabit.isChecked;
+          instance._isComplete = existingHabit.isComplete;
+          instance._isBegun = existingHabit.isBegun;
+          // Notify observers of state change
+          instance.changeSubject.next();
+        }
+      }
+    } else {
+      // Create new instance with history
+      const history = data.history[props.id] || {};
+      instance = new HabitModel(props, history);
+      HabitModel.instances.set(props.id, instance);
+      
+      // Only save to storage for new instances
+      if (!data.habits.find(h => h.id === props.id)) {
+        data.habits.push(instance.toJSON());
+        await HabitStorageAPI.handleHabitData('save', data);
+      }
     }
-  
+    
     return instance;
   }
 

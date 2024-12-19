@@ -106,19 +106,18 @@ struct SimpleEntry: TimelineEntry {
     let error: Error?
 }
 
+import WidgetKit
+import SwiftUI
+
 // MARK: - Widget View
-struct Lock_Screen_WidgetEntryView: View {
+struct HabitWidgetEntryView: View {
     var entry: Provider.Entry
-    @Environment(\.widgetFamily) var widgetFamily
-    @State private var currentIndex: Int = 0
+    var habit: Habit
     
-    private var currentHabit: Habit? {
-        guard !entry.habits.isEmpty else { return nil }
-        return entry.habits[currentIndex]
-    }
+    @Environment(\.widgetFamily) var widgetFamily
     
     @ViewBuilder
-    private func habitControls(habit: Habit, color: Color) -> some View {
+    private func habitControls(color: Color) -> some View {
         if habit.type == .checkbox {
             Button(intent: ToggleHabitIntent(habitId: habit.id)) {
                 Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
@@ -145,7 +144,7 @@ struct Lock_Screen_WidgetEntryView: View {
     }
     
     @ViewBuilder
-    private func habitLabel(habit: Habit) -> some View {
+    private func habitLabel() -> some View {
         VStack(spacing: 2) {
             Text(habit.name)
                 .font(.system(size: widgetFamily == .systemMedium ? 16 : 14))
@@ -161,42 +160,21 @@ struct Lock_Screen_WidgetEntryView: View {
     }
     
     var body: some View {
-        if let error = entry.error {
-            Text("Error: \(error.localizedDescription)")
-                .font(.caption)
-        } else if entry.habits.isEmpty {
-            Text("No habits configured")
-        } else if let habit = currentHabit {
-            HStack {
-                if habit.type == .checkbox {
-                    habitControls(habit: habit, color: widgetFamily == .systemMedium ? .blue : .white)
-                    Spacer()
-                    habitLabel(habit: habit)
-                    Spacer()
-                } else {
-                    habitControls(habit: habit, color: widgetFamily == .systemMedium ? .blue : .white)
-                        .overlay(
-                            habitLabel(habit: habit)
-                                .frame(maxWidth: .infinity)
-                        )
-                }
+        HStack {
+            if habit.type == .checkbox {
+                habitControls(color: widgetFamily == .systemMedium ? .blue : .white)
+                Spacer()
+                habitLabel()
+                Spacer()
+            } else {
+                habitControls(color: widgetFamily == .systemMedium ? .blue : .white)
+                    .overlay(
+                        habitLabel()
+                            .frame(maxWidth: .infinity)
+                    )
             }
-            .padding(.horizontal, widgetFamily == .systemMedium ? 20 : 12)
-            .gesture(
-                DragGesture(minimumDistance: 20)
-                    .onEnded { value in
-                        if value.translation.width < 0 {
-                            withAnimation {
-                                currentIndex = (currentIndex + 1) % entry.habits.count
-                            }
-                        } else {
-                            withAnimation {
-                                currentIndex = (currentIndex - 1 + entry.habits.count) % entry.habits.count
-                            }
-                        }
-                    }
-            )
         }
+        .padding(.horizontal, widgetFamily == .systemMedium ? 20 : 12)
     }
 }
 
@@ -206,13 +184,15 @@ struct Lock_Screen_Widget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(iOS 17.0, *) {
-                Lock_Screen_WidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                Lock_Screen_WidgetEntryView(entry: entry)
-                    .padding()
-                    .background()
+            ForEach(entry.habits, id: \.id) { habit in
+                if #available(iOS 17.0, *) {
+                    HabitWidgetEntryView(entry: entry, habit: habit)
+                        .containerBackground(.fill.tertiary, for: .widget)
+                } else {
+                    HabitWidgetEntryView(entry: entry, habit: habit)
+                        .padding()
+                        .background()
+                }
             }
         }
         .configurationDisplayName("Habit Tracker")
@@ -220,7 +200,6 @@ struct Lock_Screen_Widget: Widget {
         .supportedFamilies([.accessoryRectangular, .systemMedium])
     }
 }
-
 // MARK: - Previews
 #Preview(as: .systemMedium) {
     Lock_Screen_Widget()

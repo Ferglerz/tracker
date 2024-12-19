@@ -80,13 +80,15 @@ class NativeStorageStrategy implements StorageStrategy {
 
   async load(key: string): Promise<string | null> {
     try {
+      // Add a delay to allow the WidgetsbridgePlugin to sync
+      await new Promise(resolve => setTimeout(resolve, 500)); // Adjust delay as needed
+
       const result = await WidgetsBridgePlugin.getItem({
         key,
         group: this.group
       });
-      
-      // Explicitly handle the DataResults structure
-      if (result && typeof result === 'string') {
+
+      if (result && typeof result === 'string') { // Access value property
         return result;
       }
       return null;
@@ -185,6 +187,7 @@ export class HabitStorage {
   }
 
   private async setupAppStateListener(): Promise<void> {
+    // Monitor app state changes
     App.addListener('appStateChange', async ({ isActive }) => {
       if (isActive) {
         try {
@@ -194,6 +197,36 @@ export class HabitStorage {
         }
       }
     });
+
+    // Set up UserDefaults change monitoring
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+      const intervalId = setInterval(async () => {
+        try {
+          const newData = await this.storage.load(this.storageKey);
+          if (newData && this.cache) {
+            const currentData = JSON.stringify(this.cache);
+            const newDataStr = JSON.stringify(JSON.parse(newData));
+            
+            if (currentData !== newDataStr) {
+              const parsedData = JSON.parse(newData) as HabitData;
+              this.cache = parsedData;
+              await this.notifyObservers(parsedData);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking UserDefaults changes:', error);
+        }
+      }, 1000); // Check every second
+
+      // Clean up when app goes to background
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          clearInterval(intervalId);
+        }
+      });
+    }
+    
+    return Promise.resolve();
   }
 
   async save(data: HabitData): Promise<void> {
@@ -217,8 +250,7 @@ export class HabitStorage {
         return this.cache;
       }
 
-      const rawData = await this.storage.load(this.storageKey);
-      if (!rawData) {
+          const rawData = await this.storage.load(this.storageKey);      if (!rawData) {
         return this.getDefaultData();
       }
 

@@ -20,7 +20,7 @@ import { HabitModel } from './HabitModel';
 import { HabitListItem } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { errorHandler } from './ErrorUtils';
-import { exportHabitHistoryToCSV } from './HabitOperations';
+import { HabitCSVService } from './HabitCSVService';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -28,8 +28,6 @@ const Home: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitModel | undefined>(undefined);
   const [habitToDelete, setHabitToDelete] = useState<HabitModel | null>(null);
-  const [showLongPressToast, setShowLongPressToast] = useState(false);
-  const [selectedHabit, setSelectedHabit] = useState<HabitModel | null>(null);
 
   const loadHabits = useCallback(async () => {
     try {
@@ -58,7 +56,7 @@ const Home: React.FC = () => {
 
   const handleExport = useCallback(async () => {
     try {
-      await exportHabitHistoryToCSV(habits);
+      await HabitCSVService.exportHabits(habits);
       errorHandler.showInfo('Export completed successfully');
     } catch (error) {
       errorHandler.handleError(error, 'Failed to export habit data');
@@ -74,15 +72,6 @@ const Home: React.FC = () => {
   const openForm = useCallback((habit?: HabitModel) => {
     setEditingHabit(habit);
     setIsFormOpen(true);
-  }, []);
-
-  const handleLongPress = useCallback((habit: HabitModel) => {
-    setSelectedHabit(habit);
-    setShowLongPressToast(true);
-    console.log('Long press triggered', { 
-      selectedHabit: selectedHabit?.name,
-      showToast: showLongPressToast 
-    });
   }, []);
 
   const handleViewCalendar = useCallback((habit: HabitModel) => {
@@ -118,7 +107,6 @@ const Home: React.FC = () => {
                 onEdit={() => openForm(habit)}
                 onDelete={() => setHabitToDelete(habit)}
                 onViewCalendar={() => handleViewCalendar(habit)}
-                onLongPress={handleLongPress}
               />
             ))}
           </IonList>
@@ -150,14 +138,6 @@ const Home: React.FC = () => {
           ]}
         />
 
-        <IonToast
-          isOpen={showLongPressToast}
-          onDidDismiss={() => setShowLongPressToast(false)}
-          message={`Long pressed: ${selectedHabit?.name}`}
-          duration={2000}
-          position="bottom"
-        />
-
         <IonFab vertical="bottom" horizontal="end" slot="fixed">
           <IonFabButton onClick={() => openForm()}>
             <IonIcon icon={add} />
@@ -167,4 +147,5 @@ const Home: React.FC = () => {
     </IonPage>
   );
 };
+
 export default Home;

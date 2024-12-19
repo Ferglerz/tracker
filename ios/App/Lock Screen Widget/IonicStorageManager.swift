@@ -64,9 +64,11 @@ struct HabitsData: Codable {
 class IonicStorageManager {
     static let shared = IonicStorageManager()
     private let userDefaults: UserDefaults?
+    private let suiteName = "group.io.ionic.tracker"
+    private let storageKey = "habitData"
     
     private init() {
-        userDefaults = UserDefaults(suiteName: "group.io.ionic.tracker")
+        userDefaults = UserDefaults(suiteName: suiteName)
         print("=== DEBUG: Storage Initialization ===")
         print("App Group UserDefaults:", userDefaults != nil ? "initialized" : "failed")
     }
@@ -77,7 +79,10 @@ class IonicStorageManager {
             return []
         }
         
-        guard let habitsData = userDefaults.string(forKey: "habitData") else {
+        // Force synchronization before reading
+        userDefaults.synchronize()
+        
+        guard let habitsData = userDefaults.string(forKey: storageKey) else {
             print("No habits data found in storage")
             return []
         }
@@ -100,6 +105,9 @@ class IonicStorageManager {
     
     func updateHabitValue(habitId: String, value: Any) throws {
         guard let userDefaults = userDefaults else { return }
+        
+        // Force synchronization before reading
+        userDefaults.synchronize()
         
         // Load existing data first
         var currentData = try loadHabits()
@@ -147,9 +155,19 @@ class IonicStorageManager {
             
             if let jsonString = String(data: jsonData, encoding: .utf8) {
                 print("DEBUG: Saving updated habit data:", jsonString)
-                userDefaults.set(jsonString, forKey: "habitData")
+                
+                // Use both UserDefaults and CFPreferences for maximum sync reliability
+                userDefaults.set(jsonString, forKey: storageKey)
                 userDefaults.synchronize()
                 
+                CFPreferencesSetAppValue(
+                    storageKey as CFString,
+                    jsonString as CFString,
+                    suiteName as CFString
+                )
+                CFPreferencesAppSynchronize(suiteName as CFString)
+                
+                // Reload widget timelines
                 if #available(iOS 14.0, *) {
                     WidgetCenter.shared.reloadAllTimelines()
                 }
