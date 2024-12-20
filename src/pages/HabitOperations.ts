@@ -3,22 +3,6 @@ import { HabitModel } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
 import { formatDateKey } from './HabitUtils';
 
-export const duplicateHabit = async (sourceHabit: HabitModel): Promise<HabitModel> => {
-  try {
-    const props = sourceHabit.toJSON();
-    const newProps = {
-      ...props,
-      id: Date.now().toString(),
-      name: `${props.name} (Copy)`,
-    };
-    
-    return await HabitModel.create(newProps);
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to duplicate habit');
-    throw error;
-  }
-};
-
 export const getHabitStats = async (habit: HabitModel, startDate: Date, endDate: Date) => {
   try {
     const history = await habit.getAllHistory();

@@ -2,14 +2,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HabitModel } from './HabitModel';
 import { errorHandler } from './ErrorUtils';
-import { 
-  bulkDeleteHabits, 
-  bulkUpdateHabits, 
-  duplicateHabit, 
-  getHabitStats,
-  exportHabitHistoryToCSV,
-  importHabitsFromCSV 
-} from './HabitOperations';
+import { getHabitStats } from './HabitOperations';
+import { HabitCSVService } from './HabitCSVService';
 
 type SortCriteria = 'name' | 'created' | 'lastUpdated';
 type FilterType = 'all' | 'checkbox' | 'quantity';
@@ -19,7 +13,6 @@ interface HabitManagerState {
   isFormOpen: boolean;
   editingHabit: HabitModel | null;
   habitToDelete: HabitModel | null;
-  selectedHabits: Set<string>;
   isLoading: boolean;
   sortBy: SortCriteria;
   sortDirection: 'asc' | 'desc';
@@ -33,7 +26,6 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     isFormOpen: false,
     editingHabit: null,
     habitToDelete: null,
-    selectedHabits: new Set(),
     isLoading: false,
     sortBy: 'created',
     sortDirection: 'desc',
@@ -132,29 +124,9 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
       updateState({ habitToDelete: null });
     }, [state.habitToDelete, handleAsyncOperation, refreshHabits, updateState]),
 
-    bulkDelete: useCallback(async () => {
-      if (!state.selectedHabits.size) return;
-      await handleAsyncOperation(
-        () => bulkDeleteHabits(Array.from(state.selectedHabits)),
-        'Failed to delete selected habits'
-      );
-      await refreshHabits();
-      updateState({ selectedHabits: new Set() });
-    }, [state.selectedHabits, handleAsyncOperation, refreshHabits, updateState]),
-
-    bulkUpdate: useCallback(async (value: number | boolean) => {
-      if (!state.selectedHabits.size) return;
-      const updates = Array.from(state.selectedHabits).map(id => ({ id, value }));
-      await handleAsyncOperation(
-        () => bulkUpdateHabits(updates),
-        'Failed to update selected habits'
-      );
-      await refreshHabits();
-    }, [state.selectedHabits, handleAsyncOperation, refreshHabits]),
-
     export: useCallback(async () => {
       await handleAsyncOperation(
-        () => exportHabitHistoryToCSV(state.habits),
+        () => HabitCSVService.exportHabits(state.habits),
         'Failed to export habits',
         'Export completed successfully'
       );
@@ -162,24 +134,16 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
 
     import: useCallback(async (file: File) => {
       await handleAsyncOperation(
-        () => importHabitsFromCSV(file),
+        () => HabitCSVService.importHabits(file),
         'Failed to import habits',
         'Import completed successfully'
       );
       await refreshHabits();
     }, [handleAsyncOperation, refreshHabits]),
 
-    duplicate: useCallback(async (habit: HabitModel) => {
-      await handleAsyncOperation(
-        () => duplicateHabit(habit),
-        'Failed to duplicate habit',
-        'Habit duplicated successfully'
-      );
-      await refreshHabits();
-    }, [handleAsyncOperation, refreshHabits])
   };
 
-  // Form and selection management
+  // Form management
   const formAndSelection = {
     openForm: (habit?: HabitModel) => updateState({
       isFormOpen: true,
@@ -189,19 +153,7 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     closeForm: async () => {
       updateState({ isFormOpen: false, editingHabit: null });
       await refreshHabits();
-    },
-
-    toggleSelection: (habitId: string) => {
-      const newSelected = new Set(state.selectedHabits);
-      newSelected.has(habitId) ? newSelected.delete(habitId) : newSelected.add(habitId);
-      updateState({ selectedHabits: newSelected });
-    },
-
-    selectAll: () => updateState({
-      selectedHabits: new Set(state.habits.map(h => h.id))
-    }),
-
-    clearSelection: () => updateState({ selectedHabits: new Set() })
+    }
   };
 
   return {

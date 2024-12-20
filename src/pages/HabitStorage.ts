@@ -5,6 +5,7 @@ import { App } from '@capacitor/app';
 import { errorHandler } from './ErrorUtils';
 import { validateHabitData } from './HabitUtils';
 import { Capacitor } from '@capacitor/core';
+
 // Types and interfaces
 export interface Habit {
   id: string;

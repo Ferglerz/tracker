@@ -101,6 +101,24 @@ export class HabitModel {
     }
   }
 
+  static async update(habit: HabitProperties): Promise<void> {
+    const data = await HabitStorageAPI.handleHabitData('load');
+    const habitIndex = data.habits.findIndex(h => h.id === habit.id);
+    if (habitIndex !== -1) {
+      // Update storage
+      data.habits[habitIndex] = { ...data.habits[habitIndex], ...habit };
+      await HabitStorageAPI.handleHabitData('save', data);
+      
+      // Update instance if it exists
+      const instance = HabitModel.instances.get(habit.id);
+      if (instance) {
+        instance.props = { ...instance.props, ...habit };
+        instance.changeSubject.next();
+      }
+    }
+  }
+  
+
   // State management methods with storage updates
   private async updateState(
     updates: Partial<{

@@ -64,32 +64,16 @@ const HabitForm: React.FC<HabitFormProps> = ({
 
     setIsSaving(true);
     try {
-      const data = await HabitStorageAPI.handleHabitData('load');
-      
       if (initialHabit) {
-        // Update existing habit - preserve existing state
-        const habitIndex = data.habits.findIndex(h => h.id === initialHabit.id);
-        if (habitIndex !== -1) {
-          const existingHabit = data.habits[habitIndex];
-          data.habits[habitIndex] = {
-            ...existingHabit, // Keep existing state
-            name: name.trim(),
-            unit: type === 'quantity' ? unit : undefined,
-            goal: type === 'quantity' ? goal : undefined,
-            bgColor: color,
-          };
-          await HabitStorageAPI.handleHabitData('save', data);
-          
-          // Update model with preserved state
-          await HabitModel.create({
-            id: initialHabit.id,
-            name: name.trim(),
-            type: existingHabit.type, // Keep original type
-            unit: type === 'quantity' ? unit : undefined,
-            goal: type === 'quantity' ? goal : undefined,
-            bgColor: color,
-          });
-        }
+        // Update existing habit
+        await HabitModel.update({
+          id: initialHabit.id,
+          name: name.trim(),
+          type: initialHabit.type,
+          unit: type === 'quantity' ? unit : undefined,
+          goal: type === 'quantity' ? goal : undefined,
+          bgColor: color,
+        });
       } else {
         // Create new habit
         const habitProps: HabitProperties = {
@@ -100,10 +84,8 @@ const HabitForm: React.FC<HabitFormProps> = ({
           goal: type === 'quantity' ? goal : undefined,
           bgColor: color,
         };
-        
-        const newHabit = await HabitModel.create(habitProps);
-        data.habits.push(newHabit.toJSON());
-        await HabitStorageAPI.handleHabitData('save', data);
+
+        await HabitModel.create(habitProps);
       }
 
       onClose();
@@ -112,10 +94,7 @@ const HabitForm: React.FC<HabitFormProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
-
-  return (
-    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
+  };  return (    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{title}</IonTitle>
@@ -146,7 +125,7 @@ const HabitForm: React.FC<HabitFormProps> = ({
             />
           </IonItem>
 
-          {!initialHabit && ( // Only show if creating new habit
+          {!initialHabit && (
             <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <IonItem 
