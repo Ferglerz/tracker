@@ -1,3 +1,4 @@
+// Home.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
@@ -12,11 +13,11 @@ import {
   IonFabButton,
   IonIcon,
   IonAlert,
-  IonToast,
   IonButtons,
 } from '@ionic/react';
 import { add, downloadOutline } from 'ionicons/icons';
-import { HabitModel } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
 import { HabitListItem } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { errorHandler } from './ErrorUtils';
@@ -24,14 +25,14 @@ import { HabitCSVService } from './HabitCSVService';
 
 const Home: React.FC = () => {
   const history = useHistory();
-  const [habits, setHabits] = useState<HabitModel[]>([]);
+  const [habits, setHabits] = useState<HabitEntity[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<HabitModel | undefined>(undefined);
-  const [habitToDelete, setHabitToDelete] = useState<HabitModel | null>(null);
+  const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>(undefined);
+  const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
 
   const loadHabits = useCallback(async () => {
     try {
-      const loadedHabits = await HabitModel.getAll();
+      const loadedHabits = await HabitRegistry.getAll();
       setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
@@ -46,7 +47,7 @@ const Home: React.FC = () => {
     if (!habitToDelete) return;
 
     try {
-      await HabitModel.delete(habitToDelete.id);
+      await HabitRegistry.delete(habitToDelete.id);
       await loadHabits();
       setHabitToDelete(null);
     } catch (error) {
@@ -69,13 +70,22 @@ const Home: React.FC = () => {
     await loadHabits();
   }, [loadHabits]);
 
-  const openForm = useCallback((habit?: HabitModel) => {
+  const openForm = useCallback((habit?: HabitEntity) => {
     setEditingHabit(habit);
     setIsFormOpen(true);
   }, []);
 
-  const handleViewCalendar = useCallback((habit: HabitModel) => {
-    history.push(`/habit/${habit.id}/calendar`, { habit });
+  const handleViewCalendar = useCallback((habit: HabitEntity) => {
+    history.push(`/habit/${habit.id}/calendar`, { 
+      habitData: {
+        id: habit.id,
+        name: habit.name,
+        type: habit.type,
+        unit: habit.unit,
+        goal: habit.goal,
+        bgColor: habit.bgColor
+      }
+    });
   }, [history]);
 
   return (

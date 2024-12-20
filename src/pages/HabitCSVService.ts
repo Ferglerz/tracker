@@ -1,7 +1,9 @@
 // HabitCSVService.ts
 import { format } from 'date-fns';
 import Papa from 'papaparse';
-import { HabitModel } from './HabitModel'; // Remove 'type' to use as value
+import { Habit } from './HabitTypes';
+import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
 import { errorHandler } from './ErrorUtils';
 import { formatDateKey } from './HabitUtils';
 
@@ -13,7 +15,7 @@ interface CSVRow {
 interface ParsedHabitData {
   name: string;
   unit?: string;
-  type: 'checkbox' | 'quantity';
+  type: Habit.Type;
   values: { date: string; value: number | boolean }[];
 }
 
@@ -41,7 +43,7 @@ export class HabitCSVService {
     };
   }
 
-  private static async getHabitHistory(habit: HabitModel): Promise<Record<string, number | boolean>> {
+  private static async getHabitHistory(habit: HabitEntity): Promise<Record<string, number | boolean>> {
     try {
       return await habit.getAllHistory();
     } catch (error) {
@@ -50,7 +52,7 @@ export class HabitCSVService {
     }
   }
 
-  static async exportHabits(habits: HabitModel[]): Promise<void> {
+  static async exportHabits(habits: HabitEntity[]): Promise<void> {
     try {
       if (!habits.length) {
         throw new Error('No habits available to export');
@@ -106,7 +108,7 @@ export class HabitCSVService {
       const habitData = await this.parseCSVFile(file);
       
       for (const data of habitData) {
-        const habitProps = {
+        const habitProps: Habit.Base = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: data.name,
           type: data.type,
@@ -114,14 +116,14 @@ export class HabitCSVService {
           bgColor: '#b5ead7', // Default color
         };
         
-        const habit = await HabitModel.create(habitProps);
+        const habit = await HabitRegistry.create(habitProps);
         
         // Import values
         for (const { date, value } of data.values) {
           const dateObj = new Date(date);
           if (data.type === 'checkbox') {
             await habit.setChecked(value as boolean, dateObj);
-          } else if (typeof value === 'number') { // Added type check
+          } else if (typeof value === 'number') {
             await habit.setValue(value, dateObj);
           }
         }
@@ -179,7 +181,8 @@ export class HabitCSVService {
                 if (typeof value === 'number' && !isNaN(value) || typeof value === 'boolean') {
                   habit.values.push({ date, value });
                 }
-              });            });
+              });
+            });
 
             resolve(habitColumns);
           } catch (error) {

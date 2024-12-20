@@ -1,3 +1,4 @@
+// HabitForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
   IonModal,
@@ -16,30 +17,31 @@ import {
   IonButtons,
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
-import { HabitModel, type HabitProperties } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
+import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
-import { HabitStorageAPI } from './HabitStorage';
 
 const PRESET_COLORS = [
   '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
   '#b5ead7', '#c7ceea', '#9b9b9b', '#f8c8dc'
 ] as const;
 
-interface HabitFormProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
-  initialHabit?: HabitModel;
+  initialHabit?: HabitEntity;
   title: string;
 }
 
-const HabitForm: React.FC<HabitFormProps> = ({
+const HabitForm: React.FC<Props> = ({
   isOpen,
   onClose,
   initialHabit,
   title
 }) => {
   const [name, setName] = useState(initialHabit?.name || '');
-  const [type, setType] = useState<'checkbox' | 'quantity'>(initialHabit?.type || 'checkbox');
+  const [type, setType] = useState<Habit.Type>(initialHabit?.type || 'checkbox');
   const [unit, setUnit] = useState(initialHabit?.unit || '');
   const [goal, setGoal] = useState<number | undefined>(initialHabit?.goal);
   const [color, setColor] = useState(initialHabit?.bgColor || PRESET_COLORS[0]);
@@ -58,34 +60,25 @@ const HabitForm: React.FC<HabitFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Please enter a habit name');
+      errorHandler.showWarning('Please enter a habit name');
       return;
     }
 
     setIsSaving(true);
     try {
-      if (initialHabit) {
-        // Update existing habit
-        await HabitModel.update({
-          id: initialHabit.id,
-          name: name.trim(),
-          type: initialHabit.type,
-          unit: type === 'quantity' ? unit : undefined,
-          goal: type === 'quantity' ? goal : undefined,
-          bgColor: color,
-        });
-      } else {
-        // Create new habit
-        const habitProps: HabitProperties = {
-          id: Date.now().toString(),
-          name: name.trim(),
-          type,
-          unit: type === 'quantity' ? unit : undefined,
-          goal: type === 'quantity' ? goal : undefined,
-          bgColor: color,
-        };
+      const habitBase: Habit.Base = {
+        id: initialHabit?.id || Date.now().toString(),
+        name: name.trim(),
+        type,
+        unit: type === 'quantity' ? unit : undefined,
+        goal: type === 'quantity' ? goal : undefined,
+        bgColor: color,
+      };
 
-        await HabitModel.create(habitProps);
+      if (initialHabit) {
+        await HabitRegistry.update(habitBase);
+      } else {
+        await HabitRegistry.create(habitBase);
       }
 
       onClose();
@@ -94,7 +87,10 @@ const HabitForm: React.FC<HabitFormProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };  return (    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
+  };
+
+  return (
+    <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{title}</IonTitle>
@@ -208,4 +204,4 @@ const HabitForm: React.FC<HabitFormProps> = ({
   );
 };
 
-export default HabitForm;
+export default React.memo(HabitForm);

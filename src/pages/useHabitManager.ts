@@ -1,27 +1,26 @@
 // useHabitManager.ts
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { HabitModel } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
+import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 import { getHabitStats } from './HabitOperations';
 import { HabitCSVService } from './HabitCSVService';
 
-type SortCriteria = 'name' | 'created' | 'lastUpdated';
-type FilterType = 'all' | 'checkbox' | 'quantity';
-
-interface HabitManagerState {
-  habits: HabitModel[];
+interface ManagerState {
+  habits: HabitEntity[];
   isFormOpen: boolean;
-  editingHabit: HabitModel | null;
-  habitToDelete: HabitModel | null;
+  editingHabit: HabitEntity | null;
+  habitToDelete: HabitEntity | null;
   isLoading: boolean;
-  sortBy: SortCriteria;
-  sortDirection: 'asc' | 'desc';
-  filterType: FilterType;
+  sortBy: Habit.Sort['field'];
+  sortDirection: Habit.Sort['direction'];
+  filterType: 'all' | Habit.Type;
   searchTerm: string;
 }
 
-export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
-  const [state, setState] = useState<HabitManagerState>({
+export function useHabitManager(initialFilters?: Partial<ManagerState>) {
+  const [state, setState] = useState<ManagerState>({
     habits: [],
     isFormOpen: false,
     editingHabit: null,
@@ -34,7 +33,7 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     ...initialFilters
   });
 
-  const updateState = useCallback((updates: Partial<HabitManagerState>) => {
+  const updateState = useCallback((updates: Partial<ManagerState>) => {
     setState(prev => ({ ...prev, ...updates }));
   }, []);
 
@@ -62,7 +61,7 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     const loadHabits = async () => {
       updateState({ isLoading: true });
       const habits = await handleAsyncOperation(
-        HabitModel.getAll,
+        HabitRegistry.getAll,
         'Failed to load habits'
       );
       
@@ -92,11 +91,12 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
           habit.unit?.toLowerCase().includes(searchTerm.toLowerCase()))
       )
       .sort((a, b) => {
-        const getValue = (habit: HabitModel) => {
+        const getValue = (habit: HabitEntity) => {
           switch (sortBy) {
             case 'name': return habit.name;
             case 'created': return habit.id;
             case 'lastUpdated': return new Date(parseInt(habit.id)).getTime();
+            case 'completion': return habit.isComplete ? 1 : 0;
             default: return habit.name;
           }
         };
@@ -107,7 +107,7 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
 
   const refreshHabits = useCallback(() => 
     handleAsyncOperation(
-      HabitModel.getAll,
+      HabitRegistry.getAll,
       'Failed to refresh habits'
     ).then(habits => habits && updateState({ habits }))
   , [handleAsyncOperation, updateState]);
@@ -117,7 +117,7 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     deleteHabit: useCallback(async () => {
       if (!state.habitToDelete) return;
       await handleAsyncOperation(
-        () => HabitModel.delete(state.habitToDelete!.id),
+        () => HabitRegistry.delete(state.habitToDelete!.id),
         'Failed to delete habit'
       );
       await refreshHabits();
@@ -140,12 +140,11 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
       );
       await refreshHabits();
     }, [handleAsyncOperation, refreshHabits]),
-
   };
 
   // Form management
   const formAndSelection = {
-    openForm: (habit?: HabitModel) => updateState({
+    openForm: (habit?: HabitEntity) => updateState({
       isFormOpen: true,
       editingHabit: habit || null
     }),
@@ -166,13 +165,13 @@ export function useHabitManager(initialFilters?: Partial<HabitManagerState>) {
     ...formAndSelection,
     
     // Filter and sort management
-    setFilterType: (filterType: FilterType) => updateState({ filterType }),
+    setFilterType: (filterType: 'all' | Habit.Type) => updateState({ filterType }),
     setSearchTerm: (searchTerm: string) => updateState({ searchTerm }),
-    setSortCriteria: (sortBy: SortCriteria, sortDirection: 'asc' | 'desc') => 
+    setSortCriteria: (sortBy: Habit.Sort['field'], sortDirection: Habit.Sort['direction']) => 
       updateState({ sortBy, sortDirection }),
     
     // Stats
-    getHabitStatistics: (habit: HabitModel, startDate: Date, endDate: Date) =>
+    getHabitStatistics: (habit: HabitEntity, startDate: Date, endDate: Date) =>
       handleAsyncOperation(
         () => getHabitStats(habit, startDate, endDate),
         'Failed to get habit statistics'

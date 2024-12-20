@@ -1,50 +1,79 @@
-import type { HabitModel } from './HabitModel';
+// HabitTypes.ts
 
-export type HabitType = 'checkbox' | 'quantity';
+export namespace Habit {
+  export type Type = 'checkbox' | 'quantity';
 
-export interface HabitStats {
-  totalDays: number;
-  completedDays: number;
-  partialDays: number;
-  streak: number;
-  longestStreak: number;
-  averageValue: number;
-}
+  export interface Base {
+    id: string;
+    name: string;
+    type: Type;
+    unit?: string;
+    goal?: number;
+    bgColor: string;
+  }
 
-export interface HabitFilter {
-  type?: HabitType;
-  searchTerm?: string;
-  startDate?: Date;
-  endDate?: Date;
-  isComplete?: boolean;
-}
+  export interface State {
+    quantity: number;
+    isChecked: boolean;
+    isComplete: boolean;
+    isBegun: boolean;
+  }
 
-export interface HabitSort {
-  field: 'name' | 'created' | 'lastUpdated' | 'completion';
-  direction: 'asc' | 'desc';
-}
+  export interface Model extends Base, State {}
 
-export type HabitChangeEvent = {
-  habit: HabitModel;
-  type: 'update' | 'delete' | 'create';
-  timestamp: number;
-};
+  export interface History {
+    [habitId: string]: {
+      [date: string]: number | boolean;
+    }
+  }
 
-export type HabitBulkOperation = {
-  habitIds: string[];
-  operation: 'delete' | 'update' | 'duplicate';
-  value?: number | boolean;
-};
+  export interface Data {
+    habits: Model[];
+    history: History;
+  }
 
-export interface CalendarHighlight {
-  date: string;
-  textColor: string;
-  backgroundColor: string;
-}
+  export interface RouteState {
+    habitData?: Base;
+  }
 
-export type HabitViewMode = 'list' | 'grid' | 'calendar';
+  export interface Stats {
+    totalDays: number;
+    completedDays: number;
+    partialDays: number;
+    streak: number;
+    longestStreak: number;
+    averageValue: number;
+  }
 
-export interface HabitImportData {
-  habits: Parameters<typeof HabitModel.create>[0][];
-  history: Record<string, Record<string, number | boolean>>;
+  export interface Filter {
+    type?: Type;
+    searchTerm?: string;
+    startDate?: Date;
+    endDate?: Date;
+    isComplete?: boolean;
+  }
+
+  export interface Sort {
+    field: 'name' | 'created' | 'lastUpdated' | 'completion';
+    direction: 'asc' | 'desc';
+  }
+
+  export type ChangeEvent = {
+    habit: Model;
+    type: 'update' | 'delete' | 'create';
+    timestamp: number;
+  }
+
+  export interface CalendarHighlight {
+    date: string;
+    textColor: string;
+    backgroundColor: string;
+  }
+
+  export type ViewMode = 'list' | 'grid' | 'calendar';
+
+  export interface ImportData {
+    habits: Base[];
+    history: History;
+  }
 }

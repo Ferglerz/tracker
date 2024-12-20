@@ -1,3 +1,4 @@
+// HabitDateEditModal.tsx
 import React, { useCallback, useMemo } from 'react';
 import {
   IonModal,
@@ -11,13 +12,13 @@ import {
   IonButton,
   IonButtons
 } from '@ionic/react';
-import type { HabitModel } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (value: number) => Promise<void>;
-  habit: HabitModel;
+  habit: HabitEntity;
   date: string;
   currentValue?: number;
 }

@@ -1,3 +1,4 @@
+// HabitListItem.tsx
 import React, { useState, useEffect } from 'react';
 import {
   IonItem, 
@@ -13,10 +14,11 @@ import {
 } from '@ionic/react';
 import { add, remove, calendar, pencil, trash } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import type { HabitModel } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
+import { Habit } from './HabitTypes';
 
 interface Props {
-  habit: HabitModel;
+  habit: HabitEntity;
   onEdit: () => void;
   onDelete: () => void;
   onViewCalendar: () => void;
@@ -40,7 +42,8 @@ export const HabitListItem: React.FC<Props> = React.memo(({
 
   const handleCalendarClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    history.push(`/habit/${habit.id}/calendar`, { 
+    
+    const routeState: Habit.RouteState = { 
       habitData: {
         id: habit.id,
         name: habit.name,
@@ -49,8 +52,51 @@ export const HabitListItem: React.FC<Props> = React.memo(({
         goal: habit.goal,
         bgColor: habit.bgColor
       }
-    });
+    };
+
+    history.push(`/habit/${habit.id}/calendar`, routeState);
   };
+
+  const renderQuantityControls = () => (
+    <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
+      <IonButton 
+        fill="clear" 
+        onClick={() => habit.increment(-1)}
+      >
+        <IonIcon icon={remove} />
+      </IonButton>
+      <IonButton 
+        fill="clear" 
+        onClick={() => habit.increment(1)}
+      >
+        <IonIcon icon={add} />
+      </IonButton>
+    </div>
+  );
+
+  const renderCheckbox = () => (
+    <IonCheckbox
+      slot="start"
+      checked={habit.isChecked}
+      onIonChange={(e) => habit.setChecked(e.detail.checked)}
+      style={{ zIndex: 1 }}
+    />
+  );
+
+  const renderQuantityLabel = () => (
+    <IonLabel>
+      <h2>{habit.name}</h2>
+      <p>
+        {habit.quantity}
+        {habit.goal ? ` / ${habit.goal} ` : ''} 
+        {habit.unit}
+      </p>
+    </IonLabel>
+  );
+
+  const renderCompleteBadge = () => (
+    habit.isComplete && <IonBadge color="success">Complete!</IonBadge>
+  );
 
   return (
     <IonItemSliding>
@@ -60,41 +106,19 @@ export const HabitListItem: React.FC<Props> = React.memo(({
       >
         {habit.type === 'checkbox' ? (
           <>
-            <IonCheckbox
-              slot="start"
-              checked={habit.isChecked}
-              onIonChange={(e) => habit.setChecked(e.detail.checked)}
-              style={{ zIndex: 1 }}
-            />
+            {renderCheckbox()}
             {habit.name}
           </>
         ) : (
           <>
-            <IonLabel>
-              <h2>{habit.name}</h2>
-              <p>{habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}</p>
-            </IonLabel>
-            {habit.isComplete && (
-              <IonBadge color="success">Complete!</IonBadge>
-            )}
-            <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
-              <IonButton 
-                fill="clear" 
-                onClick={() => habit.increment(-1)}
-              >
-                <IonIcon icon={remove} />
-              </IonButton>
-              <IonButton 
-                fill="clear" 
-                onClick={() => habit.increment(1)}
-              >
-                <IonIcon icon={add} />
-              </IonButton>
-            </div>
+            {renderQuantityLabel()}
+            {renderCompleteBadge()}
+            {renderQuantityControls()}
           </>
         )}
         <IonRippleEffect />
       </IonItem>
+
       <IonItemOptions side="end">
         <IonItemOption color="primary" onClick={handleCalendarClick}>
           <IonIcon slot="icon-only" icon={calendar} />
@@ -109,3 +133,5 @@ export const HabitListItem: React.FC<Props> = React.memo(({
     </IonItemSliding>
   );
 });
+
+HabitListItem.displayName = 'HabitListItem';

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// HabitDetails.tsx
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   IonContent,
   IonHeader,
@@ -12,7 +13,9 @@ import {
   IonCardContent,
 } from '@ionic/react';
 import { useLocation, useParams } from 'react-router-dom';
-import { HabitModel } from './HabitModel';
+import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
+import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 import { formatDateKey } from './HabitUtils';
 import HabitDateEditModal from './HabitDateEditModal';
@@ -21,21 +24,10 @@ interface RouteParams {
   id: string;
 }
 
-interface LocationState {
-  habitData?: {
-    id: string;
-    name: string;
-    type: 'checkbox' | 'quantity';
-    unit?: string;
-    goal?: number;
-    bgColor: string;
-  };
-}
-
 const HabitDetails: React.FC = () => {
-  const location = useLocation<LocationState>();
+  const location = useLocation<Habit.RouteState>();
   const { id } = useParams<RouteParams>();
-  const [habit, setHabit] = useState<HabitModel | null>(null);
+  const [habit, setHabit] = useState<HabitEntity | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDate, setEditingDate] = useState<string>('');
@@ -44,24 +36,24 @@ const HabitDetails: React.FC = () => {
   useEffect(() => {
     const loadHabit = async () => {
       try {
-        let habitModel: HabitModel;
+        let habitEntity: HabitEntity;
         
         if (location.state?.habitData) {
-          habitModel = await HabitModel.create(location.state.habitData);
+          habitEntity = await HabitRegistry.create(location.state.habitData);
         } else if (id) {
-          const habits = await HabitModel.getAll();
+          const habits = await HabitRegistry.getAll();
           const existingHabit = habits.find(h => h.id === id);
           if (!existingHabit) {
             throw new Error('Habit not found');
           }
-          habitModel = await HabitModel.create(existingHabit);
+          habitEntity = existingHabit;
         } else {
           throw new Error('No habit ID provided');
         }
 
-        setHabit(habitModel);
+        setHabit(habitEntity);
 
-        const subscription = habitModel.changes.subscribe(() => {
+        const subscription = habitEntity.changes.subscribe(() => {
           setForceUpdate(prev => prev + 1);
         });
 
@@ -161,23 +153,25 @@ const HabitDetails: React.FC = () => {
         <div className="ion-padding">
           <IonCard>
             <IonCardContent>
-            <IonDatetime
-              presentation="date"
-              preferWheel={false}
-              value={selectedDate}
-              onIonChange={e => {
-                if (e.detail.value) {
-                  const dateValue = Array.isArray(e.detail.value) ? e.detail.value[0] : e.detail.value;
-                  const date = new Date(dateValue);
-                  if (!isNaN(date.getTime())) {
-                    setSelectedDate(dateValue);
-                    handleDateClick(dateValue);
+              <IonDatetime
+                presentation="date"
+                preferWheel={false}
+                value={selectedDate}
+                onIonChange={e => {
+                  if (e.detail.value) {
+                    const dateValue = Array.isArray(e.detail.value) 
+                      ? e.detail.value[0] 
+                      : e.detail.value;
+                    const date = new Date(dateValue);
+                    if (!isNaN(date.getTime())) {
+                      setSelectedDate(dateValue);
+                      handleDateClick(dateValue);
+                    }
                   }
-                }
-              }}
-              highlightedDates={getHighlightedDates}
-              className="calendar-custom"
-            />
+                }}
+                highlightedDates={getHighlightedDates}
+                className="calendar-custom"
+              />
             </IonCardContent>
           </IonCard>
 
