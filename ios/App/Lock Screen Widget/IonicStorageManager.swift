@@ -101,7 +101,7 @@ class IonicStorageManager {
                     id: updatedHabit.id,
                     name: updatedHabit.name,
                     type: updatedHabit.type,
-                    unit: updatedHabit.unit,
+                    unit: updatedHabit.unit, // Preserve unit
                     quantity: updatedHabit.quantity,
                     goal: updatedHabit.goal,
                     isChecked: checked,
@@ -114,7 +114,7 @@ class IonicStorageManager {
                     id: updatedHabit.id,
                     name: updatedHabit.name,
                     type: updatedHabit.type,
-                    unit: updatedHabit.unit,
+                    unit: updatedHabit.unit, // Preserve unit
                     quantity: quantity,
                     goal: updatedHabit.goal,
                     isChecked: updatedHabit.isChecked,
@@ -133,7 +133,7 @@ class IonicStorageManager {
             if let jsonData = try? encoder.encode(habitsContainer),
                let jsonString = String(data: jsonData, encoding: .utf8) {
                 userDefaults.set(jsonString, forKey: storageKey)
-                userDefaults.synchronize()
+                userDefaults.synchronize() // Force synchronization
                 
                 if #available(iOS 14.0, *) {
                     WidgetCenter.shared.reloadAllTimelines()

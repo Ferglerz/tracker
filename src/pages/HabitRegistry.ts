@@ -3,6 +3,8 @@ import { HabitEntity } from './HabitEntity';
 import { Habit } from './HabitTypes';
 import { HabitStorageAPI } from './HabitStorage';
 import { errorHandler } from './ErrorUtils';
+import { Capacitor } from '@capacitor/core';
+import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 
 export class HabitRegistry {
   private static instances: Map<string, HabitEntity> = new Map();
@@ -37,22 +39,43 @@ export class HabitRegistry {
     return instance;
   }
 
-  static async update(habit: Habit.Base): Promise<void> {
+// HabitRegistry.ts
+static async update(habit: Habit.Model): Promise<void> {
+  try {
     const data = await HabitStorageAPI.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === habit.id);
     
     if (habitIndex !== -1) {
-      // Update storage
-      data.habits[habitIndex] = { ...data.habits[habitIndex], ...habit };
+      // Update storage with full habit data
+      data.habits[habitIndex] = {
+        ...data.habits[habitIndex],
+        ...habit,
+      };
+      
       await HabitStorageAPI.handleHabitData('save', data);
       
-      // Update instance if it exists
+      // Update instance if it exists, but skip storage update to prevent loops
       const instance = HabitRegistry.instances.get(habit.id);
       if (instance) {
         instance.updateProperties(habit);
+        await instance.updateState({
+          quantity: habit.quantity,
+          isChecked: habit.isChecked,
+          isComplete: habit.isComplete,
+          isBegun: habit.isBegun
+        }, new Date(), true); // Skip storage update
+      }
+      
+      // Force widget refresh
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+        await WidgetsBridgePlugin.reloadAllTimelines();
       }
     }
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to update habit');
+    throw error;
   }
+}
 
   static async getAll(): Promise<HabitEntity[]> {
     const data = await HabitStorageAPI.handleHabitData('load');

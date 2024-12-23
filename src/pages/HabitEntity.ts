@@ -2,6 +2,7 @@
 import { Subject, Observable } from 'rxjs';
 import { formatDateKey, getHabitStatus } from './HabitUtils';
 import { Habit } from './HabitTypes';
+import { HabitRegistry } from './HabitRegistry';
 
 export class HabitEntity {
   private changeSubject = new Subject<void>();
@@ -45,29 +46,48 @@ export class HabitEntity {
     return { ...this.history };
   }
 
-  async updateState(
-    updates: Partial<Habit.State>,
-    date: Date = new Date()
+// HabitEntity.ts
+async updateState(
+  updates: Partial<Habit.State>,
+  date: Date = new Date(),
+  skipStorageUpdate: boolean = false // Add flag to prevent storage updates
 ): Promise<void> {
-    // Assign the updated values to the instance variables
-    this._quantity = updates.quantity ?? this._quantity;
-    this._isChecked = updates.isChecked ?? this._isChecked;
+  // Update instance variables
+  if (updates.quantity !== undefined) {
+    this._quantity = updates.quantity;
+  }
+  if (updates.isChecked !== undefined) {
+    this._isChecked = updates.isChecked;
+  }
 
-    // Automatically update isBegun based on quantity
-    this._isBegun = this._quantity > 0;
+  // Update derived states
+  this._isBegun = this.type === 'checkbox' ? 
+    this._isChecked : 
+    this._quantity > 0;
 
-    // Automatically update isComplete and isBegun based on isChecked
-    if (this.type === 'checkbox') {
-        this._isComplete = this._isChecked;
-        this._isBegun = this._isChecked;
-    } else {
-        this._isComplete = updates.isComplete ?? this._isComplete;
-    }
+  this._isComplete = this.type === 'checkbox' ? 
+    this._isChecked : 
+    (this.goal ? this._quantity >= this.goal : this._quantity > 0);
 
-    const dateKey = formatDateKey(date);
-    const value = this.type === 'checkbox' ? this._isChecked : this._quantity;
-    this.history[dateKey] = value;
-    this.changeSubject.next();
+  // Save to history
+  const dateKey = formatDateKey(date);
+  const value = this.type === 'checkbox' ? this._isChecked : this._quantity;
+  this.history[dateKey] = value;
+
+  // Only trigger storage update if not skipped
+  if (!skipStorageUpdate) {
+    // Trigger update in registry
+    await HabitRegistry.update({
+      ...this.props,
+      quantity: this._quantity,
+      isChecked: this._isChecked,
+      isComplete: this._isComplete,
+      isBegun: this._isBegun
+    });
+  }
+
+  // Notify observers AFTER all updates are complete
+  this.changeSubject.next();
 }
 
   async increment(amount: number = 1): Promise<void> {

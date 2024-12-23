@@ -66,19 +66,24 @@ const HabitForm: React.FC<Props> = ({
 
     setIsSaving(true);
     try {
-      const habitBase: Habit.Base = {
+      const habitModel: Habit.Model = {
         id: initialHabit?.id || Date.now().toString(),
         name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
         goal: type === 'quantity' ? goal : undefined,
         bgColor: color,
+        // Add required Model properties
+        quantity: initialHabit?.quantity || 0,
+        isChecked: initialHabit?.isChecked || false,
+        isComplete: initialHabit?.isComplete || false,
+        isBegun: initialHabit?.isBegun || false
       };
 
       if (initialHabit) {
-        await HabitRegistry.update(habitBase);
+        await HabitRegistry.update(habitModel);
       } else {
-        await HabitRegistry.create(habitBase);
+        await HabitRegistry.create(habitModel);
       }
 
       onClose();
