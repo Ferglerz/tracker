@@ -14,14 +14,17 @@ import {
   IonIcon,
   IonAlert,
   IonButtons,
+  IonProgressBar,
 } from '@ionic/react';
-import { add, downloadOutline } from 'ionicons/icons';
+import { add, downloadOutline, refreshOutline } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import { HabitRegistry } from './HabitRegistry';
 import { HabitListItem } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { errorHandler } from './ErrorUtils';
 import { HabitCSVService } from './HabitCSVService';
+import { HabitStorage } from './HabitStorage';
+import { Habit } from './HabitTypes';
 
 const Home: React.FC = () => {
   const history = useHistory();
@@ -29,13 +32,20 @@ const Home: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>(undefined);
   const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadHabits = useCallback(async () => {
+  const loadHabits = useCallback(async (forceRefresh: boolean = false) => {
     try {
+      if (forceRefresh) {
+        setIsRefreshing(true);
+        await HabitRegistry.syncWithStorage();
+      }
       const loadedHabits = await HabitRegistry.getAll();
       setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
+    } finally {
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -64,6 +74,54 @@ const Home: React.FC = () => {
     }
   }, [habits]);
 
+
+  
+  const handleRefresh = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      console.log("Starting refresh process...");
+    
+      const storage = HabitStorage.getInstance();
+      const data = await storage.load();
+      console.log("Current storage data:", data);
+
+      const testHabit: Partial<HabitEntity> = {
+        id: "123456789",
+        name: "Test Habit",
+        type: "checkbox" as const,
+        bgColor: "#b5ead7",
+        quantity: 0,
+        isChecked: false,
+        isComplete: false,
+        isBegun: false,
+        unit: undefined,
+        goal: undefined,
+      };
+
+      if (!data.habits.find(h => h.id === testHabit.id)) {
+        data.habits.push(testHabit as HabitEntity);
+        console.log("Added test habit to storage data");
+        await storage.save(data);
+        console.log("Saved updated storage data");
+      }
+
+      console.log("Starting sync with storage...");
+      await HabitRegistry.syncWithStorage();
+      console.log("Storage sync complete");
+
+      console.log("Reloading habits list...");
+      const loadedHabits = await HabitRegistry.getAll();
+      console.log("New habits list:", loadedHabits);
+    
+      setHabits(loadedHabits);
+      console.log("State updated with new habits");
+    } catch (error) {
+      console.error("Refresh error:", error);
+      errorHandler.handleError(error, 'Failed to refresh habits');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
   const handleCloseForm = useCallback(async () => {
     setIsFormOpen(false);
     setEditingHabit(undefined);
@@ -93,16 +151,19 @@ const Home: React.FC = () => {
       <IonHeader>
         <IonToolbar>
           <IonTitle className="ion-text-center">Habits</IonTitle>
-          {habits.length > 0 && (
-            <IonButtons slot="end">
+          <IonButtons slot="end">
+            <IonButton onClick={handleRefresh} disabled={isRefreshing}>
+              <IonIcon slot="icon-only" icon={refreshOutline} />
+            </IonButton>
+            {habits.length > 0 && (
               <IonButton onClick={handleExport}>
                 <IonIcon slot="icon-only" icon={downloadOutline} />
               </IonButton>
-            </IonButtons>
-          )}
+            )}
+          </IonButtons>
+          {isRefreshing && <IonProgressBar type="indeterminate" />}
         </IonToolbar>
-      </IonHeader>
-      
+      </IonHeader>      
       <IonContent>
         {habits.length === 0 ? (
           <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>

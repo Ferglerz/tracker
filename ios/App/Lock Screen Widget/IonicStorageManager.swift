@@ -37,13 +37,13 @@ struct HabitsData: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         habits = try container.decode([Habit].self, forKey: .habits)
         
-        // Handle history as a JSON string that we'll parse manually
+        // Handle history as a JSON string
         if let historyString = try? container.decode(String.self, forKey: .history),
            let historyData = historyString.data(using: .utf8),
            let historyDict = try? JSONSerialization.jsonObject(with: historyData) as? [String: [String: Any]] {
             history = historyDict
         } else {
-            history = [:] // Initialize as empty if parsing fails
+            history = [:]
         }
     }
     
@@ -52,8 +52,8 @@ struct HabitsData: Codable {
         try container.encode(habits, forKey: .habits)
         
         // Convert history to JSON string
-        let historyData = try JSONSerialization.data(withJSONObject: history)
-        if let historyString = String(data: historyData, encoding: .utf8) {
+        if let historyData = try? JSONSerialization.data(withJSONObject: history),
+           let historyString = String(data: historyData, encoding: .utf8) {
             try container.encode(historyString, forKey: .history)
         } else {
             try container.encode("{}", forKey: .history)
@@ -69,47 +69,27 @@ class IonicStorageManager {
     
     private init() {
         userDefaults = UserDefaults(suiteName: suiteName)
-        print("=== DEBUG: Storage Initialization ===")
-        print("App Group UserDefaults:", userDefaults != nil ? "initialized" : "failed")
     }
     
     func loadHabits() throws -> [Habit] {
-        guard let userDefaults = userDefaults else {
-            print("⚠️ UserDefaults not initialized")
+        guard let userDefaults = userDefaults,
+              let habitsData = userDefaults.string(forKey: storageKey),
+              let jsonData = habitsData.data(using: .utf8) else {
             return []
-        }
-        
-        // Force synchronization before reading
-        userDefaults.synchronize()
-        
-        guard let habitsData = userDefaults.string(forKey: storageKey) else {
-            print("No habits data found in storage")
-            return []
-        }
-        
-        print("DEBUG: Loading habits data:", habitsData)
-        
-        guard let jsonData = habitsData.data(using: .utf8) else {
-            throw NSError(domain: "IonicStorage", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid data format"])
         }
         
         do {
             let habitsContainer = try JSONDecoder().decode(HabitsData.self, from: jsonData)
-            print("DEBUG: Successfully decoded habits:", habitsContainer.habits.count)
             return habitsContainer.habits
         } catch {
-            print("⚠️ JSON Decoding failed:", error)
-            throw error
+            print("Failed to decode habits:", error)
+            return []
         }
     }
     
     func updateHabitValue(habitId: String, value: Any) throws {
         guard let userDefaults = userDefaults else { return }
         
-        // Force synchronization before reading
-        userDefaults.synchronize()
-        
-        // Load existing data first
         var currentData = try loadHabits()
         
         if let index = currentData.firstIndex(where: { $0.id == habitId }) {
@@ -148,26 +128,13 @@ class IonicStorageManager {
             
             currentData[index] = updatedHabit
             
-            // Create container with empty history to preserve existing history
             let habitsContainer = HabitsData(habits: currentData)
             let encoder = JSONEncoder()
-            let jsonData = try encoder.encode(habitsContainer)
-            
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                print("DEBUG: Saving updated habit data:", jsonString)
-                
-                // Use both UserDefaults and CFPreferences for maximum sync reliability
+            if let jsonData = try? encoder.encode(habitsContainer),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
                 userDefaults.set(jsonString, forKey: storageKey)
                 userDefaults.synchronize()
                 
-                CFPreferencesSetAppValue(
-                    storageKey as CFString,
-                    jsonString as CFString,
-                    suiteName as CFString
-                )
-                CFPreferencesAppSynchronize(suiteName as CFString)
-                
-                // Reload widget timelines
                 if #available(iOS 14.0, *) {
                     WidgetCenter.shared.reloadAllTimelines()
                 }
