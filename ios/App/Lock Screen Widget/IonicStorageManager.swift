@@ -72,10 +72,12 @@ class IonicStorageManager {
         }
         
         do {
+            //print("JSON String: \(String(describing: String(data: jsonData, encoding: .utf8)))") // Print the JSON
+
             let habitsContainer = try JSONDecoder().decode(HabitsData.self, from: jsonData)
             return habitsContainer.habits
         } catch {
-            print("Failed to decode habits:", error)
+            //print("Failed to decode habits:", error)
             return []
         }
     }

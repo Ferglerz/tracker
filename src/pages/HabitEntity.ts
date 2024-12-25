@@ -35,7 +35,7 @@ export class HabitEntity {
         const dateKey = formatDateKey(date);
         updatedHabit.history = updatedHabit.history || {}; // Ensure history exists
         if (this.type === 'quantity' && typeof updates.quantity === 'number') {
-            updatedHabit.history[dateKey] = [updates.quantity, updatedHabit.goal || 0];
+            updatedHabit.history[dateKey] = [updates.quantity, updates.goal || 0];
         } else if (this.type === 'checkbox' && typeof updates.isChecked === 'boolean') {
             updatedHabit.history[dateKey] = updates.isChecked;
         }
@@ -64,6 +64,13 @@ export class HabitEntity {
       isChecked: checked,
       isComplete: checked,
     }, date);
+  }
+
+  async rewriteHistory(value: [ number, number ] | boolean, date: Date): Promise<void> {
+    const history = {
+      [formatDateKey(date)]: value
+    };
+    await this.update({ history });
   }
 
   async setValue(value: number, date: Date = new Date()): Promise<void> {

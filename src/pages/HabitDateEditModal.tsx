@@ -1,5 +1,5 @@
 // HabitDateEditModal.tsx
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -17,10 +17,9 @@ import { HabitEntity } from './HabitEntity';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (value: number) => Promise<void>;
+  onSave: (value: number, goal: number) => Promise<void>;
   habit: HabitEntity;
   date: string;
-  currentValue?: number;
 }
 
 const HabitDateEditModal: React.FC<Props> = ({
@@ -29,22 +28,31 @@ const HabitDateEditModal: React.FC<Props> = ({
   onSave,
   habit,
   date,
-  currentValue
 }) => {
-  const [value, setValue] = React.useState<number>(currentValue || 0);
+  const [value, setValue] = useState<number>(0);
+  const [goal, setGoal] = useState<number>(habit.goal || 0);
 
-  React.useEffect(() => {
-    setValue(currentValue || 0);
-  }, [currentValue, isOpen]);
+  useEffect(() => {
+    const dateObject = new Date(date);
+    const historicalData = habit.getValueForDate(dateObject); 
+
+    if (historicalData && Array.isArray(historicalData)) {
+      setValue(historicalData[0] || 0); 
+      setGoal(historicalData[1] || habit.goal || 0); 
+    } else {
+      setValue(0);
+      setGoal(habit.goal || 0);
+    }
+  }, [habit, date, isOpen]); 
 
   const handleSave = useCallback(async () => {
     try {
-      await onSave(value);
+      await onSave(value, goal);
       onClose();
     } catch (error) {
       // Error handling is done by the parent component
     }
-  }, [value, onSave, onClose]);
+  }, [value, goal, onSave, onClose]);
 
   const dateDisplay = useMemo(() => {
     return new Date(date).toLocaleDateString();
@@ -78,11 +86,16 @@ const HabitDateEditModal: React.FC<Props> = ({
             step="1"
           />
         </IonItem>
-        {habit.goal && (
-          <div className="ion-padding-top ion-text-center">
-            Goal: {habit.goal} {habit.unit}
-          </div>
-        )}
+        <IonItem>
+          <IonLabel position="stacked">Goal {habit.unit ? `(${habit.unit})` : ''}</IonLabel>
+          <IonInput
+            type="number"
+            value={goal}
+            onIonInput={e => setGoal(Number(e.detail.value))}
+            min="0"
+            step="1"
+          />
+        </IonItem>
       </IonContent>
     </IonModal>
   );

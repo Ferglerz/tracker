@@ -88,12 +88,13 @@ const HabitDetails: React.FC = () => {
         }
     }, [habit]);
 
-    const handleSaveDate = useCallback(async (value: number) => {
+    const handleSaveDate = useCallback(async (value: any) => {
         if (!habit) return;
 
         try {
             const date = new Date(editingDate);
-            await habit.setValue(value, date);
+                await habit.setValue(value, date);
+                await habit.rewriteHistory(value, date)
         } catch (error) {
             errorHandler.handleError(error, 'Failed to save habit value');
         }
@@ -190,13 +191,6 @@ const HabitDetails: React.FC = () => {
                             onSave={handleSaveDate}
                             habit={habit}
                             date={editingDate}
-                            currentValue={
-                                editingDate 
-                                    ? (Array.isArray(habit.history[editingDate]) 
-                                        ? habit.history[editingDate][0] 
-                                        : 0)
-                                    : 0
-                            }
                         />
                     )}
                 </div>
