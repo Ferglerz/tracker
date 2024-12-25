@@ -36,22 +36,12 @@ const HabitDetails: React.FC = () => {
     useEffect(() => {
         const loadHabit = async () => {
             try {
-                let habitEntity: HabitEntity;
-
-                if (location.state) {
-                    habitEntity = await HabitEntity.create(location.state);
-                } else if (id) {
-                    const habits = await HabitEntity.loadAll();
-                    const existingHabit = habits.find(h => h.id === id);
-                    if (!existingHabit) {
-                        throw new Error('Habit not found');
-                    }
-                    habitEntity = existingHabit;
-                } else {
-                    throw new Error('No habit ID provided');
+                const habits = await HabitEntity.loadAll();
+                const existingHabit = habits.find(h => h.id === id);
+                if (!existingHabit) {
+                    throw new Error('Habit not found');
                 }
-
-                setHabit(habitEntity);
+                setHabit(existingHabit);
             } catch (error) {
                 errorHandler.handleError(error, 'Failed to load habit');
             }
@@ -72,7 +62,7 @@ const HabitDetails: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, [location.state, id]);
+    }, [id]);
 
     const handleDateClick = useCallback(async (isoString: string) => {
         if (!habit) return;
@@ -116,14 +106,25 @@ const HabitDetails: React.FC = () => {
             const date = new Date(isoString);
             if (isNaN(date.getTime())) return undefined;
 
-            const status = habit.getStatusForDate(date);
-            if (status === 'none') return undefined;
+            const dateKey = formatDateKey(date);
+            const value = habit.history[dateKey];
+            
+            if (!value) return undefined;
+
+            let isComplete = false;
+            if (habit.type === 'checkbox') {
+                isComplete = value === true;
+            } else if (Array.isArray(value)) {
+                const [quantity, goal] = value;
+                isComplete = goal > 0 ? quantity >= goal : quantity > 0;
+            }
 
             return {
                 textColor: '#ffffff',
-                backgroundColor: status === 'complete' ? '#2dd36f' : '#ffc409'
+                backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
             };
-        } catch {
+        } catch (error) {
+            console.error('Error in getHighlightedDates:', error);
             return undefined;
         }
     }, [habit]);
@@ -189,7 +190,13 @@ const HabitDetails: React.FC = () => {
                             onSave={handleSaveDate}
                             habit={habit}
                             date={editingDate}
-                            currentValue={habit.getValueForDate(new Date(editingDate)) as unknown as number}
+                            currentValue={
+                                editingDate 
+                                    ? (Array.isArray(habit.history[editingDate]) 
+                                        ? habit.history[editingDate][0] 
+                                        : 0)
+                                    : 0
+                            }
                         />
                     )}
                 </div>

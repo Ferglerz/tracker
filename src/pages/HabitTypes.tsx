@@ -12,7 +12,6 @@ export namespace Habit {
     quantity: number;
     isChecked: boolean;
     isComplete: boolean;
-    isBegun: boolean;
     history: {
       [date: string]: [ number, number ] | boolean;
     };

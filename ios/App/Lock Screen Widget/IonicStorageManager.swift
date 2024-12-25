@@ -10,8 +10,35 @@ struct Habit: Codable {
     let goal: Int?
     let isChecked: Bool
     let isComplete: Bool
-    let isBegun: Bool
     let bgColor: String?
+    let history: [String: HistoryValue] // Add history field
+}
+
+// New type to handle both boolean and number array history values
+enum HistoryValue: Codable {
+    case boolean(Bool)
+    case quantity([Int])
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let boolValue = try? container.decode(Bool.self) {
+            self = .boolean(boolValue)
+        } else if let arrayValue = try? container.decode([Int].self) {
+            self = .quantity(arrayValue)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "History value must be either Bool or [Int]")
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .boolean(let value):
+            try container.encode(value)
+        case .quantity(let value):
+            try container.encode(value)
+        }
+    }
 }
 
 enum HabitType: String, Codable {
@@ -21,43 +48,9 @@ enum HabitType: String, Codable {
 
 struct HabitsData: Codable {
     var habits: [Habit]
-    var history: [String: [String: Any]]
     
     init(habits: [Habit]) {
         self.habits = habits
-        self.history = [:]
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case habits
-        case history
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        habits = try container.decode([Habit].self, forKey: .habits)
-        
-        // Handle history as a JSON string
-        if let historyString = try? container.decode(String.self, forKey: .history),
-           let historyData = historyString.data(using: .utf8),
-           let historyDict = try? JSONSerialization.jsonObject(with: historyData) as? [String: [String: Any]] {
-            history = historyDict
-        } else {
-            history = [:]
-        }
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(habits, forKey: .habits)
-        
-        // Convert history to JSON string
-        if let historyData = try? JSONSerialization.data(withJSONObject: history),
-           let historyString = String(data: historyData, encoding: .utf8) {
-            try container.encode(historyString, forKey: .history)
-        } else {
-            try container.encode("{}", forKey: .history)
-        }
     }
 }
 
@@ -87,41 +80,54 @@ class IonicStorageManager {
         }
     }
     
-    func updateHabitValue(habitId: String, value: Any) throws {
+    func updateHabitValue(habitId: String, value: Any, date: String? = nil) throws {
         guard let userDefaults = userDefaults else { return }
         
         var currentData = try loadHabits()
         
         if let index = currentData.firstIndex(where: { $0.id == habitId }) {
             var updatedHabit = currentData[index]
+            var updatedHistory = updatedHabit.history
+            
+            // Get today's date if not provided
+            let dateKey = date ?? ISO8601DateFormatter().string(from: Date())
             
             switch value {
             case let checked as Bool:
+                // Update the history for checkbox type
+                updatedHistory[dateKey] = .boolean(checked)
+                
                 updatedHabit = Habit(
                     id: updatedHabit.id,
                     name: updatedHabit.name,
                     type: updatedHabit.type,
-                    unit: updatedHabit.unit, // Preserve unit
+                    unit: updatedHabit.unit,
                     quantity: updatedHabit.quantity,
                     goal: updatedHabit.goal,
                     isChecked: checked,
                     isComplete: checked,
-                    isBegun: checked,
-                    bgColor: updatedHabit.bgColor
+                    bgColor: updatedHabit.bgColor,
+                    history: updatedHistory
                 )
+                
             case let quantity as Int:
+                // Update the history for quantity type
+                let historyValue: [Int] = [quantity, updatedHabit.goal ?? 0]
+                updatedHistory[dateKey] = .quantity(historyValue)
+                
                 updatedHabit = Habit(
                     id: updatedHabit.id,
                     name: updatedHabit.name,
                     type: updatedHabit.type,
-                    unit: updatedHabit.unit, // Preserve unit
+                    unit: updatedHabit.unit,
                     quantity: quantity,
                     goal: updatedHabit.goal,
                     isChecked: updatedHabit.isChecked,
                     isComplete: quantity >= (updatedHabit.goal ?? Int.max),
-                    isBegun: quantity > 0,
-                    bgColor: updatedHabit.bgColor
+                    bgColor: updatedHabit.bgColor,
+                    history: updatedHistory
                 )
+                
             default:
                 throw NSError(domain: "IonicStorage", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid value type"])
             }

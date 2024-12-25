@@ -88,12 +88,10 @@ const HabitForm: React.FC<Props> = ({
             unit: type === 'quantity' ? unit : undefined,
             goal: type === 'quantity' ? goal : undefined,
             bgColor: color,
-            // Add missing required properties
-            quantity: 0,
-            isChecked: false,
-            isComplete: false,
-            isBegun: false,
-            history: {}
+            quantity: editedHabit?.quantity ?? 0,
+            isChecked: editedHabit?.isChecked ?? false,
+            isComplete: editedHabit?.isComplete ?? false,
+            history: editedHabit?.history ?? {}
         };
 
         // Create or update the habit

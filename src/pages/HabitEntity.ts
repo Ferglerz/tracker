@@ -1,12 +1,10 @@
 // HabitEntity.ts
-import { Subject, Observable } from 'rxjs';
 import { formatDateKey, getHabitStatus } from './HabitUtils';
 import { Habit } from './HabitTypes';
 import { HabitStorageAPI } from './HabitStorage';
 import { errorHandler } from './ErrorUtils'
 
 export class HabitEntity {
-  private changeSubject = new Subject<void>();
   constructor(private props: Habit.Habit) { }
 
   // Read-only getters
@@ -19,12 +17,7 @@ export class HabitEntity {
   get quantity(): number { return this.props.quantity; }
   get isChecked(): boolean { return this.props.isChecked; }
   get isComplete(): boolean { return this.props.isComplete; }
-  get isBegun(): boolean { return this.props.isBegun; }
   get history(): Record<string, [number, number] | boolean> { return this.props.history; }
-
-  get changes(): Observable<void> {
-    return this.changeSubject.asObservable();
-  }
 
   private async update(updates: Partial<Habit.Habit>, date: Date = new Date()): Promise<void> {
     const data = await HabitStorageAPI.handleHabitData('load');
@@ -50,11 +43,7 @@ export class HabitEntity {
 
     await HabitStorageAPI.handleHabitData('save', data);
     this.props = updatedHabit; // Update the local habitData
-    
-    // Make sure we're emitting the change
-    console.log('Emitting habit change:', this.id); // Debug log
-    this.changeSubject.next();
-}
+  }
 
   async increment(amount: number = 1): Promise<void> {
     if (this.type !== 'quantity') {
@@ -63,7 +52,6 @@ export class HabitEntity {
     const newQuantity = Math.max(0, this.quantity + amount);
     await this.update({
       quantity: newQuantity,
-      isBegun: newQuantity > 0,
       isComplete: this.goal ? newQuantity >= this.goal : false
     });
   }
@@ -75,8 +63,7 @@ export class HabitEntity {
     await this.update({
       isChecked: checked,
       isComplete: checked,
-      isBegun: checked
-    });
+    }, date);
   }
 
   async setValue(value: number, date: Date = new Date()): Promise<void> {
@@ -86,9 +73,8 @@ export class HabitEntity {
     const newValue = Math.max(0, value);
     await this.update({
       quantity: newValue,
-      isBegun: newValue > 0,
       isComplete: this.goal ? newValue >= this.goal : false
-    });
+    }, date);
   }
 
   static async loadAll(): Promise<HabitEntity[]> {
@@ -113,12 +99,8 @@ export class HabitEntity {
     // Create the entity
     const entity = new HabitEntity(props);
     
-    // Refresh widgets/storage after creation
-    await HabitStorageAPI.refreshWidgets();
-    
     return entity;
-}
-
+  }
 
   static async delete(id: string): Promise<void> {
     try {
@@ -136,14 +118,22 @@ export class HabitEntity {
 
   getValueForDate(date: Date) {
     const dateKey = formatDateKey(date);
-    return this.history[dateKey];
+    const value = this.history[dateKey];
+    
+    if (this.type === 'checkbox') {
+      return typeof value === 'boolean' ? value : false;
+    }
+    
+    // For quantity type, return the array directly
+    if (Array.isArray(value)) {
+      return value;
+    }
+    
+    return undefined;
   }
 
   getStatusForDate(date: Date): 'complete' | 'partial' | 'none' {
     const value = this.getValueForDate(date);
-    if (Array.isArray(value)) {
-      return getHabitStatus(value[0], this);
-    }
     return getHabitStatus(value, this);
   }
 }

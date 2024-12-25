@@ -25,23 +25,25 @@ export const getStatusColor = (status: 'complete' | 'partial' | 'none'): string 
 };
 
 export const getHabitStatus = (
-  value: number | boolean | undefined,
+  value: [number, number] | boolean | undefined,
   habit: HabitEntity
 ): 'complete' | 'partial' | 'none' => {
   try {
     if (value === undefined) return 'none';
     
     if (habit.type === 'checkbox') {
-      return value ? 'complete' : 'none';
+      // For checkbox type, value should be boolean
+      return (value as boolean) ? 'complete' : 'none';
     }
     
-    const goal = habit.goal;
-    if (typeof value === 'number') {
-      if (goal) {
-        if (value >= goal) return 'complete';
-        if (value > 0) return 'partial';
+    // For quantity type, value is now [quantity, goal]
+    if (Array.isArray(value)) {
+      const [quantity, goal] = value;
+      if (goal > 0) {
+        if (quantity >= goal) return 'complete';
+        if (quantity > 0) return 'partial';
       } else {
-        return value > 0 ? 'complete' : 'none';
+        return quantity > 0 ? 'complete' : 'none';
       }
     }
     
