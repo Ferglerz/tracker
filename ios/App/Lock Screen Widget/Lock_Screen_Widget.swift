@@ -32,37 +32,6 @@ struct ToggleHabitIntent: AppIntent {
   }
 }
 
-struct RefreshWidgetIntent: AppIntent {
-  static var title: LocalizedStringResource = "Refresh Widget"
-
-  init() {}
-
-  func perform() async throws -> some IntentResult {
-    print("🔄 Refresh button pressed")
-    
-    if let userDefaults = UserDefaults(suiteName: "group.io.ionic.tracker") {
-      print("📱 UserDefaults accessed")
-      let success = userDefaults.synchronize()
-      print("🔄 UserDefaults sync: \(success)")
-      
-      if let data = userDefaults.string(forKey: "habitData") {
-        print("📊 Current data: \(data)")
-      } else {
-        print("⚠️ No habit data found")
-      }
-    } else {
-      print("❌ Failed to access UserDefaults")
-    }
-
-    print("🔄 Reloading widget timelines")
-    if #available(iOS 14.0, *) {
-      WidgetCenter.shared.reloadAllTimelines()
-    }
-    
-    return .result()
-  }
-}
-
 struct UpdateQuantityIntent: AppIntent {
   static var title: LocalizedStringResource = "Update Quantity"
 
@@ -145,15 +114,6 @@ struct HabitWidgetEntryView: View {
   @Environment(\.widgetFamily) var widgetFamily
 
   @ViewBuilder
-  private func refreshButton(color: Color) -> some View {
-    Button(intent: RefreshWidgetIntent()) {
-      Image(systemName: "arrow.clockwise")
-        .font(.system(size: widgetFamily == .systemMedium ? 14 : 12))
-        .foregroundColor(color)
-    }
-  }
-
-  @ViewBuilder
   private func habitControls(color: Color) -> some View {
     if habit.type == .checkbox {
       Button(intent: ToggleHabitIntent(habitId: habit.id)) {
@@ -181,7 +141,6 @@ struct HabitWidgetEntryView: View {
   }
 
   @ViewBuilder
-
   private func habitLabel() -> some View {
     VStack(spacing: 2) {
       Text(habit.name)
@@ -203,15 +162,12 @@ struct HabitWidgetEntryView: View {
         Spacer()
         habitLabel()
         Spacer()
-        refreshButton(color: widgetFamily == .systemMedium ? .gray : .white)
       } else {
         habitControls(color: widgetFamily == .systemMedium ? .blue : .white)
           .overlay(
             habitLabel()
               .frame(maxWidth: .infinity)
           )
-        refreshButton(color: widgetFamily == .systemMedium ? .gray : .white)
-          .padding(.leading, 8)
       }
     }
     .padding(.horizontal, widgetFamily == .systemMedium ? 20 : 12)
@@ -240,6 +196,7 @@ struct Lock_Screen_Widget: Widget {
     .supportedFamilies([.accessoryRectangular, .systemMedium])
   }
 }
+
 // MARK: - Previews
 #Preview(as: .systemMedium) {
   Lock_Screen_Widget()
