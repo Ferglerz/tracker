@@ -18,7 +18,7 @@ import {
 } from '@ionic/react';
 import { add, downloadOutline, refreshOutline } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
-import { HabitListItem } from './HabitListItem';
+import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './HabitHooks';
 
@@ -55,11 +55,13 @@ const HabitList: React.FC<{
   onEdit: (habit: HabitEntity) => void;
   onDelete: (habit: HabitEntity) => void;
   onViewCalendar: (habit: HabitEntity) => void;
-}> = ({ habits, onEdit, onDelete, onViewCalendar }) => (
+  itemRefs: React.MutableRefObject<Record<string, HabitListItemRef | null>>;
+}> = ({ habits, onEdit, onDelete, onViewCalendar, itemRefs }) => (
   <IonList>
     {habits.map((habit) => (
       <HabitListItem
         key={habit.id}
+        ref={(el) => itemRefs.current[habit.id] = el}
         habit={habit}
         onEdit={() => onEdit(habit)}
         onDelete={() => onDelete(habit)}
@@ -72,11 +74,35 @@ const HabitList: React.FC<{
 const Home: React.FC = () => {
   const history = useHistory();
   const { habits, isRefreshing, refreshHabits } = useHabits();
-  const { isFormOpen, editingHabit, openForm, closeForm } = useHabitForm();
+  const { isFormOpen, editingHabit, openForm: originalOpenForm, closeForm: originalCloseForm } = useHabitForm();
   const { habitToDelete, setHabitToDelete, handleDeleteHabit } = useHabitDelete(refreshHabits);
   const { handleExport } = useHabitExport(habits);
+  const itemRefs = React.useRef<Record<string, HabitListItemRef | null>>({});
 
-  const handleViewCalendar = (habit: HabitEntity) => {
+  const closeForm = React.useCallback(async () => {
+    // Close all sliding items
+    const closePromises = Object.values(itemRefs.current)
+      .map(ref => ref?.closeSliding());
+    await Promise.all(closePromises);
+    
+    originalCloseForm();
+  }, [originalCloseForm]);
+
+  const openForm = React.useCallback(async (habit?: HabitEntity) => {
+    // Close all sliding items before opening form
+    const closePromises = Object.values(itemRefs.current)
+      .map(ref => ref?.closeSliding());
+    await Promise.all(closePromises);
+    
+    originalOpenForm(habit);
+  }, [originalOpenForm]);
+
+  const handleViewCalendar = React.useCallback(async (habit: HabitEntity) => {
+    // Close all sliding items before navigation
+    const closePromises = Object.values(itemRefs.current)
+      .map(ref => ref?.closeSliding());
+    await Promise.all(closePromises);
+
     history.push(`/habit/${habit.id}/calendar`, { 
       habitData: {
         id: habit.id,
@@ -87,7 +113,16 @@ const Home: React.FC = () => {
         bgColor: habit.bgColor
       }
     });
-  };
+  }, [history]);
+
+  const handleDelete = React.useCallback(async (habit: HabitEntity) => {
+    // Close all sliding items before showing delete alert
+    const closePromises = Object.values(itemRefs.current)
+      .map(ref => ref?.closeSliding());
+    await Promise.all(closePromises);
+    
+    setHabitToDelete(habit);
+  }, [setHabitToDelete]);
 
   return (
     <IonPage>
@@ -107,8 +142,9 @@ const Home: React.FC = () => {
           <HabitList
             habits={habits}
             onEdit={openForm}
-            onDelete={setHabitToDelete}
+            onDelete={handleDelete}
             onViewCalendar={handleViewCalendar}
+            itemRefs={itemRefs}
           />
         )}
 

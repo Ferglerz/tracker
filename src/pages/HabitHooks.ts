@@ -3,23 +3,45 @@ import { useState, useCallback, useEffect } from 'react';
 import { HabitEntity } from './HabitEntity';
 import { HabitCSVService } from './HabitCSVService';
 import { errorHandler } from './ErrorUtils';
+import { HabitStorage } from './HabitStorage';  // Update this import
+
+// HabitHooks.ts
 
 export function useHabits() {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Initial load
   const loadHabits = useCallback(async (forceRefresh: boolean = false) => {
+    console.log('Loading habits...'); 
     try {
       if (forceRefresh) {
         setIsRefreshing(true);
       }
       const loadedHabits = await HabitEntity.loadAll();
+      console.log('Loaded habits:', loadedHabits.length);
       setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
     } finally {
       setIsRefreshing(false);
     }
+  }, []);
+
+  // Subscribe to storage changes
+  useEffect(() => {
+    console.log('Setting up storage subscription...');
+    const storage = HabitStorage.getInstance();
+    const subscription = storage.changes.subscribe((data) => {
+      console.log('Storage change detected, updating habits');
+      const newHabits = data.habits.map(h => new HabitEntity(h));
+      setHabits(newHabits);
+    });
+
+    return () => {
+      console.log('Cleaning up storage subscription...');
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

@@ -1,24 +1,11 @@
 // HabitStorage.ts
 import { Storage } from '@ionic/storage';
-import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin'; 
+import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 import { App } from '@capacitor/app';
 import { errorHandler } from './ErrorUtils';
 import { Capacitor } from '@capacitor/core';
 import { Habit } from './HabitTypes';
-
-function isHabitData(data: any): data is Habit.Data {
-  return data && 
-         typeof data === 'object' && 
-         Array.isArray(data.habits) &&
-         data.habits.every((habit: any) => 
-           habit && 
-           typeof habit === 'object' && 
-           typeof habit.id === 'string' &&
-           typeof habit.name === 'string' &&
-           (habit.type === 'checkbox' || habit.type === 'quantity') &&
-           typeof habit.history === 'object'
-         );
-}
+import { Subject, Observable } from 'rxjs';
 
 interface StorageStrategy {
   save(key: string, value: Habit.Data): Promise<void>;
@@ -31,7 +18,7 @@ class NativeStorageStrategy implements StorageStrategy {
   private saveQueue: Promise<void> = Promise.resolve();
   private loadCounter: number = 0;
 
-  constructor(private group: string) {}
+  constructor(private group: string) { }
 
   async save(key: string, value: Habit.Data): Promise<void> {
     this.saveQueue = this.saveQueue.then(async () => {
@@ -41,7 +28,7 @@ class NativeStorageStrategy implements StorageStrategy {
           value: JSON.stringify(value),
           group: String(this.group)
         });
-        
+
         await WidgetsBridgePlugin.reloadAllTimelines();
       } catch (error) {
         console.error('Failed to save to native storage:', error);
@@ -67,13 +54,8 @@ class NativeStorageStrategy implements StorageStrategy {
 
           if (result && result.results) {
             try {
-              const parsedResult = JSON.parse(result.results); 
-              if (isHabitData(parsedResult)) {
-                resolve(parsedResult);
-              } else {
-                console.warn("Loaded data is not valid Habit.Data. Returning default data.");
-                resolve(this.getDefaultData());
-              }
+              const parsedResult = JSON.parse(result.results);
+              resolve(parsedResult);
             } catch (parseError) {
               console.error("Failed to parse data from native storage:", parseError);
               resolve(this.getDefaultData());
@@ -159,13 +141,15 @@ export class HabitStorage {
   private readonly storageKey = 'habitData';
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private initPromise: Promise<void>;
+  private storageSubject = new Subject<Habit.Data>();  // Change to emit the full data
+
 
   private constructor() {
     const isNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-    this.storage = isNative 
+    this.storage = isNative
       ? new NativeStorageStrategy('group.io.ionic.tracker')
       : new IonicStorageStrategy();
-    
+
     this.initPromise = this.initialize();
   }
 
@@ -237,14 +221,11 @@ export class HabitStorage {
   async save(data: Habit.Data): Promise<void> {
     this.saveQueue = this.saveQueue.then(async () => {
       try {
-        if (!isHabitData(data)) {
-          throw new Error('Invalid habit data structure');
-        }
-        
         await this.storage.save(this.storageKey, data);
         this.cache = data;
         await this.notifyObservers(data);
-        
+        this.storageSubject.next(data); // Emit the full data
+
         if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
           await WidgetsBridgePlugin.reloadAllTimelines();
         }
@@ -254,6 +235,10 @@ export class HabitStorage {
       }
     });
     await this.saveQueue;
+  }
+  
+  get changes(): Observable<Habit.Data> {
+    return this.storageSubject.asObservable();
   }
 
   async load(): Promise<Habit.Data> {
@@ -267,7 +252,7 @@ export class HabitStorage {
       const data = await this.storage.load(this.storageKey);
       const defaultData = { habits: [] };
 
-      if (!data || !isHabitData(data)) {
+      if (!data) {
         this.cache = defaultData;
         return defaultData;
       }
@@ -311,12 +296,9 @@ export const HabitStorageAPI = {
     return storage.load();
   },
 
-  async handleHabitData(
-    action: 'load' | 'save',
-    data?: Habit.Data
-  ): Promise<Habit.Data> {
+  async handleHabitData(action: 'load' | 'save', data?: Habit.Data ): Promise<Habit.Data> {
     const storage = HabitStorage.getInstance();
-    
+
     switch (action) {
       case 'load':
         return storage.load();

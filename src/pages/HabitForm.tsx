@@ -22,8 +22,23 @@ import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 
 const PRESET_COLORS = [
-  '#ff9aa2', '#ffb7b2', '#ffdac1', '#e2f0cb',
-  '#b5ead7', '#c7ceea', '#9b9b9b', '#f8c8dc'
+  '#ff5062',  // Red
+  '#ff7093',  // Pink-Red
+  '#ffc386',  // Peach
+  '#d0e87b',  // Yellow-Green
+  '#88e0b1',  // Green
+  '#97a5e3',  // Light Blue
+  '#5c5c5c',  // Dark Gray
+  '#f483b1',  // Pink
+
+  '#f040a2',  // Magenta
+  '#d96ab3',  // Purple
+  '#c099d3',  // Lavender
+  '#a0c0e0',  // Sky Blue
+  '#60a0d0',  // Ocean Blue
+  '#4080c0',  // Deep Blue
+  '#2060a0',  // Indigo
+  '#a0a0a0',  // Gray
 ] as const;
 
 interface Props {
@@ -59,29 +74,39 @@ const HabitForm: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      errorHandler.showWarning('Please enter a habit name');
-      return;
+        errorHandler.showWarning('Please enter a habit name');
+        return;
     }
 
     setIsSaving(true);
     try {
-      const habitProps: Partial<Habit.Habit> = {
-        id: editedHabit?.id || Date.now().toString(),
-        name: name.trim(),
-        type,
-        unit: type === 'quantity' ? unit : undefined,
-        goal: type === 'quantity' ? goal : undefined,
-        bgColor: color,
-      };
+        // Create the habit properties
+        const habitProps: Partial<Habit.Habit> = {
+            id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: name.trim(),
+            type,
+            unit: type === 'quantity' ? unit : undefined,
+            goal: type === 'quantity' ? goal : undefined,
+            bgColor: color,
+            // Add missing required properties
+            quantity: 0,
+            isChecked: false,
+            isComplete: false,
+            isBegun: false,
+            history: {}
+        };
 
-      await HabitEntity.create(habitProps as Habit.Habit);
-      onClose();
+        // Create or update the habit
+        await HabitEntity.create(habitProps as Habit.Habit);
+        
+        onClose();
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit');
+        errorHandler.handleError(error, 'Failed to save habit');
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+};
+
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
@@ -105,7 +130,7 @@ const HabitForm: React.FC<Props> = ({
       <IonContent className="ion-padding">
         <IonList>
           <IonItem>
-            <IonLabel position="stacked">Habit Name</IonLabel>
+            <IonLabel position="stacked" ><h1>Name</h1></IonLabel>
             <IonInput
               value={name}
               onIonChange={e => setName(e.detail.value || '')}
@@ -158,39 +183,51 @@ const HabitForm: React.FC<Props> = ({
             </>
           )}
 
-          <IonItem>
-            <IonLabel position="stacked">Color</IonLabel>
-            <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
-              {PRESET_COLORS.map((presetColor) => (
-                <div
-                  key={presetColor}
-                  onClick={() => setColor(presetColor)}
-                  style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    backgroundColor: presetColor,
-                    cursor: 'pointer',
-                    border: color === presetColor ? '2px solid #000' : '2px solid transparent',
-                    position: 'relative'
-                  }}
-                >
-                  {color === presetColor && (
-                    <IonIcon
-                      icon={checkmark}
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: '#000'
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </IonItem>
+<IonItem>
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center', // Centers the grid container horizontally
+    width: '100%' // Take full width of parent to allow centering
+  }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(8, 1fr)', // 8 columns
+      gridTemplateRows: 'repeat(2, 1fr)', // 2 rows
+      gap: '8px',
+      padding: '10px 0',
+      width: '70%',
+    }}>
+      {PRESET_COLORS.map((presetColor) => (
+        <div
+          key={presetColor}
+          onClick={() => setColor(presetColor)}
+          style={{
+            aspectRatio: '1', // This ensures the divs remain square
+            borderRadius: '30%',
+            backgroundColor: presetColor,
+            cursor: 'pointer',
+            border: color === presetColor ? '5px solid #000' : '5px solid transparent',
+            position: 'relative',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          {color === presetColor && (
+            <IonIcon
+              icon={checkmark}
+              style={{
+                fontSize: '15px', // Slightly smaller icon to fit better
+                color: '#000'
+              }}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</IonItem>
+
         </IonList>
       </IonContent>
     </IonModal>

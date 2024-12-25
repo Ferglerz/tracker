@@ -1,8 +1,7 @@
 // HabitListItem.tsx
-import React, { useState, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
 import {
   IonItem, 
-  IonLabel, 
   IonButton, 
   IonIcon, 
   IonRippleEffect,
@@ -23,85 +22,157 @@ interface Props {
   onViewCalendar: (habitData: Partial<Habit.Habit>) => void;
 }
 
-export const HabitListItem: React.FC<Props> = React.memo(({
+export interface HabitListItemRef {
+  closeSliding: () => Promise<void>;
+  openSliding: () => Promise<void>;
+}
+
+const LONG_PRESS_DURATION = 500;
+
+export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   habit,
   onEdit,
   onDelete,
   onViewCalendar
-}) => {
-  const [, setUpdate] = useState(0);
+}, ref) => {
+  const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
+  const pressStartTimeRef = useRef<number>(0);
+  const pressTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    const subscription = habit.changes.subscribe(() => {
-      setUpdate(prev => prev + 1);
-    });
-    return () => subscription.unsubscribe();
-  }, [habit]);
+  useImperativeHandle(ref, () => ({
+    closeSliding: async () => {
+      await slidingRef.current?.close();
+    },
+    openSliding: async () => {
+      await slidingRef.current?.open('end');
+    }
+  }));
 
-  const handleCalendarClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    const routeState: Partial<Habit.Habit> = {
-      id: habit.id,
-      name: habit.name,
-      type: habit.type,
-      unit: habit.unit,
-      goal: habit.goal,
-      bgColor: habit.bgColor
+  const handlePressStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if ('button' in e && e.button === 0) {
+      e.preventDefault();
+    }
+    pressStartTimeRef.current = Date.now();
+    pressTimeoutRef.current = setTimeout(() => {
+      slidingRef.current?.open('end');
+    }, LONG_PRESS_DURATION);
+  }, []);
+
+  const handlePressEnd = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (pressTimeoutRef.current) {
+      clearTimeout(pressTimeoutRef.current);
+    }
+    if (Date.now() - pressStartTimeRef.current >= LONG_PRESS_DURATION) {
+      e.preventDefault();
+    }
+  }, []);
+
+  const handlePressCancel = useCallback(() => {
+    if (pressTimeoutRef.current) {
+      clearTimeout(pressTimeoutRef.current);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (pressTimeoutRef.current) {
+        clearTimeout(pressTimeoutRef.current);
+      }
     };
-
-    onViewCalendar(routeState);
-  };
-
+  }, []);
 
   return (
-    <IonItemSliding>
+    <IonItemSliding ref={slidingRef}>
       <IonItem
-        className="ion-activatable habit"
-        style={{ backgroundColor: habit.bgColor }}
+        className="ion-activatable"
+        style={{ 
+          '--padding-start': '0',
+          '--inner-padding-end': '0',
+        }}
+        onTouchStart={handlePressStart}
+        onTouchEnd={handlePressEnd}
+        onTouchCancel={handlePressCancel}
+        onMouseDown={handlePressStart}
+        onMouseUp={handlePressEnd}
+        onMouseLeave={handlePressCancel}
       >
-        {habit.type === 'checkbox' ? (
-          <>
-            <IonCheckbox
-              slot="start"
-              checked={habit.isChecked}
-              onIonChange={(e) => habit.setChecked(e.detail.checked)}
-              style={{ zIndex: 1 }}
-            />
-            {habit.name}
-          </>
-        ) : (
-          <>
-            <IonLabel>
-              <h2>{habit.name}</h2>
-              <p>
-                {habit.quantity}
-                {habit.goal ? ` / ${habit.goal} ` : ''} 
-                {habit.unit}
-              </p>
-            </IonLabel>
-            {habit.isComplete && <IonBadge color="success">Complete!</IonBadge>}
-            <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
-              <IonButton 
-                fill="clear" 
-                onClick={() => habit.increment(-1)}
-              >
-                <IonIcon icon={remove} />
-              </IonButton>
-              <IonButton 
-                fill="clear" 
-                onClick={() => habit.increment(1)}
-              >
-                <IonIcon icon={add} />
-              </IonButton>
-            </div>
-          </>
-        )}
+        <div style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          minHeight: '48px'
+        }}>
+          {/* Color bar */}
+          <div style={{
+            width: '16px',
+            alignSelf: 'stretch',
+            backgroundColor: habit.bgColor,
+            flexShrink: 0
+          }} />
+
+          {/* Title and subtitle section */}
+<div style={{
+  flex: 1,
+  padding: '8px 16px',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center'
+}}>
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px'
+  }}>
+    <div style={{ fontWeight: 500 }}>{habit.name}</div>
+    {habit.type === 'quantity' && habit.isComplete && (
+      <IonBadge color="success">Complete!</IonBadge>
+    )}
+  </div>
+  {habit.type === 'quantity' && (
+    <div style={{ 
+      fontSize: '0.875rem',
+      color: 'var(--ion-color-medium)'
+    }}>
+      {habit.quantity}{habit.goal ? ` / ${habit.goal}` : ''} {habit.unit}
+    </div>
+  )}
+</div>
+
+          {/* Right section - either checkbox or quantity controls */}
+          <div style={{
+            padding: habit.type === 'checkbox' ? '0 20px' : '0 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            {habit.type === 'checkbox' ? (
+              <IonCheckbox
+                checked={habit.isChecked}
+                onIonChange={(e) => habit.setChecked(e.detail.checked)}
+              />
+            ) : (
+              <>
+                <IonButton 
+                  fill="clear" 
+                  onClick={() => habit.increment(-1)}
+                >
+                  <IonIcon icon={remove} />
+                </IonButton>
+                <IonButton 
+                  fill="clear" 
+                  onClick={() => habit.increment(1)}
+                >
+                  <IonIcon icon={add} />
+                </IonButton>
+              </>
+            )}
+          </div>
+        </div>
         <IonRippleEffect />
       </IonItem>
 
       <IonItemOptions side="end">
-        <IonItemOption color="primary" onClick={handleCalendarClick}>
+        <IonItemOption color="primary" onClick={() => onViewCalendar(habit)}>
           <IonIcon slot="icon-only" icon={calendar} />
         </IonItemOption>
         <IonItemOption color="warning" onClick={onEdit}>

@@ -18,6 +18,7 @@ import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 import { formatDateKey } from './HabitUtils';
 import HabitDateEditModal from './HabitDateEditModal';
+import { HabitStorage } from './HabitStorage';
 
 interface RouteParams {
     id: string;
@@ -30,8 +31,8 @@ const HabitDetails: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingDate, setEditingDate] = useState<string>('');
-    const [, setForceUpdate] = useState(0);
 
+    // Load initial habit and subscribe to storage changes
     useEffect(() => {
         const loadHabit = async () => {
             try {
@@ -51,17 +52,26 @@ const HabitDetails: React.FC = () => {
                 }
 
                 setHabit(habitEntity);
-
-                const subscription = habitEntity.changes.subscribe(() => {
-                    setForceUpdate(prev => prev + 1);
-                });
-
-                return () => subscription.unsubscribe();
             } catch (error) {
                 errorHandler.handleError(error, 'Failed to load habit');
             }
         };
+
+        // Initial load
         loadHabit();
+
+        // Subscribe to storage changes
+        const storage = HabitStorage.getInstance();
+        const subscription = storage.changes.subscribe((data) => {
+            const updatedHabit = data.habits.find(h => h.id === id);
+            if (updatedHabit) {
+                setHabit(new HabitEntity(updatedHabit));
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, [location.state, id]);
 
     const handleDateClick = useCallback(async (isoString: string) => {
