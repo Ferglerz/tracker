@@ -75,14 +75,21 @@ export class HabitEntity {
 
   async setValue(value: number, date: Date = new Date()): Promise<void> {
     if (this.type !== 'quantity') {
-      throw new Error('Invalid habit for value operation');
+        throw new Error('Invalid habit for value operation');
     }
-    const newValue = Math.max(0, value);
+    
+    const dateKey = formatDateKey(date);
+    const historicalValue = this.history[dateKey];
+    const currentGoal = Array.isArray(historicalValue) ? historicalValue[1] : this.goal || 0;
+    
     await this.update({
-      quantity: newValue,
-      isComplete: this.goal ? newValue >= this.goal : false
+        quantity: value,
+        isComplete: currentGoal ? value >= currentGoal : value > 0,
+        history: {
+            [dateKey]: [value, currentGoal]
+        }
     }, date);
-  }
+}
 
   static async loadAll(): Promise<HabitEntity[]> {
     const data = await HabitStorageAPI.handleHabitData('load');

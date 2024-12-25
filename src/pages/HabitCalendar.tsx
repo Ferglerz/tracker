@@ -89,16 +89,15 @@ const HabitDetails: React.FC = () => {
     }, [habit]);
 
     const handleSaveDate = useCallback(async (value: any) => {
-        if (!habit) return;
-
-        try {
-            const date = new Date(editingDate);
-                await habit.setValue(value, date);
-                await habit.rewriteHistory(value, date)
-        } catch (error) {
-            errorHandler.handleError(error, 'Failed to save habit value');
-        }
-    }, [habit, editingDate]);
+      if (!habit) return;
+  
+      try {
+          const date = new Date(editingDate);
+          await habit.setValue(value, date);
+      } catch (error) {
+          errorHandler.handleError(error, 'Failed to save habit value');
+      }
+  }, [habit, editingDate]);
 
     const getHighlightedDates = useCallback((isoString: string) => {
         if (!habit) return undefined;

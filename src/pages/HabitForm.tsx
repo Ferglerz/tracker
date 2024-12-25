@@ -50,13 +50,13 @@ interface Props {
 
 const HabitForm: React.FC<Props> = ({
   isOpen,
-  onClose, 
+  onClose,
   editedHabit,
   title
 }) => {
   const [name, setName] = useState(editedHabit?.name || '');
   const [type, setType] = useState<Habit.Type>(editedHabit?.type || 'checkbox');
-  const [unit, setUnit] = useState(editedHabit?.unit || '');
+  const [unit, setUnit] = useState<string | undefined>(editedHabit?.unit);
   const [goal, setGoal] = useState<number | undefined>(editedHabit?.goal);
   const [color, setColor] = useState(editedHabit?.bgColor || PRESET_COLORS[0]);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,36 +74,34 @@ const HabitForm: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-        errorHandler.showWarning('Please enter a habit name');
-        return;
+      errorHandler.showWarning('Please enter a habit name');
+      return;
     }
 
     setIsSaving(true);
     try {
-        // Create the habit properties
-        const habitProps: Partial<Habit.Habit> = {
-            id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: name.trim(),
-            type,
-            unit: type === 'quantity' ? unit : undefined,
-            goal: type === 'quantity' ? goal : undefined,
-            bgColor: color,
-            quantity: editedHabit?.quantity ?? 0,
-            isChecked: editedHabit?.isChecked ?? false,
-            isComplete: editedHabit?.isComplete ?? false,
-            history: editedHabit?.history ?? {}
-        };
+      const habitProps: Habit.Habit = {
+        id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: name.trim(),
+        type,
+        unit: type === 'quantity' ? unit : undefined,
+        goal: type === 'quantity' ? goal : undefined,
+        bgColor: color,
+        quantity: editedHabit?.quantity ?? 0,
+        isChecked: editedHabit?.isChecked ?? false,
+        isComplete: editedHabit?.isComplete ?? false,
+        history: editedHabit?.history ?? {}
+      };
 
-        // Create or update the habit
-        await HabitEntity.create(habitProps as Habit.Habit);
-        
-        onClose();
+      await HabitEntity.create(habitProps);
+
+      onClose();
     } catch (error) {
-        errorHandler.handleError(error, 'Failed to save habit');
+      errorHandler.handleError(error, 'Failed to save habit');
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
-};
+  };
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
@@ -114,8 +112,8 @@ const HabitForm: React.FC<Props> = ({
             <IonButton onClick={onClose}>Cancel</IonButton>
           </IonButtons>
           <IonButtons slot="end">
-            <IonButton 
-              strong 
+            <IonButton
+              strong
               onClick={handleSubmit}
               disabled={isSaving || !name.trim()}
             >
@@ -124,7 +122,7 @@ const HabitForm: React.FC<Props> = ({
           </IonButtons>
         </IonToolbar>
       </IonHeader>
-      
+
       <IonContent className="ion-padding">
         <IonList>
           <IonItem>
@@ -140,14 +138,14 @@ const HabitForm: React.FC<Props> = ({
           {!editedHabit && (
             <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
               <div style={{ display: 'flex', width: '100%' }}>
-                <IonItem 
+                <IonItem
                   style={{ flex: 1, cursor: 'pointer' }}
                   onClick={() => setType('checkbox')}
                 >
                   <IonLabel>Checkbox</IonLabel>
                   <IonRadio slot="start" value="checkbox" />
                 </IonItem>
-                <IonItem 
+                <IonItem
                   style={{ flex: 1, cursor: 'pointer' }}
                   onClick={() => setType('quantity')}
                 >
@@ -163,8 +161,10 @@ const HabitForm: React.FC<Props> = ({
               <IonItem>
                 <IonLabel position="stacked">Unit</IonLabel>
                 <IonInput
-                  value={unit}
-                  onIonChange={e => setUnit(e.detail.value || '')}
+                  value={unit ?? ''}
+                  onIonInput={e => {
+                    setUnit(e.detail.value?.trim() || undefined);
+                  }}
                   placeholder="Enter unit (e.g., cups, minutes)"
                 />
               </IonItem>
@@ -173,58 +173,60 @@ const HabitForm: React.FC<Props> = ({
                 <IonInput
                   type="number"
                   min="0"
-                  value={goal}
-                  onIonChange={e => setGoal(e.detail.value ? parseInt(e.detail.value, 10) : undefined)}
-                  placeholder="Enter target quantity"
+                  value={goal?.toString() ?? ''}
+                  onIonChange={e => {
+                    const val = e.detail.value;
+                    setGoal(val ? parseInt(val, 10) : undefined);
+                  }}
                 />
               </IonItem>
             </>
           )}
 
-<IonItem>
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center', // Centers the grid container horizontally
-    width: '100%' // Take full width of parent to allow centering
-  }}>
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(8, 1fr)', // 8 columns
-      gridTemplateRows: 'repeat(2, 1fr)', // 2 rows
-      gap: '8px',
-      padding: '10px 0',
-      width: '70%',
-    }}>
-      {PRESET_COLORS.map((presetColor) => (
-        <div
-          key={presetColor}
-          onClick={() => setColor(presetColor)}
-          style={{
-            aspectRatio: '1', // This ensures the divs remain square
-            borderRadius: '30%',
-            backgroundColor: presetColor,
-            cursor: 'pointer',
-            border: color === presetColor ? '5px solid #000' : '5px solid transparent',
-            position: 'relative',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
-        >
-          {color === presetColor && (
-            <IonIcon
-              icon={checkmark}
-              style={{
-                fontSize: '15px', // Slightly smaller icon to fit better
-                color: '#000'
-              }}
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  </div>
-</IonItem>
+          <IonItem>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center', // Centers the grid container horizontally
+              width: '100%' // Take full width of parent to allow centering
+            }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)', // 8 columns
+                gridTemplateRows: 'repeat(2, 1fr)', // 2 rows
+                gap: '8px',
+                padding: '10px 0',
+                width: '70%',
+              }}>
+                {PRESET_COLORS.map((presetColor) => (
+                  <div
+                    key={presetColor}
+                    onClick={() => setColor(presetColor)}
+                    style={{
+                      aspectRatio: '1', // This ensures the divs remain square
+                      borderRadius: '30%',
+                      backgroundColor: presetColor,
+                      cursor: 'pointer',
+                      border: color === presetColor ? '5px solid #000' : '5px solid transparent',
+                      position: 'relative',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    {color === presetColor && (
+                      <IonIcon
+                        icon={checkmark}
+                        style={{
+                          fontSize: '15px', // Slightly smaller icon to fit better
+                          color: '#000'
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </IonItem>
 
         </IonList>
       </IonContent>

@@ -4,6 +4,7 @@ import { HabitEntity } from './HabitEntity';
 import { HabitCSVService } from './HabitCSVService';
 import { errorHandler } from './ErrorUtils';
 import { HabitStorage } from './HabitStorage';  // Update this import
+import { App } from '@capacitor/app';
 
 // HabitHooks.ts
 
@@ -11,15 +12,12 @@ export function useHabits() {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Initial load
   const loadHabits = useCallback(async (forceRefresh: boolean = false) => {
-    console.log('Loading habits...'); 
     try {
       if (forceRefresh) {
         setIsRefreshing(true);
       }
       const loadedHabits = await HabitEntity.loadAll();
-      console.log('Loaded habits:', loadedHabits.length);
       setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
@@ -28,22 +26,33 @@ export function useHabits() {
     }
   }, []);
 
+  useEffect(() => {
+    const setupListener = async () => {
+      const subscription = await App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          loadHabits(true);
+        }
+      });
+      return () => { subscription.remove(); };
+    };
+  
+    setupListener();
+  }, [loadHabits]);
+
   // Subscribe to storage changes
   useEffect(() => {
-    console.log('Setting up storage subscription...');
     const storage = HabitStorage.getInstance();
-    const subscription = storage.changes.subscribe((data) => {
-      console.log('Storage change detected, updating habits');
-      const newHabits = data.habits.map(h => new HabitEntity(h));
-      setHabits(newHabits);
+    const subscription = storage.changes.subscribe(async () => {
+      // When storage changes, refresh habits
+      await loadHabits();
     });
 
     return () => {
-      console.log('Cleaning up storage subscription...');
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loadHabits]);
 
+  // Initial load
   useEffect(() => {
     loadHabits();
   }, [loadHabits]);
