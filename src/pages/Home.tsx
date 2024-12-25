@@ -115,7 +115,7 @@ const Home: React.FC = () => {
         <HabitForm
           isOpen={isFormOpen}
           title={editingHabit ? "Edit Habit" : "New Habit"}
-          initialHabit={editingHabit}
+          editedHabit={editingHabit}
           onClose={closeForm}
         />
 

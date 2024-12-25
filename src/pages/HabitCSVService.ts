@@ -3,9 +3,7 @@ import { format } from 'date-fns';
 import Papa from 'papaparse';
 import { Habit } from './HabitTypes';
 import { HabitEntity } from './HabitEntity';
-import { HabitRegistry } from './HabitRegistry';
 import { errorHandler } from './ErrorUtils';
-import { formatDateKey } from './HabitUtils';
 
 interface CSVRow {
   Date: string;
@@ -61,7 +59,7 @@ export class HabitCSVService {
       const habitHistories = await Promise.all(
         habits.map(async habit => ({
           habit,
-          history: await habit.getAllHistory()
+          history: habit.history
         }))
       );
 
@@ -99,39 +97,6 @@ export class HabitCSVService {
       
     } catch (error) {
       errorHandler.handleError(error, 'Failed to export habits to CSV');
-      throw error;
-    }
-  }
-
-  static async importHabits(file: File): Promise<void> {
-    try {
-      const habitData = await this.parseCSVFile(file);
-      
-      for (const data of habitData) {
-        const habitProps: Habit.Base = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          name: data.name,
-          type: data.type,
-          unit: data.unit,
-          bgColor: '#b5ead7', // Default color
-        };
-        
-        const habit = await HabitRegistry.create(habitProps);
-        
-        // Import values
-        for (const { date, value } of data.values) {
-          const dateObj = new Date(date);
-          if (data.type === 'checkbox') {
-            await HabitRegistry.setChecked(habit.id, value as boolean, dateObj);
-          } else {
-            await HabitRegistry.setValue(habit.id, value as number, dateObj);
-          }
-        }
-      }
-      
-      errorHandler.showInfo('Import completed successfully');
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to import habits');
       throw error;
     }
   }

@@ -33,7 +33,6 @@ const HabitDateEditModal: React.FC<Props> = ({
 }) => {
   const [value, setValue] = React.useState<number>(currentValue || 0);
 
-  // Reset value when modal opens with new data
   React.useEffect(() => {
     setValue(currentValue || 0);
   }, [currentValue, isOpen]);

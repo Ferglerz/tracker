@@ -1,82 +1,25 @@
 // HabitTypes.ts
-
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
-  export interface Base {
+  export interface Habit { // Renamed from Base to DataEntry
     id: string;
     name: string;
     type: Type;
     unit?: string;
     goal?: number;
     bgColor: string;
-    lastModified: number; // Add this
-  }
-
-  export interface State {
     quantity: number;
     isChecked: boolean;
     isComplete: boolean;
     isBegun: boolean;
+    history: {
+      [date: string]: [ number, number ] | boolean;
+    };
   }
 
-  export interface Model extends Base, State {
-    lastModified?: number;
-  }
-
-  export interface History {
-    [habitId: string]: {
-      [date: string]: number | boolean;
-    }
-  }
-
+  // Used by HabitStorage.ts
   export interface Data {
-    habits: Model[];
-    history: History;
-  }
-
-  export interface RouteState {
-    habitData?: Base;
-  }
-
-  export interface Stats {
-    totalDays: number;
-    completedDays: number;
-    partialDays: number;
-    streak: number;
-    longestStreak: number;
-    averageValue: number;
-  }
-
-  export interface Filter {
-    type?: Type;
-    searchTerm?: string;
-    startDate?: Date;
-    endDate?: Date;
-    isComplete?: boolean;
-  }
-
-  export interface Sort {
-    field: 'name' | 'created' | 'lastUpdated' | 'completion';
-    direction: 'asc' | 'desc';
-  }
-
-  export type ChangeEvent = {
-    habit: Model;
-    type: 'update' | 'delete' | 'create';
-    timestamp: number;
-  }
-
-  export interface CalendarHighlight {
-    date: string;
-    textColor: string;
-    backgroundColor: string;
-  }
-
-  export type ViewMode = 'list' | 'grid' | 'calendar';
-
-  export interface ImportData {
-    habits: Base[];
-    history: History;
+    habits: Habit[];
   }
 }

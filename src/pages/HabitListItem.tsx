@@ -13,16 +13,14 @@ import {
   IonItemOption
 } from '@ionic/react';
 import { add, remove, calendar, pencil, trash } from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
 import { HabitEntity } from './HabitEntity';
 import { Habit } from './HabitTypes';
-import { HabitRegistry } from './HabitRegistry'; // Import HabitRegistry
 
 interface Props {
   habit: HabitEntity;
   onEdit: () => void;
   onDelete: () => void;
-  onViewCalendar: () => void;
+  onViewCalendar: (habitData: Partial<Habit.Habit>) => void;
 }
 
 export const HabitListItem: React.FC<Props> = React.memo(({
@@ -32,7 +30,6 @@ export const HabitListItem: React.FC<Props> = React.memo(({
   onViewCalendar
 }) => {
   const [, setUpdate] = useState(0);
-  const history = useHistory();
 
   useEffect(() => {
     const subscription = habit.changes.subscribe(() => {
@@ -44,60 +41,18 @@ export const HabitListItem: React.FC<Props> = React.memo(({
   const handleCalendarClick = (e: React.MouseEvent) => {
     e.preventDefault();
     
-    const routeState: Habit.RouteState = { 
-      habitData: {
-        id: habit.id,
-        name: habit.name,
-        type: habit.type,
-        unit: habit.unit,
-        goal: habit.goal,
-        bgColor: habit.bgColor
-      }
+    const routeState: Partial<Habit.Habit> = {
+      id: habit.id,
+      name: habit.name,
+      type: habit.type,
+      unit: habit.unit,
+      goal: habit.goal,
+      bgColor: habit.bgColor
     };
 
-    history.push(`/habit/${habit.id}/calendar`, routeState);
+    onViewCalendar(routeState);
   };
 
-  const renderQuantityControls = () => (
-    <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
-      <IonButton 
-        fill="clear" 
-        onClick={() => HabitRegistry.increment(habit.id, -1)} // Call HabitRegistry.increment
-      >
-        <IonIcon icon={remove} />
-      </IonButton>
-      <IonButton 
-        fill="clear" 
-        onClick={() => HabitRegistry.increment(habit.id, 1)} // Call HabitRegistry.increment
-      >
-        <IonIcon icon={add} />
-      </IonButton>
-    </div>
-  );
-
-  const renderCheckbox = () => (
-    <IonCheckbox
-      slot="start"
-      checked={habit.isChecked}
-      onIonChange={(e) => HabitRegistry.setChecked(habit.id, e.detail.checked)}
-      style={{ zIndex: 1 }}
-    />
-  );
-
-  const renderQuantityLabel = () => (
-    <IonLabel>
-      <h2>{habit.name}</h2>
-      <p>
-        {habit.quantity}
-        {habit.goal ? ` / ${habit.goal} ` : ''} 
-        {habit.unit}
-      </p>
-    </IonLabel>
-  );
-
-  const renderCompleteBadge = () => (
-    habit.isComplete && <IonBadge color="success">Complete!</IonBadge>
-  );
 
   return (
     <IonItemSliding>
@@ -107,14 +62,39 @@ export const HabitListItem: React.FC<Props> = React.memo(({
       >
         {habit.type === 'checkbox' ? (
           <>
-            {renderCheckbox()}
+            <IonCheckbox
+              slot="start"
+              checked={habit.isChecked}
+              onIonChange={(e) => habit.setChecked(e.detail.checked)}
+              style={{ zIndex: 1 }}
+            />
             {habit.name}
           </>
         ) : (
           <>
-            {renderQuantityLabel()}
-            {renderCompleteBadge()}
-            {renderQuantityControls()}
+            <IonLabel>
+              <h2>{habit.name}</h2>
+              <p>
+                {habit.quantity}
+                {habit.goal ? ` / ${habit.goal} ` : ''} 
+                {habit.unit}
+              </p>
+            </IonLabel>
+            {habit.isComplete && <IonBadge color="success">Complete!</IonBadge>}
+            <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
+              <IonButton 
+                fill="clear" 
+                onClick={() => habit.increment(-1)}
+              >
+                <IonIcon icon={remove} />
+              </IonButton>
+              <IonButton 
+                fill="clear" 
+                onClick={() => habit.increment(1)}
+              >
+                <IonIcon icon={add} />
+              </IonButton>
+            </div>
           </>
         )}
         <IonRippleEffect />

@@ -1,7 +1,6 @@
 // HabitHooks.ts
 import { useState, useCallback, useEffect } from 'react';
 import { HabitEntity } from './HabitEntity';
-import { HabitRegistry } from './HabitRegistry';
 import { HabitCSVService } from './HabitCSVService';
 import { errorHandler } from './ErrorUtils';
 
@@ -13,9 +12,8 @@ export function useHabits() {
     try {
       if (forceRefresh) {
         setIsRefreshing(true);
-        await HabitRegistry.syncWithStorage();
       }
-      const loadedHabits = await HabitRegistry.getAll();
+      const loadedHabits = await HabitEntity.loadAll();
       setHabits(loadedHabits);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to load habits');
@@ -69,7 +67,7 @@ export function useHabitDelete(onDeleteSuccess: () => Promise<void>) {
     if (!habitToDelete) return;
 
     try {
-      await HabitRegistry.delete(habitToDelete.id);
+      await HabitEntity.delete(habitToDelete.id);
       await onDeleteSuccess();
       setHabitToDelete(null);
     } catch (error) {

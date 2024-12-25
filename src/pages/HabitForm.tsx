@@ -18,7 +18,6 @@ import {
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
-import { HabitRegistry } from './HabitRegistry';
 import { Habit } from './HabitTypes';
 import { errorHandler } from './ErrorUtils';
 
@@ -30,77 +29,59 @@ const PRESET_COLORS = [
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  initialHabit?: HabitEntity;
+  editedHabit?: HabitEntity;
   title: string;
 }
 
 const HabitForm: React.FC<Props> = ({
   isOpen,
-  onClose,
-  initialHabit,
+  onClose, 
+  editedHabit,
   title
 }) => {
-  const [name, setName] = useState(initialHabit?.name || '');
-  const [type, setType] = useState<Habit.Type>(initialHabit?.type || 'checkbox');
-  const [unit, setUnit] = useState(initialHabit?.unit || '');
-  const [goal, setGoal] = useState<number | undefined>(initialHabit?.goal);
-  const [color, setColor] = useState(initialHabit?.bgColor || PRESET_COLORS[0]);
+  const [name, setName] = useState(editedHabit?.name || '');
+  const [type, setType] = useState<Habit.Type>(editedHabit?.type || 'checkbox');
+  const [unit, setUnit] = useState(editedHabit?.unit || '');
+  const [goal, setGoal] = useState<number | undefined>(editedHabit?.goal);
+  const [color, setColor] = useState(editedHabit?.bgColor || PRESET_COLORS[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setName(initialHabit?.name || '');
-      setType(initialHabit?.type || 'checkbox');
-      setUnit(initialHabit?.unit || '');
-      setGoal(initialHabit?.goal);
-      setColor(initialHabit?.bgColor || PRESET_COLORS[0]);
+      setName(editedHabit?.name || '');
+      setType(editedHabit?.type || 'checkbox');
+      setUnit(editedHabit?.unit || '');
+      setGoal(editedHabit?.goal);
+      setColor(editedHabit?.bgColor || PRESET_COLORS[0]);
     }
-  }, [isOpen, initialHabit]);
+  }, [isOpen, editedHabit]);
 
-  // HabitForm.tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!name.trim()) {
-    errorHandler.showWarning('Please enter a habit name');
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      errorHandler.showWarning('Please enter a habit name');
+      return;
+    }
 
-  setIsSaving(true);
-  try {
-    const habitProps: Habit.Base = {
-      id: initialHabit?.id || Date.now().toString(),
-      name: name.trim(),
-      type,
-      unit: type === 'quantity' ? unit : undefined,
-      goal: type === 'quantity' ? goal : undefined,
-      bgColor: color,
-    };
-
-    if (initialHabit) {
-      const updatedState: Partial<Habit.State> = {
-        quantity: initialHabit.quantity,
-        isChecked: initialHabit.isChecked,
-        isComplete: initialHabit.isComplete,
-        isBegun: initialHabit.isBegun
+    setIsSaving(true);
+    try {
+      const habitProps: Partial<Habit.Habit> = {
+        id: editedHabit?.id || Date.now().toString(),
+        name: name.trim(),
+        type,
+        unit: type === 'quantity' ? unit : undefined,
+        goal: type === 'quantity' ? goal : undefined,
+        bgColor: color,
       };
 
-      await HabitRegistry.create(habitProps);
-      await HabitRegistry.updateState(habitProps.id, updatedState);
-    } else {
-      await HabitRegistry.create(habitProps);
+      await HabitEntity.create(habitProps as Habit.Habit);
+      onClose();
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to save habit');
+    } finally {
+      setIsSaving(false);
     }
-    
-    // Force refresh the habit state
-    await HabitRegistry.syncWithStorage();
-    
-    onClose();
-  } catch (error) {
-    errorHandler.handleError(error, 'Failed to save habit');
-  } finally {
-    setIsSaving(false);
-  }
-};
-
+  };
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
@@ -133,7 +114,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </IonItem>
 
-          {!initialHabit && (
+          {!editedHabit && (
             <IonRadioGroup value={type} onIonChange={e => setType(e.detail.value)}>
               <div style={{ display: 'flex', width: '100%' }}>
                 <IonItem 
