@@ -16,6 +16,7 @@ import { add, remove, calendar, pencil, trash } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { HabitEntity } from './HabitEntity';
 import { Habit } from './HabitTypes';
+import { HabitRegistry } from './HabitRegistry'; // Import HabitRegistry
 
 interface Props {
   habit: HabitEntity;
@@ -61,13 +62,13 @@ export const HabitListItem: React.FC<Props> = React.memo(({
     <div slot="end" style={{ display: 'flex', alignItems: 'center' }}>
       <IonButton 
         fill="clear" 
-        onClick={() => habit.increment(-1)}
+        onClick={() => HabitRegistry.increment(habit.id, -1)} // Call HabitRegistry.increment
       >
         <IonIcon icon={remove} />
       </IonButton>
       <IonButton 
         fill="clear" 
-        onClick={() => habit.increment(1)}
+        onClick={() => HabitRegistry.increment(habit.id, 1)} // Call HabitRegistry.increment
       >
         <IonIcon icon={add} />
       </IonButton>
@@ -78,7 +79,7 @@ export const HabitListItem: React.FC<Props> = React.memo(({
     <IonCheckbox
       slot="start"
       checked={habit.isChecked}
-      onIonChange={(e) => habit.setChecked(e.detail.checked)}
+      onIonChange={(e) => HabitRegistry.setChecked(habit.id, e.detail.checked)}
       style={{ zIndex: 1 }}
     />
   );

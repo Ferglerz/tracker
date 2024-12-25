@@ -1,6 +1,7 @@
 // useHabitInteraction.ts
 import { useState, useCallback, useEffect } from 'react';
 import { HabitEntity } from './HabitEntity';
+import { HabitRegistry } from './HabitRegistry';
 import { errorHandler } from './ErrorUtils';
 import { calculateStreak } from './HabitUtils';
 
@@ -46,9 +47,9 @@ export function useHabitInteraction(habit: HabitEntity) {
     setState(prev => ({ ...prev, isUpdating: true }));
     try {
       if (habit.type === 'checkbox') {
-        await habit.setChecked(!habit.isChecked);
+        await HabitRegistry.setChecked(habit.id, !habit.isChecked);
       } else {
-        await habit.increment(1);
+        await HabitRegistry.increment(habit.id, 1);
       }
     } catch (error) {
       errorHandler.handleError(error, 'Failed to toggle habit');
@@ -62,7 +63,7 @@ export function useHabitInteraction(habit: HabitEntity) {
 
     setState(prev => ({ ...prev, isUpdating: true }));
     try {
-      await habit.increment(amount);
+      await HabitRegistry.increment(habit.id, amount);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to increment habit');
     } finally {
@@ -76,9 +77,9 @@ export function useHabitInteraction(habit: HabitEntity) {
     setState(prev => ({ ...prev, isUpdating: true }));
     try {
       if (habit.type === 'checkbox') {
-        await habit.setChecked(value as boolean, date);
+        await HabitRegistry.setChecked(habit.id, value as boolean, date);
       } else {
-        await habit.setValue(value as number, date);
+        await HabitRegistry.setValue(habit.id, value as number, date);
       }
     } catch (error) {
       errorHandler.handleError(error, 'Failed to set habit value');
@@ -87,13 +88,68 @@ export function useHabitInteraction(habit: HabitEntity) {
     }
   }, [habit, state.isUpdating]);
 
+  const handleDateUpdate = useCallback(async (date: Date, value: number | boolean) => {
+    if (state.isUpdating) return;
+
+    setState(prev => ({ ...prev, isUpdating: true }));
+    try {
+      if (habit.type === 'checkbox') {
+        await HabitRegistry.setChecked(habit.id, value as boolean, date);
+      } else {
+        await HabitRegistry.setValue(habit.id, value as number, date);
+      }
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to update habit for date');
+    } finally {
+      setState(prev => ({ ...prev, isUpdating: false }));
+    }
+  }, [habit, state.isUpdating]);
+
+  // Utility methods to check status
+  const isComplete = useCallback((date?: Date) => {
+    if (date) {
+      return habit.getStatusForDate(date) === 'complete';
+    }
+    return habit.isComplete;
+  }, [habit]);
+
+  const isPartial = useCallback((date?: Date) => {
+    if (date) {
+      return habit.getStatusForDate(date) === 'partial';
+    }
+    return habit.isBegun && !habit.isComplete;
+  }, [habit]);
+
+  const getValue = useCallback((date?: Date) => {
+    if (date) {
+      return habit.getValueForDate(date);
+    }
+    return habit.type === 'checkbox' ? habit.isChecked : habit.quantity;
+  }, [habit]);
+
   return {
+    // State
     streak: state.streak,
     isUpdating: state.isUpdating,
     lastUpdateTime: state.lastUpdateTime,
     hasChanges: state.hasChanges,
+    
+    // Action handlers
     handleToggle,
     handleIncrement,
     handleSetValue,
+    handleDateUpdate,
+    
+    // Status checks
+    isComplete,
+    isPartial,
+    getValue,
+
+    // Additional utility getters
+    progress: habit.type === 'quantity' && habit.goal 
+      ? Math.min(100, (habit.quantity / habit.goal) * 100)
+      : habit.isComplete ? 100 : 0,
+    
+    currentValue: habit.type === 'checkbox' ? habit.isChecked : habit.quantity,
   };
 }

@@ -10,6 +10,7 @@ export namespace Habit {
     unit?: string;
     goal?: number;
     bgColor: string;
+    lastModified: number; // Add this
   }
 
   export interface State {
@@ -19,7 +20,9 @@ export namespace Habit {
     isBegun: boolean;
   }
 
-  export interface Model extends Base, State {}
+  export interface Model extends Base, State {
+    lastModified?: number;
+  }
 
   export interface History {
     [habitId: string]: {

@@ -69,7 +69,6 @@ const HabitDetails: React.FC = () => {
   const handleDateClick = useCallback(async (isoString: string) => {
     if (!habit) return;
     
-    // Ensure we have a valid date by creating a new Date object
     const date = new Date(isoString);
     if (isNaN(date.getTime())) {
       errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
@@ -81,7 +80,7 @@ const HabitDetails: React.FC = () => {
     try {
       if (habit.type === 'checkbox') {
         const currentValue = habit.getValueForDate(date) as boolean;
-        await habit.setChecked(!currentValue, date);
+        await HabitRegistry.setChecked(habit.id, !currentValue, date);
       } else {
         setEditingDate(dateKey);
         setShowEditModal(true);
@@ -96,7 +95,7 @@ const HabitDetails: React.FC = () => {
   
     try {
       const date = new Date(editingDate);
-      await habit.setValue(value, date);
+      await HabitRegistry.setValue(habit.id, value, date);
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit value');
     }

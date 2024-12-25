@@ -57,42 +57,49 @@ const HabitForm: React.FC<Props> = ({
     }
   }, [isOpen, initialHabit]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      errorHandler.showWarning('Please enter a habit name');
-      return;
-    }
+  // HabitForm.tsx
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!name.trim()) {
+    errorHandler.showWarning('Please enter a habit name');
+    return;
+  }
 
-    setIsSaving(true);
-    try {
-      const habitModel: Habit.Model = {
-        id: initialHabit?.id || Date.now().toString(),
-        name: name.trim(),
-        type,
-        unit: type === 'quantity' ? unit : undefined,
-        goal: type === 'quantity' ? goal : undefined,
-        bgColor: color,
-        // Add required Model properties
-        quantity: initialHabit?.quantity || 0,
-        isChecked: initialHabit?.isChecked || false,
-        isComplete: initialHabit?.isComplete || false,
-        isBegun: initialHabit?.isBegun || false
+  setIsSaving(true);
+  try {
+    const habitProps: Habit.Base = {
+      id: initialHabit?.id || Date.now().toString(),
+      name: name.trim(),
+      type,
+      unit: type === 'quantity' ? unit : undefined,
+      goal: type === 'quantity' ? goal : undefined,
+      bgColor: color,
+    };
+
+    if (initialHabit) {
+      const updatedState: Partial<Habit.State> = {
+        quantity: initialHabit.quantity,
+        isChecked: initialHabit.isChecked,
+        isComplete: initialHabit.isComplete,
+        isBegun: initialHabit.isBegun
       };
 
-      if (initialHabit) {
-        await HabitRegistry.update(habitModel);
-      } else {
-        await HabitRegistry.create(habitModel);
-      }
-
-      onClose();
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit');
-    } finally {
-      setIsSaving(false);
+      await HabitRegistry.create(habitProps);
+      await HabitRegistry.updateState(habitProps.id, updatedState);
+    } else {
+      await HabitRegistry.create(habitProps);
     }
-  };
+    
+    // Force refresh the habit state
+    await HabitRegistry.syncWithStorage();
+    
+    onClose();
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to save habit');
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>

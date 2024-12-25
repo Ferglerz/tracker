@@ -19,6 +19,14 @@ interface ParsedHabitData {
   values: { date: string; value: number | boolean }[];
 }
 
+interface ParseResult {
+  data: any[];
+  meta: {
+    fields?: string[];
+  };
+  errors: any[];
+}
+
 export class HabitCSVService {
   private static createDownload(content: string, filename: string) {
     const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
@@ -43,29 +51,21 @@ export class HabitCSVService {
     };
   }
 
-  private static async getHabitHistory(habit: HabitEntity): Promise<Record<string, number | boolean>> {
-    try {
-      return await habit.getAllHistory();
-    } catch (error) {
-      errorHandler.handleError(error, `Failed to get history for habit: ${habit.name}`);
-      return {};
-    }
-  }
-
   static async exportHabits(habits: HabitEntity[]): Promise<void> {
     try {
       if (!habits.length) {
         throw new Error('No habits available to export');
       }
 
-      // Collect all histories and find unique dates
+      // Collect all histories
       const habitHistories = await Promise.all(
         habits.map(async habit => ({
           habit,
-          history: await this.getHabitHistory(habit)
+          history: await habit.getAllHistory()
         }))
       );
 
+      // Find unique dates
       const allDates = new Set<string>();
       habitHistories.forEach(({ history }) => {
         Object.keys(history).forEach(date => allDates.add(date));
@@ -122,9 +122,9 @@ export class HabitCSVService {
         for (const { date, value } of data.values) {
           const dateObj = new Date(date);
           if (data.type === 'checkbox') {
-            await habit.setChecked(value as boolean, dateObj);
-          } else if (typeof value === 'number') {
-            await habit.setValue(value, dateObj);
+            await HabitRegistry.setChecked(habit.id, value as boolean, dateObj);
+          } else {
+            await HabitRegistry.setValue(habit.id, value as number, dateObj);
           }
         }
       }
@@ -137,60 +137,102 @@ export class HabitCSVService {
   }
 
   static async parseCSVFile(file: File): Promise<ParsedHabitData[]> {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          try {
-            if (!results.data.length || !results.meta.fields) {
-              throw new Error('CSV file is empty or invalid');
-            }
-
-            const habitColumns = results.meta.fields
-              .filter(field => field !== 'Date')
-              .map(header => {
-                const { name, unit } = this.parseHabitHeader(header);
-                return {
-                  name,
-                  unit,
-                  type: unit ? 'quantity' as const : 'checkbox' as const,
-                  values: [] as { date: string; value: number | boolean }[]
-                };
-              });
-
-            // Parse values for each habit
-            results.data.forEach((row: any) => {
-              const date = row.Date;
-              if (!date || isNaN(new Date(date).getTime())) {
-                return; // Skip invalid dates
-              }
-
-              habitColumns.forEach(habit => {
-                const rawValue = row[habit.name];
-                if (rawValue === undefined || rawValue === '') return;
-
-                let value: number | boolean;
-                if (habit.type === 'checkbox') {
-                  value = rawValue === '1' || rawValue === true;
-                } else {
-                  value = Number(rawValue);
-                }
-
-                if (typeof value === 'number' && !isNaN(value) || typeof value === 'boolean') {
-                  habit.values.push({ date, value });
-                }
-              });
-            });
-
-            resolve(habitColumns);
-          } catch (error) {
-            reject(error);
-          }
-        },
-        error: (error) => reject(error)
+    // Promisify Papa.parse to make it easier to work with
+    const parseCSV = async (file: File): Promise<ParseResult> => {
+      return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (results) => resolve(results),
+          error: (error) => reject(error)
+        });
       });
-    });
+    };
+
+    try {
+      // Parse the CSV file
+      const results = await parseCSV(file);
+
+      // Validate the parsed data
+      if (!results.data.length || !results.meta.fields) {
+        throw new Error('CSV file is empty or invalid');
+      }
+
+      if (!results.meta.fields.includes('Date')) {
+        throw new Error('CSV must contain a Date column');
+      }
+
+      // Extract habit columns (all columns except Date)
+      const habitColumns = results.meta.fields
+        .filter(field => field !== 'Date')
+        .map(header => {
+          const { name, unit } = this.parseHabitHeader(header);
+          return {
+            name,
+            unit,
+            type: unit ? 'quantity' as const : 'checkbox' as const,
+            values: [] as { date: string; value: number | boolean }[]
+          };
+        });
+
+      // Process each row of data
+      results.data.forEach((row: Record<string, any>) => {
+        // Validate date
+        const date = row.Date;
+        if (!date || isNaN(new Date(date).getTime())) {
+          return; // Skip rows with invalid dates
+        }
+
+        // Process each habit column
+        habitColumns.forEach(habit => {
+          const rawValue = row[habit.name];
+          if (rawValue === undefined || rawValue === '') {
+            return; // Skip empty values
+          }
+
+          let value: number | boolean;
+          
+          if (habit.type === 'checkbox') {
+            // Handle checkbox values: 1, true, "yes", "y" are considered true
+            if (typeof rawValue === 'boolean') {
+              value = rawValue;
+            } else if (typeof rawValue === 'number') {
+              value = rawValue === 1;
+            } else if (typeof rawValue === 'string') {
+              value = ['1', 'true', 'yes', 'y'].includes(rawValue.toLowerCase());
+            } else {
+              return; // Skip invalid values
+            }
+          } else {
+            // Handle quantity values
+            const numValue = Number(rawValue);
+            if (isNaN(numValue)) {
+              return; // Skip non-numeric values
+            }
+            value = numValue;
+          }
+
+          habit.values.push({ date, value });
+        });
+      });
+
+      // Validate that we have at least one valid habit with data
+      if (!habitColumns.some(habit => habit.values.length > 0)) {
+        throw new Error('No valid habit data found in CSV');
+      }
+
+      return habitColumns;
+
+    } catch (error) {
+      // Add context to the error and preserve the stack trace
+      const enhancedError = new Error(
+        `Failed to parse CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      if (error instanceof Error) {
+        enhancedError.stack = error.stack;
+      }
+      throw enhancedError;
+    }
   }
 }

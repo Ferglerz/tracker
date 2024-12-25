@@ -162,12 +162,26 @@ export class HabitStorage {
     const isNative = isNativePlatform && platform === 'ios';
     
     this.storage = isNative 
-      ? new NativeStorageStrategy('group.io.ionic.tracker')
-      : new IonicStorageStrategy();
+        ? new NativeStorageStrategy('group.io.ionic.tracker')
+        : new IonicStorageStrategy();
     
-    this.setupAppStateListener();
-    this.setupPolling();
-  }
+    // Add initialization promise
+    this.initPromise = this.initialize();
+}
+
+private initPromise: Promise<void>;
+
+private async initialize(): Promise<void> {
+    try {
+        // Force an initial load to ensure storage is ready
+        await this.storage.load(this.storageKey);
+        this.setupAppStateListener();
+        this.setupPolling();
+    } catch (error) {
+        console.error('Failed to initialize storage:', error);
+        throw error;
+    }
+}
 
   static getInstance(): HabitStorage {
     if (!this.instance) {
@@ -180,7 +194,14 @@ export class HabitStorage {
     this.observers.push(observer);
   }
 
-  private async notifyObservers(data: Habit.Data): Promise<void> {
+  removeObserver(observer: WidgetObserver): void {
+    const index = this.observers.indexOf(observer);
+    if (index > -1) {
+      this.observers.splice(index, 1);
+    }
+  }
+
+  async notifyObservers(data: Habit.Data): Promise<void> {
     for (const observer of this.observers) {
       await observer.update(data);
     }
@@ -250,36 +271,40 @@ export class HabitStorage {
     await this.saveQueue;
   }
 
-  async load(): Promise<Habit.Data> {
-    try {
+  // HabitStorage.ts - modify load method
+async load(): Promise<Habit.Data> {
+  try {
+      // Wait for initialization
+      await this.initPromise;
+
       if (this.cache) {
-        return this.cache;
+          return this.cache;
       }
 
       const data = await this.storage.load(this.storageKey);
 
       if (!data) {
-        const defaultData = this.getDefaultData();
-        this.cache = defaultData;
-        return defaultData;
+          const defaultData = this.getDefaultData();
+          this.cache = defaultData;
+          return defaultData;
       }
 
       if (!isHabitData(data)) {
-        console.warn("Loaded data is not valid Habit.Data. Returning default data.");
-        const defaultData = this.getDefaultData();
-        this.cache = defaultData;
-        return defaultData;
+          console.warn("Loaded data is not valid Habit.Data. Returning default data.");
+          const defaultData = this.getDefaultData();
+          this.cache = defaultData;
+          return defaultData;
       }
 
       this.cache = data;
       return data;
-    } catch (error) {
-      errorHandler.handleError(error, 'Failed to load habit data');
+  } catch (error) {
+      console.error('Failed to load habit data:', error);
       const defaultData = this.getDefaultData();
       this.cache = defaultData;
       return defaultData;
-    }
   }
+}
 
   private getDefaultData(): Habit.Data {
     return { habits: [], history: {} };
