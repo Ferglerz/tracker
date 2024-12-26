@@ -15,7 +15,7 @@ import {
   IonButton,
   IonProgressBar,
 } from '@ionic/react';
-import { add, downloadOutline, refreshOutline } from 'ionicons/icons';
+import { add, downloadOutline } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
@@ -28,23 +28,12 @@ const EmptyState: React.FC = () => (
 );
 
 const TopToolbar: React.FC<{
-  onRefresh: () => Promise<void>;
   onExport: () => Promise<void>;
-  isRefreshing: boolean;
   hasHabits: boolean;
-}> = ({ onRefresh, onExport, isRefreshing, hasHabits }) => (
+}> = ({ onExport, hasHabits }) => (
   <IonToolbar>
     <IonTitle className="ion-text-center">Habits</IonTitle>
     <IonButtons slot="end">
-      <IonButton 
-        onClick={onRefresh} 
-        disabled={isRefreshing}
-        style={{
-          '--color': 'var(--neutral-button)'
-        }}
-      >
-        <IonIcon slot="icon-only" icon={refreshOutline} />
-      </IonButton>
       {hasHabits && (
         <IonButton 
           onClick={onExport}
@@ -56,7 +45,6 @@ const TopToolbar: React.FC<{
         </IonButton>
       )}
     </IonButtons>
-    {isRefreshing && <IonProgressBar type="indeterminate" />}
   </IonToolbar>
 );
 
@@ -132,9 +120,7 @@ const Home: React.FC = () => {
     <IonPage>
       <IonHeader>
         <TopToolbar
-          onRefresh={refreshHabits}
           onExport={handleExport}
-          isRefreshing={isRefreshing}
           hasHabits={habits.length > 0}
         />
       </IonHeader>

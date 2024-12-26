@@ -1,187 +1,171 @@
 // HabitCalendar.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-    IonContent,
-    IonHeader,
-    IonPage,
-    IonTitle,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonDatetime,
-    IonCard,
-    IonCardContent,
+  IonButton,
+  IonIcon,
+  IonCard,
+  IonCardContent,
+  IonDatetime,
 } from '@ionic/react';
-import { useLocation, useParams } from 'react-router-dom';
+import { arrowBack, create } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
-import { Habit } from './Types';
-import { errorHandler } from './ErrorUtilities';
-import DateEditModal from './DateEditModal';
-import { HabitStorage } from './Storage';
 import { getDateKey } from './Utilities';
+import DateEditModal from './DateEditModal';
+import { formatDateKey } from './Utilities';
 
-interface RouteParams {
-    id: string;
+interface Props {
+  habit: HabitEntity;
+  onClose: () => void;
+  onValueChange: (value: number | boolean) => Promise<void>;
 }
 
-const HabitDetails: React.FC = () => {
-    const location = useLocation<Habit.Habit>();
-    const { id } = useParams<RouteParams>();
-    const [habit, setHabit] = useState<HabitEntity | null>(null);
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editingDate, setEditingDate] = useState<string>('');
+const HabitCalendar: React.FC<Props> = ({
+  habit,
+  onClose,
+  onValueChange,
+}) => {
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [currentValue, setCurrentValue] = useState<number | boolean>(
+    habit.type === 'checkbox' ? habit.isChecked : habit.quantity
+  );
+  const [currentGoal, setCurrentGoal] = useState<number>(habit.goal || 0);
 
-    // Helper function to handle date click for both checkbox and quantity habits
-    const handleDateClick = useCallback(async (isoString: string) => {
-        if (!habit) return;
-        const dateKey = getDateKey(isoString);
-        if (!dateKey) return;
+  const resetToToday = useCallback(() => {
+    const today = new Date().toISOString();
+    setSelectedDate(today);
 
-        try {
-            if (habit.type === 'checkbox') {
-                const currentValue = habit.getValueForDate(new Date(dateKey)) as boolean;
-                await habit.setChecked(!currentValue, new Date(dateKey));
-            } else {
-                setEditingDate(dateKey);
-                setShowEditModal(true);
-            }
-        } catch (error) {
-            errorHandler.handleError(error, 'Failed to update habit');
-        }
-    }, [habit]);
+    // Get today's values
+    const todayKey = formatDateKey(new Date());
+    const todayValue = habit.history[todayKey];
 
-    // Helper function to handle saving the date value for quantity habits
-    const handleSaveDate = useCallback(async (value: any) => {
-        if (!habit || !editingDate) return;
+    if (habit.type === 'checkbox') {
+      setCurrentValue(todayValue as boolean || false);
+    } else {
+      if (Array.isArray(todayValue)) {
+        setCurrentValue(todayValue[0] || 0);
+        setCurrentGoal(todayValue[1] || habit.goal || 0);
+      } else {
+        setCurrentValue(0);
+        setCurrentGoal(habit.goal || 0);
+      }
+    }
+  }, [habit]);
 
-        try {
-            await habit.setValue(value, new Date(editingDate));
-        } catch (error) {
-            errorHandler.handleError(error, 'Failed to save habit value');
-        }
-    }, [habit, editingDate]);
+  const handleDateClick = useCallback(async (isoString: string) => {
+    const dateKey = getDateKey(isoString);
+    if (!dateKey) return;
 
-    // Helper function to determine highlighted dates for the calendar
-    const getHighlightedDates = useCallback((isoString: string) => {
-        if (!habit) return undefined;
-        const dateKey = getDateKey(isoString);
-        if (!dateKey) return undefined;
+    const dateValue = habit.getValueForDate(new Date(dateKey));
 
-        try {
-            const value = habit.history[dateKey];
-            if (!value) return undefined;
-
-            let isComplete = false;
-            if (habit.type === 'checkbox') {
-                isComplete = value === true;
-            } else if (Array.isArray(value)) {
-                const [quantity, goal] = value;
-                isComplete = goal > 0 ? quantity >= goal : quantity > 0;
-            }
-
-            return {
-                textColor: '#ffffff',
-                backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
-            };
-        } catch (error) {
-            console.error('Error in getHighlightedDates:', error);
-            return undefined;
-        }
-    }, [habit]);
-
-    // Load initial habit and subscribe to storage changes
-    useEffect(() => {
-        const loadHabit = async () => {
-            try {
-                const habits = await HabitEntity.loadAll();
-                const existingHabit = habits.find(h => h.id === id);
-                if (!existingHabit) {
-                    throw new Error('Habit not found');
-                }
-                setHabit(existingHabit);
-            } catch (error) {
-                errorHandler.handleError(error, 'Failed to load habit');
-            }
-        };
-
-        loadHabit();
-
-        const storage = HabitStorage.getInstance();
-        const subscription = storage.changes.subscribe((data) => {
-            const updatedHabit = data.habits.find(h => h.id === id);
-            if (updatedHabit) {
-                setHabit(new HabitEntity(updatedHabit));
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, [id]);
-
-    if (!habit) {
-        return (
-            <IonPage>
-                <IonHeader>
-                    <IonToolbar>
-                        <IonButtons slot="start">
-                            <IonBackButton defaultHref="/home" />
-                        </IonButtons>
-                        <IonTitle>Error</IonTitle>
-                    </IonToolbar>
-                </IonHeader>
-                <IonContent>
-                    <div className="ion-padding">Habit not found</div>
-                </IonContent>
-            </IonPage>
-        );
+    if (habit.type === 'checkbox') {
+      setCurrentValue(dateValue as boolean || false);
+    } else if (Array.isArray(dateValue)) {
+      setCurrentValue(dateValue[0] || 0);
+      setCurrentGoal(dateValue[1] || habit.goal || 0);
+    } else {
+      setCurrentValue(0);
+      setCurrentGoal(habit.goal || 0);
     }
 
-    return (
-        <IonPage>
-            <IonHeader>
-                <IonToolbar>
-                    <IonButtons slot="start">
-                        <IonBackButton defaultHref="/home" />
-                    </IonButtons>
-                    <IonTitle>{habit.name}</IonTitle>
-                </IonToolbar>
-            </IonHeader>
-            <IonContent>
-                <div className="ion-padding">
-                    <IonCard>
-                        <IonCardContent>
-                            <IonDatetime
-                                presentation="date"
-                                preferWheel={false}
-                                value={selectedDate}
-                                onIonChange={e => {
-                                    if (e.detail.value) {
-                                        const dateValue = Array.isArray(e.detail.value)
-                                            ? e.detail.value[0]
-                                            : e.detail.value;
-                                        setSelectedDate(dateValue);
-                                        handleDateClick(dateValue);
-                                    }
-                                }}
-                                highlightedDates={getHighlightedDates}
-                                className="calendar-custom"
-                            />
-                        </IonCardContent>
-                    </IonCard>
+    setSelectedDate(isoString);
+  }, [habit]);
 
-                    {habit.type === 'quantity' && (
-                        <DateEditModal
-                            isOpen={showEditModal}
-                            onClose={() => setShowEditModal(false)}
-                            onSave={handleSaveDate}
-                            habit={habit}
-                            date={editingDate}
-                        />
-                    )}
-                </div>
-            </IonContent>
-        </IonPage>
-    );
+  const handleSaveDate = useCallback(async (value: number, goal: number) => {
+    const date = new Date(selectedDate);
+    await habit.setValue(value, date);
+    setCurrentValue(value);
+    setCurrentGoal(goal);
+    setShowEditModal(false);
+  }, [habit, selectedDate]);
+
+  const getHighlightedDates = useCallback((isoString: string) => {
+    const dateKey = getDateKey(isoString);
+    if (!dateKey) return undefined;
+
+    try {
+      const value = habit.history[dateKey];
+      if (!value) return undefined;
+
+      let isComplete = false;
+      if (habit.type === 'checkbox') {
+        isComplete = value === true;
+      } else if (Array.isArray(value)) {
+        const [quantity, goal] = value;
+        isComplete = goal > 0 ? quantity >= goal : quantity > 0;
+      }
+
+      return {
+        textColor: '#ffffff',
+        backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
+      };
+    } catch (error) {
+      console.error('Error in getHighlightedDates:', error);
+      return undefined;
+    }
+  }, [habit]);
+
+  return (
+    <div className="calendar-container" style={{
+      padding: '16px',
+      backgroundColor: 'transparent'
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px'
+      }}>
+        <IonButton
+          fill="clear"
+          onClick={() => {
+            resetToToday();
+            onClose();
+          }}
+        >
+          <IonIcon slot="icon-only" icon={arrowBack} />
+        </IonButton>
+        {habit.type === 'quantity' && (
+          <IonButton
+            fill="clear"
+            onClick={() => setShowEditModal(true)}
+          >
+            <IonIcon slot="icon-only" icon={create} />
+          </IonButton>
+        )}
+      </div>
+
+      <IonCard style={{ margin: '0 auto', maxWidth: '400px' }}>
+        <IonCardContent>
+          <IonDatetime
+            presentation="date"
+            preferWheel={false}
+            value={selectedDate}
+            onIonChange={e => {
+              if (e.detail.value) {
+                const dateValue = Array.isArray(e.detail.value)
+                  ? e.detail.value[0]
+                  : e.detail.value;
+                handleDateClick(dateValue);
+              }
+            }}
+            highlightedDates={getHighlightedDates}
+            className="calendar-custom"
+          />
+        </IonCardContent>
+      </IonCard>
+
+      {habit.type === 'quantity' && (
+        <DateEditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveDate}
+          habit={habit}
+          date={selectedDate}
+        />
+      )}
+    </div>
+  );
 };
 
-export default React.memo(HabitDetails);
+export default React.memo(HabitCalendar);
