@@ -15,6 +15,7 @@ import {
 import { add, remove, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
+import { getLast28Days } from './Utilities';
 
 interface Props {
   habit: HabitEntity;
@@ -23,6 +24,7 @@ interface Props {
   isCalendarOpen: boolean;
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
+  isReorderMode: boolean;  // Add this line
 }
 
 export interface HabitListItemRef {
@@ -31,6 +33,72 @@ export interface HabitListItemRef {
 }
 
 const LONG_PRESS_DURATION = 500;
+
+const CheckboxHistory: React.FC<{
+  data: Array<{ date: string, value: boolean }>,
+  color: string
+}> = ({ data, color }) => {
+  // Take only last 28 days
+  const last28Days = data.slice(-28);
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateRows: 'repeat(4, 10px)',
+      gridTemplateColumns: 'repeat(7, 10px)',
+      gap: '1px',
+      padding: '8px'
+    }}>
+      {last28Days.map((day, index) => (
+        <div
+          key={day.date}
+          style={{
+            width: '10px',
+            height: '10px',
+            backgroundColor: day.value ? color : '#666666',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const QuantityHistory: React.FC<{
+  data: Array<{ date: string, value: number }>,
+  color: string
+}> = ({ data, color }) => {
+  // Take only last 28 days
+  const last28Days = data.slice(-28);
+  const values = last28Days.map(d => d.value);
+  const max = Math.max(...values, 1);
+  const height = 10;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateRows: 'repeat(4, 10px)',
+      gridTemplateColumns: 'repeat(7, 10px)',
+      gap: '1px',
+      padding: '8px'
+    }}>
+      {last28Days.map((day, index) => {
+        const barHeight = Math.max(1, (day.value / max) * height);
+        return (
+          <div
+            key={day.date}
+            style={{
+              width: '10px',
+              height: `${barHeight}px`,
+              backgroundColor: color,
+              opacity: 0.7,
+              alignSelf: 'end'
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   habit,
@@ -97,7 +165,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [habit, currentValue, handleValueChange]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (isReordering) return; // Don't trigger sliding menu if reordering
+    if (isReordering) return;
 
     let timer: ReturnType<typeof setTimeout>;
 
@@ -134,17 +202,18 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
           <div style={{
             display: 'flex',
             width: '100%',
-            alignItems: 'center',
+            alignItems: 'stretch',
             minHeight: '48px'
           }}>
+            {/* Color bar */}
             <div style={{
               width: '16px',
-              alignSelf: 'stretch',
               backgroundColor: habit.bgColor,
               flexShrink: 0
             }} />
 
-            <IonReorder 
+            {/* Reorder handle */}
+            <IonReorder
               ref={reorderRef}
               style={{
                 width: '32px',
@@ -158,12 +227,13 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               <IonIcon icon={reorderTwo} />
             </IonReorder>
 
+            {/* Name and status section - this will now flex-grow to fill available space */}
             <div style={{
-              flex: 1,
               padding: '8px 16px',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flex: 1
             }}>
               <div style={{
                 display: 'flex',
@@ -188,50 +258,78 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               )}
             </div>
 
+            {/* History visualization section - fixed width */}
             <div style={{
-              padding: habit.type === 'checkbox' ? '0 20px' : '0 8px',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px'
-            }}
-              onClick={(e) => {
-                if (habit.type === 'checkbox') {
-                  e.stopPropagation();
-                }
-              }}>
+              width: '80px', // Adjust this value as needed for your grid
+              borderLeft: '1px solid var(--ion-border-color)',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
               {habit.type === 'checkbox' ? (
-                <IonCheckbox
-                  checked={currentValue as boolean}
-                  style={{
-                    '--checkbox-background-checked': habit.bgColor,
-                    '--checkbox-background-checked-hover': habit.bgColor,
-                    '--checkbox-border-color': habit.bgColor,
-                    cursor: 'default'
-                  }}
+                <CheckboxHistory
+                  data={getLast28Days(habit) as Array<{ date: string, value: boolean }>}
+                  color={habit.bgColor}
                 />
               ) : (
-                <>
-                  <IonButton
-                    fill="clear"
-                    onClick={() => handleValueChange((currentValue as number) - 1)}
-                    style={{
-                      '--color': habit.bgColor
-                    }}
-                  >
-                    <IonIcon icon={remove} />
-                  </IonButton>
-                  <IonButton
-                    fill="clear"
-                    onClick={() => handleValueChange((currentValue as number) + 1)}
-                    style={{
-                      '--color': habit.bgColor
-                    }}
-                  >
-                    <IonIcon icon={add} />
-                  </IonButton>
-                </>
+                <QuantityHistory
+                  data={getLast28Days(habit) as Array<{ date: string, value: number }>}
+                  color={habit.bgColor}
+                />
               )}
             </div>
+
+            <div 
+  style={{
+    width: '100px',
+    display: 'flex',
+    alignItems: 'center', 
+    justifyContent: 'center', // Add this
+    flexShrink: 0,
+    borderLeft: '1px solid var(--ion-border-color)',
+    padding: '0 8px' 
+  }}
+  onClick={(e) => {
+    if (habit.type === 'checkbox') {
+      e.stopPropagation();
+    }
+  }}
+>
+  {habit.type === 'checkbox' ? (
+    <IonCheckbox 
+      checked={currentValue as boolean}
+      alignment="center" // Add this for horizontal centering
+      style={{
+        '--checkbox-background-checked': habit.bgColor,
+        '--checkbox-background-checked-hover': habit.bgColor,
+        '--checkbox-border-color': habit.bgColor,
+        cursor: 'default',
+      }}
+    />
+  ) : (
+    <div style={{width: '100%', display: 'flex', justifyContent: 'space-between'}}>
+      <IonButton
+        fill="clear"
+        onClick={() => handleValueChange((currentValue as number) - 1)}
+        style={{
+          '--color': habit.bgColor
+        }}
+      >
+        <IonIcon icon={remove} />
+      </IonButton>
+      <IonButton
+        fill="clear"
+        onClick={() => handleValueChange((currentValue as number) + 1)}
+        style={{
+          '--color': habit.bgColor
+        }}
+      >
+        <IonIcon icon={add} />
+      </IonButton>
+    </div>
+  )}
+</div>
           </div>
           <IonRippleEffect />
         </IonItem>

@@ -11,6 +11,34 @@ export const formatDateKey = (date: Date): string => {
   }
 };
 
+// Add to Utilities.ts
+
+export const getLast28Days = (habit: HabitEntity): Array<{date: string, value: number | boolean}> => {
+  const dates: Array<{date: string, value: number | boolean}> = [];
+  const today = new Date();
+  
+  for (let i = 27; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(today.getDate() - i);
+    const dateKey = formatDateKey(date);
+    const value = habit.history[dateKey];
+    
+    if (habit.type === 'checkbox') {
+      dates.push({
+        date: dateKey,
+        value: value === true
+      });
+    } else {
+      dates.push({
+        date: dateKey,
+        value: Array.isArray(value) ? value[0] : 0
+      });
+    }
+  }
+  
+  return dates;
+};
+
 // Helper function to get the date key for a given ISO string
 export const getDateKey = (isoString: string): string | undefined => {
     const date = new Date(isoString);
