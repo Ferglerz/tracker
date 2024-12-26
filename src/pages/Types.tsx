@@ -2,7 +2,7 @@
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
-  export interface Habit { // Renamed from Base to DataEntry
+  export interface Habit {
     id: string;
     name: string;
     type: Type;
@@ -12,6 +12,7 @@ export namespace Habit {
     quantity: number;
     isChecked: boolean;
     isComplete: boolean;
+    listOrder: number; // Add this line
     history: {
       [date: string]: [ number, number ] | boolean;
     };

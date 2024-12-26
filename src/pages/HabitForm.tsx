@@ -90,7 +90,8 @@ const HabitForm: React.FC<Props> = ({
         quantity: editedHabit?.quantity ?? 0,
         isChecked: editedHabit?.isChecked ?? false,
         isComplete: editedHabit?.isComplete ?? false,
-        history: editedHabit?.history ?? {}
+        history: editedHabit?.history ?? {},
+        listOrder: editedHabit?.listOrder ?? 0
       };
 
       await HabitEntity.create(habitProps);

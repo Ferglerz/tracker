@@ -18,6 +18,7 @@ export class HabitEntity {
   get isChecked(): boolean { return this.props.isChecked; }
   get isComplete(): boolean { return this.props.isComplete; }
   get history(): Record<string, [number, number] | boolean> { return this.props.history; }
+  get listOrder(): number { return this.props.listOrder; }
 
   private async update(updates: Partial<Habit.Habit>, date: Date = new Date()): Promise<void> {
     const data = await HabitStorageAPI.handleHabitData('load');
@@ -112,6 +113,12 @@ export class HabitEntity {
     const storage = await HabitStorageAPI.handleHabitData('load');
     const existingIndex = storage.habits.findIndex(habit => habit.id === props.id);
     
+    // If no listOrder provided, put at end of list
+    if (!props.listOrder) {
+        const maxOrder = Math.max(...storage.habits.map(h => h.listOrder || 0), 0);
+        props.listOrder = maxOrder + 1;
+    }
+    
     if (existingIndex !== -1) {
         storage.habits[existingIndex] = { ...storage.habits[existingIndex], ...props };
     } else {
@@ -121,12 +128,23 @@ export class HabitEntity {
     }
 
     await HabitStorageAPI.handleHabitData('save', storage);
-    
-    // Create the entity
-    const entity = new HabitEntity(props);
-    
-    return entity;
-  }
+    return new HabitEntity(props);
+}
+
+static async updateListOrder(habits: HabitEntity[]): Promise<void> {
+  const storage = await HabitStorageAPI.handleHabitData('load');
+  
+  // Update listOrder for each habit
+  storage.habits = storage.habits.map(habit => {
+      const updatedHabit = habits.find(h => h.id === habit.id);
+      if (updatedHabit) {
+          return { ...habit, listOrder: updatedHabit.listOrder };
+      }
+      return habit;
+  });
+
+  await HabitStorageAPI.handleHabitData('save', storage);
+}
 
   static async delete(id: string): Promise<void> {
     try {

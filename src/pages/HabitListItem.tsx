@@ -1,5 +1,5 @@
 // HabitListItem.tsx
-import React, { forwardRef, useImperativeHandle, useCallback, useRef, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react';
 import {
   IonItem,
   IonButton,
@@ -10,8 +10,9 @@ import {
   IonItemSliding,
   IonItemOptions,
   IonItemOption,
+  IonReorder,
 } from '@ionic/react';
-import { add, remove, calendar, pencil, trash } from 'ionicons/icons';
+import { add, remove, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
 
@@ -21,6 +22,7 @@ interface Props {
   onDelete: () => void;
   isCalendarOpen: boolean;
   onToggleCalendar: (habitId: string) => void;
+  dragHandleProps?: any;
 }
 
 export interface HabitListItemRef {
@@ -38,10 +40,33 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   onToggleCalendar
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
+  const reorderRef = useRef<HTMLIonReorderElement>(null);
   const [currentValue, setCurrentValue] = useState<number | boolean>(
     habit.type === 'checkbox' ? habit.isChecked : habit.quantity
   );
   const [currentGoal, setCurrentGoal] = useState<number>(habit.goal || 0);
+  const [isReordering, setIsReordering] = useState(false);
+
+  useEffect(() => {
+    const reorderElement = reorderRef.current;
+    if (!reorderElement) return;
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'reorder') {
+          const isReorderActive = reorderElement.hasAttribute('reorder');
+          setIsReordering(isReorderActive);
+        }
+      });
+    });
+
+    observer.observe(reorderElement, {
+      attributes: true,
+      attributeFilter: ['reorder']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useImperativeHandle(ref, () => ({
     closeSliding: async () => {
@@ -72,6 +97,8 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [habit, currentValue, handleValueChange]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (isReordering) return; // Don't trigger sliding menu if reordering
+
     let timer: ReturnType<typeof setTimeout>;
 
     const start = () => {
@@ -88,7 +115,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
 
     document.addEventListener('mouseup', cancel, { once: true });
     document.addEventListener('touchend', cancel, { once: true });
-  }, []);
+  }, [isReordering]);
 
   return (
     <>
@@ -116,6 +143,20 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               backgroundColor: habit.bgColor,
               flexShrink: 0
             }} />
+
+            <IonReorder 
+              ref={reorderRef}
+              style={{
+                width: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.3,
+                cursor: 'grab'
+              }}
+            >
+              <IonIcon icon={reorderTwo} />
+            </IonReorder>
 
             <div style={{
               flex: 1,

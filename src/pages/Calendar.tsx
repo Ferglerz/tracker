@@ -1,4 +1,3 @@
-// HabitCalendar.tsx
 import React, { useCallback, useState } from 'react';
 import {
   IonButton,
@@ -107,14 +106,17 @@ const HabitCalendar: React.FC<Props> = ({
 
   return (
     <div className="calendar-container" style={{
-      padding: '16px',
+      display: 'flex',
+      width: '100%',
       backgroundColor: 'transparent'
     }}>
+      {/* Left column - Back button */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '16px'
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        padding: '16px',
+        width: '60px'
       }}>
         <IonButton
           fill="clear"
@@ -122,38 +124,90 @@ const HabitCalendar: React.FC<Props> = ({
             resetToToday();
             onClose();
           }}
+          style={{
+            '--color': habit.bgColor,
+            margin: 0,
+            height: '36px'
+          }}
         >
           <IonIcon slot="icon-only" icon={arrowBack} />
         </IonButton>
+      </div>
+
+      {/* Center column - Calendar */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center'
+      }}>
+        <IonCard style={{ 
+          margin: '0',
+          width: '100%',
+          maxWidth: '400px'
+        }}>
+          <IonCardContent style={{ padding: '0' }}>
+            <style>
+              {`
+                .calendar-custom {
+                  --ion-color-primary: ${habit.bgColor} !important;
+                  --ion-color-primary-contrast: #ffffff !important;
+                }
+                
+                .calendar-custom::part(calendar-day) {
+                  color: var(--ion-text-color);
+                }
+
+                .calendar-custom::part(calendar-day-active) {
+                  color: #ffffff !important;
+                  background-color: ${habit.bgColor} !important;
+                }
+
+                .calendar-custom::part(calendar-day-today) {
+                  border-color: ${habit.bgColor} !important;
+                }
+              `}
+            </style>
+            <IonDatetime
+              presentation="date"
+              preferWheel={false}
+              value={selectedDate}
+              onIonChange={e => {
+                if (e.detail.value) {
+                  const dateValue = Array.isArray(e.detail.value)
+                    ? e.detail.value[0]
+                    : e.detail.value;
+                  handleDateClick(dateValue);
+                }
+              }}
+              highlightedDates={getHighlightedDates}
+              className="calendar-custom"
+            />
+          </IonCardContent>
+        </IonCard>
+      </div>
+
+      {/* Right column - Edit button */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        padding: '16px',
+        width: '60px'
+      }}>
         {habit.type === 'quantity' && (
           <IonButton
             fill="clear"
             onClick={() => setShowEditModal(true)}
+            style={{
+              '--color': habit.bgColor,
+              margin: 0,
+              height: '36px'
+            }}
           >
             <IonIcon slot="icon-only" icon={create} />
           </IonButton>
         )}
       </div>
-
-      <IonCard style={{ margin: '0 auto', maxWidth: '400px' }}>
-        <IonCardContent>
-          <IonDatetime
-            presentation="date"
-            preferWheel={false}
-            value={selectedDate}
-            onIonChange={e => {
-              if (e.detail.value) {
-                const dateValue = Array.isArray(e.detail.value)
-                  ? e.detail.value[0]
-                  : e.detail.value;
-                handleDateClick(dateValue);
-              }
-            }}
-            highlightedDates={getHighlightedDates}
-            className="calendar-custom"
-          />
-        </IonCardContent>
-      </IonCard>
 
       {habit.type === 'quantity' && (
         <DateEditModal

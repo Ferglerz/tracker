@@ -1,12 +1,11 @@
 // Home.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   IonContent,
   IonHeader,
   IonPage,
   IonTitle,
   IonToolbar,
-  IonList,
   IonFab,
   IonFabButton,
   IonIcon,
@@ -14,12 +13,14 @@ import {
   IonButtons,
   IonButton,
   IonProgressBar,
+  IonReorderGroup,
 } from '@ionic/react';
 import { add, downloadOutline } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './Hooks';
+import { errorHandler } from './ErrorUtilities';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -55,8 +56,10 @@ const HabitList: React.FC<{
   openCalendarId: string | null;
   onToggleCalendar: (habitId: string) => void;
   itemRefs: React.MutableRefObject<Record<string, HabitListItemRef | null>>;
-}> = ({ habits, onEdit, onDelete, openCalendarId, onToggleCalendar, itemRefs }) => (
-  <IonList>
+  onReorder: (event: CustomEvent) => void;
+  isReorderMode: boolean;
+}> = ({ habits, onEdit, onDelete, openCalendarId, onToggleCalendar, itemRefs, onReorder, isReorderMode }) => (
+  <IonReorderGroup disabled={false} onIonItemReorder={onReorder}>
     {habits.map((habit) => (
       <HabitListItem
         key={habit.id}
@@ -66,9 +69,10 @@ const HabitList: React.FC<{
         onDelete={() => onDelete(habit)}
         isCalendarOpen={openCalendarId === habit.id}
         onToggleCalendar={onToggleCalendar}
+        isReorderMode={isReorderMode}
       />
     ))}
-  </IonList>
+  </IonReorderGroup>
 );
 
 const Home: React.FC = () => {
@@ -78,6 +82,20 @@ const Home: React.FC = () => {
   const { handleExport } = useHabitExport(habits);
   const itemRefs = React.useRef<Record<string, HabitListItemRef | null>>({});
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+
+  useEffect(() => {
+    const handleReorderStart = () => setIsReorderMode(true);
+    const handleReorderEnd = () => setIsReorderMode(false);
+
+    document.addEventListener('ionItemReorderStart', handleReorderStart);
+    document.addEventListener('ionItemReorderEnd', handleReorderEnd);
+
+    return () => {
+      document.removeEventListener('ionItemReorderStart', handleReorderStart);
+      document.removeEventListener('ionItemReorderEnd', handleReorderEnd);
+    };
+  }, []);
 
   const closeForm = React.useCallback(async () => {
     // Close all sliding items
@@ -116,6 +134,45 @@ const Home: React.FC = () => {
     });
   }, []);
 
+  const handleReorder = useCallback(async (event: CustomEvent) => {
+    // Prevent default to allow manual list update
+    event.detail.complete(false);
+  
+    const from = event.detail.from;
+    const to = event.detail.to;
+    
+    // Create new array with updated order
+    const reorderedHabits = [...habits];
+    const [movedItem] = reorderedHabits.splice(from, 1);
+    reorderedHabits.splice(to, 0, movedItem);
+  
+    // Update listOrder for all habits
+    const updatedHabits = reorderedHabits.map((habit, index) => {
+      const entity = new HabitEntity({
+        id: habit.id,
+        name: habit.name,
+        type: habit.type,
+        unit: habit.unit,
+        goal: habit.goal,
+        bgColor: habit.bgColor,
+        quantity: habit.quantity,
+        isChecked: habit.isChecked,
+        isComplete: habit.isComplete,
+        history: habit.history,
+        listOrder: index + 1
+      });
+      return entity;
+    });
+  
+    // Save new order
+    try {
+      await HabitEntity.updateListOrder(updatedHabits);
+      await refreshHabits();
+    } catch (error) {
+      errorHandler.handleError(error, 'Failed to update habit order');
+    }
+  }, [habits, refreshHabits]);
+
   return (
     <IonPage>
       <IonHeader>
@@ -130,12 +187,14 @@ const Home: React.FC = () => {
           <EmptyState />
         ) : (
           <HabitList
-            habits={habits}
+            habits={habits.sort((a, b) => (a.listOrder || 0) - (b.listOrder || 0))}
             onEdit={openForm}
             onDelete={handleDelete}
             openCalendarId={openCalendarId}
             onToggleCalendar={handleToggleCalendar}
             itemRefs={itemRefs}
+            onReorder={handleReorder}
+            isReorderMode={isReorderMode}
           />
         )}
 
@@ -176,6 +235,10 @@ const Home: React.FC = () => {
             <IonIcon icon={add} />
           </IonFabButton>
         </IonFab>
+
+        {isRefreshing && (
+          <IonProgressBar type="indeterminate" />
+        )}
       </IonContent>
     </IonPage>
   );
