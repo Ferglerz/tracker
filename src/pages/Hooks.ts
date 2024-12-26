@@ -1,9 +1,9 @@
 // HabitHooks.ts
 import { useState, useCallback, useEffect } from 'react';
 import { HabitEntity } from './HabitEntity';
-import { HabitCSVService } from './HabitCSVService';
-import { errorHandler } from './ErrorUtils';
-import { HabitStorage } from './HabitStorage';  // Update this import
+import { HabitCSVService } from './CSVService';
+import { errorHandler } from './ErrorUtilities';
+import { HabitStorage } from './Storage';  // Update this import
 import { App } from '@capacitor/app';
 
 // HabitHooks.ts

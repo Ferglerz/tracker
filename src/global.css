@@ -1,17 +1,27 @@
 
+:root {
+  --neutral-button: #9ca3af;  /* Neutral grey for generic buttons */
+  --neutral-button-hover: #6b7280; /* Darker grey for hover state */
+}
 
-/* Add to global.css */
 .app-container {
   max-width: 600px;
   margin: 0 auto;
   height: 100%;
 }
 
-/* Custom styles for the icons */
+
+
+/* Update existing styles */
 .habit-action-icon {
   font-size: 24px;
   min-height: 44px;
   min-width: 44px;
+  color: var(--neutral-button);
+}
+
+.habit-action-icon:hover {
+  color: var(--neutral-button-hover);
 }
 
 /* Center align the toolbar title */
@@ -28,3 +38,16 @@ ion-item.habit::part(native) {
   height: 1px;
 }
 
+/* Update the .small-modal class to .date-edit-modal */
+.date-edit-modal {
+  --min-width: 280px; /* Set a minimum width for very small screens */
+}
+
+.date-edit-modal ion-modal {
+  --border-radius: 8px;
+}
+
+.date-edit-modal::part(content) {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}

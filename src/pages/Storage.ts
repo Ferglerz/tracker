@@ -1,9 +1,9 @@
 // HabitStorage.ts
 import { Storage } from '@ionic/storage';
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
-import { errorHandler } from './ErrorUtils';
+import { errorHandler } from './ErrorUtilities';
 import { Capacitor } from '@capacitor/core';
-import { Habit } from './HabitTypes';
+import { Habit } from './Types';
 import { Subject, Observable } from 'rxjs';
 
 interface StorageStrategy {

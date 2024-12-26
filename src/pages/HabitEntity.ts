@@ -1,8 +1,8 @@
 // HabitEntity.ts
-import { formatDateKey, getHabitStatus } from './HabitUtils';
-import { Habit } from './HabitTypes';
-import { HabitStorageAPI } from './HabitStorage';
-import { errorHandler } from './ErrorUtils'
+import { formatDateKey, getHabitStatus } from './Utilities';
+import { Habit } from './Types';
+import { HabitStorageAPI } from './Storage';
+import { errorHandler } from './ErrorUtilities'
 
 export class HabitEntity {
   constructor(private props: Habit.Habit) { }
@@ -58,13 +58,21 @@ export class HabitEntity {
 
   async setChecked(checked: boolean, date: Date = new Date()): Promise<void> {
     if (this.type !== 'checkbox') {
-      throw new Error('Invalid habit for checkbox operation');
+        throw new Error('Invalid habit for checkbox operation');
     }
+
+    const dateKey = formatDateKey(date);
+    const updatedHistory = {
+        ...this.history,  // Preserve existing history
+        [dateKey]: checked  // Add/update just this date
+    };
+
     await this.update({
-      isChecked: checked,
-      isComplete: checked,
+        isChecked: checked,
+        isComplete: checked,
+        history: updatedHistory
     }, date);
-  }
+}
 
   async rewriteHistory(value: [ number, number ] | boolean, date: Date): Promise<void> {
     const history = {
@@ -82,12 +90,16 @@ export class HabitEntity {
     const historicalValue = this.history[dateKey];
     const currentGoal = Array.isArray(historicalValue) ? historicalValue[1] : this.goal || 0;
     
+    // Create new history object that preserves existing entries
+    const updatedHistory = {
+        ...this.history,  // Spread existing history
+        [dateKey]: [value, currentGoal]  // Update only the specific date
+    };
+    
     await this.update({
         quantity: value,
         isComplete: currentGoal ? value >= currentGoal : value > 0,
-        history: {
-            [dateKey]: [value, currentGoal]
-        }
+        history: updatedHistory as Record<string, [number, number] | boolean>
     }, date);
 }
 

@@ -1,8 +1,6 @@
-// HabitUtils.ts
 import { format } from 'date-fns';
 import { HabitEntity } from './HabitEntity';
-import { errorHandler } from './ErrorUtils';
-import { Habit } from './HabitTypes';
+import { errorHandler } from './ErrorUtilities';
 
 export const formatDateKey = (date: Date): string => {
   try {
@@ -11,6 +9,17 @@ export const formatDateKey = (date: Date): string => {
     errorHandler.handleError(error, 'Failed to format date');
     return '';
   }
+};
+
+// Helper function to get the date key for a given ISO string
+export const getDateKey = (isoString: string): string | undefined => {
+    const date = new Date(isoString);
+    date.setHours(0, 0, 0, 0);
+    if (isNaN(date.getTime())) {
+        errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
+        return undefined;
+    }
+    return formatDateKey(date);
 };
 
 export const getStatusColor = (status: 'complete' | 'partial' | 'none'): string => {

@@ -14,11 +14,11 @@ import {
 } from '@ionic/react';
 import { useLocation, useParams } from 'react-router-dom';
 import { HabitEntity } from './HabitEntity';
-import { Habit } from './HabitTypes';
-import { errorHandler } from './ErrorUtils';
-import { formatDateKey } from './HabitUtils';
-import HabitDateEditModal from './HabitDateEditModal';
-import { HabitStorage } from './HabitStorage';
+import { Habit } from './Types';
+import { errorHandler } from './ErrorUtilities';
+import DateEditModal from './DateEditModal';
+import { HabitStorage } from './Storage';
+import { getDateKey } from './Utilities';
 
 interface RouteParams {
     id: string;
@@ -32,53 +32,16 @@ const HabitDetails: React.FC = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingDate, setEditingDate] = useState<string>('');
 
-    // Load initial habit and subscribe to storage changes
-    useEffect(() => {
-        const loadHabit = async () => {
-            try {
-                const habits = await HabitEntity.loadAll();
-                const existingHabit = habits.find(h => h.id === id);
-                if (!existingHabit) {
-                    throw new Error('Habit not found');
-                }
-                setHabit(existingHabit);
-            } catch (error) {
-                errorHandler.handleError(error, 'Failed to load habit');
-            }
-        };
-
-        // Initial load
-        loadHabit();
-
-        // Subscribe to storage changes
-        const storage = HabitStorage.getInstance();
-        const subscription = storage.changes.subscribe((data) => {
-            const updatedHabit = data.habits.find(h => h.id === id);
-            if (updatedHabit) {
-                setHabit(new HabitEntity(updatedHabit));
-            }
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [id]);
-
+    // Helper function to handle date click for both checkbox and quantity habits
     const handleDateClick = useCallback(async (isoString: string) => {
         if (!habit) return;
-
-        const date = new Date(isoString);
-        if (isNaN(date.getTime())) {
-            errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
-            return;
-        }
-
-        const dateKey = formatDateKey(date);
+        const dateKey = getDateKey(isoString);
+        if (!dateKey) return;
 
         try {
             if (habit.type === 'checkbox') {
-                const currentValue = habit.getValueForDate(date) as boolean;
-                await habit.setChecked(!currentValue, date);
+                const currentValue = habit.getValueForDate(new Date(dateKey)) as boolean;
+                await habit.setChecked(!currentValue, new Date(dateKey));
             } else {
                 setEditingDate(dateKey);
                 setShowEditModal(true);
@@ -88,27 +51,25 @@ const HabitDetails: React.FC = () => {
         }
     }, [habit]);
 
+    // Helper function to handle saving the date value for quantity habits
     const handleSaveDate = useCallback(async (value: any) => {
-      if (!habit) return;
-  
-      try {
-          const date = new Date(editingDate);
-          await habit.setValue(value, date);
-      } catch (error) {
-          errorHandler.handleError(error, 'Failed to save habit value');
-      }
-  }, [habit, editingDate]);
-
-    const getHighlightedDates = useCallback((isoString: string) => {
-        if (!habit) return undefined;
+        if (!habit || !editingDate) return;
 
         try {
-            const date = new Date(isoString);
-            if (isNaN(date.getTime())) return undefined;
+            await habit.setValue(value, new Date(editingDate));
+        } catch (error) {
+            errorHandler.handleError(error, 'Failed to save habit value');
+        }
+    }, [habit, editingDate]);
 
-            const dateKey = formatDateKey(date);
+    // Helper function to determine highlighted dates for the calendar
+    const getHighlightedDates = useCallback((isoString: string) => {
+        if (!habit) return undefined;
+        const dateKey = getDateKey(isoString);
+        if (!dateKey) return undefined;
+
+        try {
             const value = habit.history[dateKey];
-            
             if (!value) return undefined;
 
             let isComplete = false;
@@ -128,6 +89,34 @@ const HabitDetails: React.FC = () => {
             return undefined;
         }
     }, [habit]);
+
+    // Load initial habit and subscribe to storage changes
+    useEffect(() => {
+        const loadHabit = async () => {
+            try {
+                const habits = await HabitEntity.loadAll();
+                const existingHabit = habits.find(h => h.id === id);
+                if (!existingHabit) {
+                    throw new Error('Habit not found');
+                }
+                setHabit(existingHabit);
+            } catch (error) {
+                errorHandler.handleError(error, 'Failed to load habit');
+            }
+        };
+
+        loadHabit();
+
+        const storage = HabitStorage.getInstance();
+        const subscription = storage.changes.subscribe((data) => {
+            const updatedHabit = data.habits.find(h => h.id === id);
+            if (updatedHabit) {
+                setHabit(new HabitEntity(updatedHabit));
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [id]);
 
     if (!habit) {
         return (
@@ -170,11 +159,8 @@ const HabitDetails: React.FC = () => {
                                         const dateValue = Array.isArray(e.detail.value)
                                             ? e.detail.value[0]
                                             : e.detail.value;
-                                        const date = new Date(dateValue);
-                                        if (!isNaN(date.getTime())) {
-                                            setSelectedDate(dateValue);
-                                            handleDateClick(dateValue);
-                                        }
+                                        setSelectedDate(dateValue);
+                                        handleDateClick(dateValue);
                                     }
                                 }}
                                 highlightedDates={getHighlightedDates}
@@ -184,7 +170,7 @@ const HabitDetails: React.FC = () => {
                     </IonCard>
 
                     {habit.type === 'quantity' && (
-                        <HabitDateEditModal
+                        <DateEditModal
                             isOpen={showEditModal}
                             onClose={() => setShowEditModal(false)}
                             onSave={handleSaveDate}

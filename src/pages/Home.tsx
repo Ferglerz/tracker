@@ -20,7 +20,7 @@ import { add, downloadOutline, refreshOutline } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
-import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './HabitHooks';
+import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './Hooks';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -37,15 +37,26 @@ const TopToolbar: React.FC<{
   <IonToolbar>
     <IonTitle className="ion-text-center">Habits</IonTitle>
     <IonButtons slot="end">
-      <IonButton onClick={onRefresh} disabled={isRefreshing}>
-        <IonIcon slot="icon-only" icon={refreshOutline} />
-      </IonButton>
-      {hasHabits && (
-        <IonButton onClick={onExport}>
-          <IonIcon slot="icon-only" icon={downloadOutline} />
-        </IonButton>
-      )}
-    </IonButtons>
+  <IonButton 
+    onClick={onRefresh} 
+    disabled={isRefreshing}
+    style={{
+      '--color': 'var(--neutral-button)'
+    }}
+  >
+    <IonIcon slot="icon-only" icon={refreshOutline} />
+  </IonButton>
+  {hasHabits && (
+    <IonButton 
+      onClick={onExport}
+      style={{
+        '--color': 'var(--neutral-button)'
+      }}
+    >
+      <IonIcon slot="icon-only" icon={downloadOutline} />
+    </IonButton>
+  )}
+</IonButtons>
     {isRefreshing && <IonProgressBar type="indeterminate" />}
   </IonToolbar>
 );
@@ -174,11 +185,17 @@ const Home: React.FC = () => {
           ]}
         />
 
-        <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton onClick={() => openForm()}>
-            <IonIcon icon={add} />
-          </IonFabButton>
-        </IonFab>
+<IonFab vertical="bottom" horizontal="end" slot="fixed">
+  <IonFabButton 
+    onClick={() => openForm()}
+    style={{
+      '--background': 'var(--neutral-button)',
+      '--background-hover': 'var(--neutral-button-hover)',
+    }}
+  >
+    <IonIcon icon={add} />
+  </IonFabButton>
+</IonFab>
       </IonContent>
     </IonPage>
   );

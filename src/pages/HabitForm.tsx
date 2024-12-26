@@ -18,8 +18,8 @@ import {
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
-import { Habit } from './HabitTypes';
-import { errorHandler } from './ErrorUtils';
+import { Habit } from './Types';
+import { errorHandler } from './ErrorUtilities';
 
 const PRESET_COLORS = [
   '#ff5062',  // Red
@@ -109,17 +109,27 @@ const HabitForm: React.FC<Props> = ({
         <IonToolbar>
           <IonTitle>{title}</IonTitle>
           <IonButtons slot="start">
-            <IonButton onClick={onClose}>Cancel</IonButton>
-          </IonButtons>
-          <IonButtons slot="end">
-            <IonButton
-              strong
-              onClick={handleSubmit}
-              disabled={isSaving || !name.trim()}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </IonButton>
-          </IonButtons>
+  <IonButton 
+    onClick={onClose}
+    style={{
+      '--color': 'var(--neutral-button)'
+    }}
+  >
+    Cancel
+  </IonButton>
+</IonButtons>
+<IonButtons slot="end">
+  <IonButton
+    strong
+    onClick={handleSubmit}
+    disabled={isSaving || !name.trim()}
+    style={{
+      '--color': color // Using the selected habit color
+    }}
+  >
+    {isSaving ? 'Saving...' : 'Save'}
+  </IonButton>
+</IonButtons>
         </IonToolbar>
       </IonHeader>
 

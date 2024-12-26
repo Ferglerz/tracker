@@ -1,9 +1,9 @@
 // HabitCSVService.ts
 import { format } from 'date-fns';
 import Papa from 'papaparse';
-import { Habit } from './HabitTypes';
+import { Habit } from './Types';
 import { HabitEntity } from './HabitEntity';
-import { errorHandler } from './ErrorUtils';
+import { errorHandler } from './ErrorUtilities';
 
 interface CSVRow {
   Date: string;
