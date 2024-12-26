@@ -1,6 +1,5 @@
 // Home.tsx
-import React from 'react';
-import { useHistory } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
 import {
   IonContent,
   IonHeader,
@@ -37,26 +36,26 @@ const TopToolbar: React.FC<{
   <IonToolbar>
     <IonTitle className="ion-text-center">Habits</IonTitle>
     <IonButtons slot="end">
-  <IonButton 
-    onClick={onRefresh} 
-    disabled={isRefreshing}
-    style={{
-      '--color': 'var(--neutral-button)'
-    }}
-  >
-    <IonIcon slot="icon-only" icon={refreshOutline} />
-  </IonButton>
-  {hasHabits && (
-    <IonButton 
-      onClick={onExport}
-      style={{
-        '--color': 'var(--neutral-button)'
-      }}
-    >
-      <IonIcon slot="icon-only" icon={downloadOutline} />
-    </IonButton>
-  )}
-</IonButtons>
+      <IonButton 
+        onClick={onRefresh} 
+        disabled={isRefreshing}
+        style={{
+          '--color': 'var(--neutral-button)'
+        }}
+      >
+        <IonIcon slot="icon-only" icon={refreshOutline} />
+      </IonButton>
+      {hasHabits && (
+        <IonButton 
+          onClick={onExport}
+          style={{
+            '--color': 'var(--neutral-button)'
+          }}
+        >
+          <IonIcon slot="icon-only" icon={downloadOutline} />
+        </IonButton>
+      )}
+    </IonButtons>
     {isRefreshing && <IonProgressBar type="indeterminate" />}
   </IonToolbar>
 );
@@ -65,9 +64,10 @@ const HabitList: React.FC<{
   habits: HabitEntity[];
   onEdit: (habit: HabitEntity) => void;
   onDelete: (habit: HabitEntity) => void;
-  onViewCalendar: (habit: HabitEntity) => void;
+  openCalendarId: string | null;
+  onToggleCalendar: (habitId: string) => void;
   itemRefs: React.MutableRefObject<Record<string, HabitListItemRef | null>>;
-}> = ({ habits, onEdit, onDelete, onViewCalendar, itemRefs }) => (
+}> = ({ habits, onEdit, onDelete, openCalendarId, onToggleCalendar, itemRefs }) => (
   <IonList>
     {habits.map((habit) => (
       <HabitListItem
@@ -76,19 +76,20 @@ const HabitList: React.FC<{
         habit={habit}
         onEdit={() => onEdit(habit)}
         onDelete={() => onDelete(habit)}
-        onViewCalendar={() => onViewCalendar(habit)}
+        isCalendarOpen={openCalendarId === habit.id}
+        onToggleCalendar={onToggleCalendar}
       />
     ))}
   </IonList>
 );
 
 const Home: React.FC = () => {
-  const history = useHistory();
   const { habits, isRefreshing, refreshHabits } = useHabits();
   const { isFormOpen, editingHabit, openForm: originalOpenForm, closeForm: originalCloseForm } = useHabitForm();
   const { habitToDelete, setHabitToDelete, handleDeleteHabit } = useHabitDelete(refreshHabits);
   const { handleExport } = useHabitExport(habits);
   const itemRefs = React.useRef<Record<string, HabitListItemRef | null>>({});
+  const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
 
   const closeForm = React.useCallback(async () => {
     // Close all sliding items
@@ -108,24 +109,6 @@ const Home: React.FC = () => {
     originalOpenForm(habit);
   }, [originalOpenForm]);
 
-  const handleViewCalendar = React.useCallback(async (habit: HabitEntity) => {
-    // Close all sliding items before navigation
-    const closePromises = Object.values(itemRefs.current)
-      .map(ref => ref?.closeSliding());
-    await Promise.all(closePromises);
-
-    history.push(`/habit/${habit.id}/calendar`, { 
-      habitData: {
-        id: habit.id,
-        name: habit.name,
-        type: habit.type,
-        unit: habit.unit,
-        goal: habit.goal,
-        bgColor: habit.bgColor
-      }
-    });
-  }, [history]);
-
   const handleDelete = React.useCallback(async (habit: HabitEntity) => {
     // Close all sliding items before showing delete alert
     const closePromises = Object.values(itemRefs.current)
@@ -134,6 +117,16 @@ const Home: React.FC = () => {
     
     setHabitToDelete(habit);
   }, [setHabitToDelete]);
+
+  const handleToggleCalendar = useCallback((habitId: string) => {
+    setOpenCalendarId(current => {
+      // If we're opening a new calendar, close any sliding items first
+      if (current !== habitId) {
+        Object.values(itemRefs.current).forEach(ref => ref?.closeSliding());
+      }
+      return current === habitId ? null : habitId;
+    });
+  }, []);
 
   return (
     <IonPage>
@@ -154,7 +147,8 @@ const Home: React.FC = () => {
             habits={habits}
             onEdit={openForm}
             onDelete={handleDelete}
-            onViewCalendar={handleViewCalendar}
+            openCalendarId={openCalendarId}
+            onToggleCalendar={handleToggleCalendar}
             itemRefs={itemRefs}
           />
         )}
@@ -185,17 +179,17 @@ const Home: React.FC = () => {
           ]}
         />
 
-<IonFab vertical="bottom" horizontal="end" slot="fixed">
-  <IonFabButton 
-    onClick={() => openForm()}
-    style={{
-      '--background': 'var(--neutral-button)',
-      '--background-hover': 'var(--neutral-button-hover)',
-    }}
-  >
-    <IonIcon icon={add} />
-  </IonFabButton>
-</IonFab>
+        <IonFab vertical="bottom" horizontal="end" slot="fixed">
+          <IonFabButton 
+            onClick={() => openForm()}
+            style={{
+              '--background': 'var(--neutral-button)',
+              '--background-hover': 'var(--neutral-button-hover)',
+            }}
+          >
+            <IonIcon icon={add} />
+          </IonFabButton>
+        </IonFab>
       </IonContent>
     </IonPage>
   );
