@@ -28,6 +28,7 @@ interface Props {
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
   isReorderMode: boolean;
+  onDateSelected?: (date: Date) => void;  // Add this line
 }
 
 export interface HabitListItemRef {
@@ -44,7 +45,8 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   isCalendarOpen,
   openCalendarId,
   onToggleCalendar,
-  isReorderMode
+  isReorderMode,
+  onDateSelected  // Add this line
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const reorderRef = useRef<HTMLIonReorderElement>(null);
@@ -87,21 +89,26 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   useEffect(() => {
     const reorderElement = reorderRef.current;
     if (!reorderElement) return;
-
+  
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'reorder') {
           const isReorderActive = reorderElement.hasAttribute('reorder');
           setIsReordering(isReorderActive);
+          
+          // Close sliding item when reorder starts
+          if (isReorderActive) {
+            slidingRef.current?.close();
+          }
         }
       });
     });
-
+  
     observer.observe(reorderElement, {
       attributes: true,
       attributeFilter: ['reorder']
     });
-
+  
     return () => observer.disconnect();
   }, []);
 
@@ -147,6 +154,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [habit, selectedDate, currentGoal]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // Don't handle clicks during reorder mode
+    if (isReorderMode) return;
+  
     e.preventDefault();
     e.stopPropagation();
     
@@ -160,29 +170,33 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
     if (habit.type === 'checkbox') {
       handleValueChange(!currentValue as boolean);
     }
-  }, [habit, currentValue, handleValueChange, openCalendarId, onToggleCalendar]);
-
-  const handleDateSelected = useCallback((date: Date) => {
-    setSelectedDate(date);
-  }, []);
+  }, [habit, currentValue, handleValueChange, openCalendarId, onToggleCalendar, isReorderMode]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    // Don't open slide menu if we're in reorder mode or already sliding
     if (isReordering) return;
-
+  
+    // Prevent long press during reorder drag operations
+    const target = e.target as HTMLElement;
+    if (target.closest('ion-reorder')) return;
+  
     let timer: ReturnType<typeof setTimeout>;
-
+  
     const start = () => {
       timer = setTimeout(() => {
-        slidingRef.current?.open('end');
+        // Double check we're not reordering before opening
+        if (!isReordering) {
+          slidingRef.current?.open('end');
+        }
       }, LONG_PRESS_DURATION);
     };
-
+  
     const cancel = () => {
       clearTimeout(timer);
     };
-
+  
     start();
-
+  
     document.addEventListener('mouseup', cancel, { once: true });
     document.addEventListener('touchend', cancel, { once: true });
   }, [isReordering]);
@@ -338,7 +352,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               )}
             </div>
           </div>
-          <IonRippleEffect />
+          <IonRippleEffect style={{ 
+  display: isReorderMode ? 'none' : undefined 
+}} />
         </IonItem>
 
         <IonItemOptions side="end">
@@ -366,7 +382,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
           habit={habit}
           onClose={() => onToggleCalendar(habit.id)}
           onValueChange={handleValueChange}
-          onDateSelected={handleDateSelected}
+          onDateSelected={onDateSelected}
         />
       )}
     </>
