@@ -16,8 +16,17 @@
 }
 
 .calendar-custom {
-  margin: 0 auto;
-  --background: transparent;
+  --ion-color-primary: #ffffff !important;
+  --ion-color-primary-contrast: #000000 !important;
+}
+
+.calendar-custom::part(calendar-day) {
+  color: var(--ion-text-color);
+}
+
+.calendar-custom::part(calendar-day-active) {
+  color: #000000 !important;
+  background-color: #ffffff !important;
 }
 
 
@@ -47,7 +56,6 @@ ion-item.habit::part(native) {
   height: 1px;
 }
 
-/* Update the .small-modal class to .date-edit-modal */
 .date-edit-modal {
   --min-width: 280px; /* Set a minimum width for very small screens */
 }

@@ -16,12 +16,14 @@ interface Props {
   habit: HabitEntity;
   onClose: () => void;
   onValueChange: (value: number | boolean) => Promise<void>;
+  onDateSelected?: (date: Date) => void;
 }
 
 const HabitCalendar: React.FC<Props> = ({
   habit,
   onClose,
   onValueChange,
+  onDateSelected
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString());
   const [showEditModal, setShowEditModal] = useState(false);
@@ -58,11 +60,15 @@ const handleDateClick = useCallback(async (isoString: string) => {
   
   // Create date in local timezone using UTC components
   const localDate = new Date(year, month, day);
+
+  // Call onDateSelected with the new date if it exists
+  onDateSelected?.(localDate);
+  
+  setSelectedDate(isoString);
   
   const dateValue = habit.history[dateKey];
 
   if (habit.type === 'checkbox') {
-    // Toggle the checkbox value for the selected date
     const newValue = !(dateValue?.isChecked ?? false);
     await habit.setChecked(newValue, localDate);
     setCurrentValue(newValue);
@@ -70,9 +76,7 @@ const handleDateClick = useCallback(async (isoString: string) => {
     setCurrentValue(dateValue?.quantity ?? 0);
     setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
   }
-
-  setSelectedDate(isoString);
-}, [habit]);
+}, [habit, onDateSelected]);
 
 
 
@@ -99,19 +103,32 @@ const getHighlightedDates = useCallback((isoString: string) => {
     let isComplete = false;
     if (habit.type === 'checkbox') {
       isComplete = value.isChecked;
-      // For checkbox type, we only want complete (green) or none (transparent)
+      // For checkbox type, we only want complete (habit color) or none (transparent)
       return value.isChecked ? {
-        textColor: '#ffffff',
-        backgroundColor: '#2dd36f'  // green for complete
+        textColor: '#000000',
+        backgroundColor: habit.bgColor
       } : undefined;  // undefined for unchecked to show default style
     } else {
       const { quantity, goal } = value;
       isComplete = goal > 0 ? quantity >= goal : quantity > 0;
       
-      return {
-        textColor: '#ffffff',
-        backgroundColor: isComplete ? '#2dd36f' : '#ffc409'  // green for complete, orange for partial
-      };
+      // For quantity type, use habit color with full or half opacity
+      if (isComplete) {
+        return {
+          textColor: '#000000',
+          backgroundColor: habit.bgColor
+        };
+      } else if (quantity > 0) {
+        // Create semi-transparent version of habit color
+        const rgbaColor = habit.bgColor.startsWith('#') 
+          ? `${habit.bgColor}80` // Add 50% opacity to hex color
+          : habit.bgColor.replace('rgb', 'rgba').replace(')', ', 0.5)'); // Add 50% opacity to rgb color
+        
+        return {
+          textColor: '#000000',
+          backgroundColor: rgbaColor
+        };
+      }
     }
   } catch (error) {
     console.error('Error in getHighlightedDates:', error);

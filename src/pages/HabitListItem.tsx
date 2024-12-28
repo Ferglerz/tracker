@@ -24,7 +24,7 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   isCalendarOpen: boolean;
-  openCalendarId: string | null;  // Add this
+  openCalendarId: string | null;
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
   isReorderMode: boolean;
@@ -42,32 +42,47 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   onEdit,
   onDelete,
   isCalendarOpen,
-  openCalendarId,  // Add this here
-  onToggleCalendar
+  openCalendarId,
+  onToggleCalendar,
+  isReorderMode
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const reorderRef = useRef<HTMLIonReorderElement>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentValue, setCurrentValue] = useState<number | boolean>(
     habit.type === 'checkbox' ? habit.isChecked : habit.quantity
   );
   const [currentGoal, setCurrentGoal] = useState<number>(habit.goal || 0);
   const [isReordering, setIsReordering] = useState(false);
 
-// Add effect to reset to current day's value when calendar closes
-useEffect(() => {
-  if (!isCalendarOpen) {
-    const today = new Date();
-    const todayKey = formatDateKey(today);
-    const todayValue = habit.history[todayKey];
+  useEffect(() => {
+    if (!isCalendarOpen) {
+      // Reset to today when calendar closes
+      const today = new Date();
+      const todayKey = formatDateKey(today);
+      const todayValue = habit.history[todayKey];
+      
+      if (habit.type === 'checkbox') {
+        setCurrentValue(todayValue?.isChecked ?? false);
+      } else {
+        setCurrentValue(todayValue?.quantity ?? 0);
+        setCurrentGoal(todayValue?.goal ?? habit.goal ?? 0);
+      }
+      setSelectedDate(today);
+    }
+  }, [isCalendarOpen, habit]);
+
+  useEffect(() => {
+    const dateKey = formatDateKey(selectedDate);
+    const dateValue = habit.history[dateKey];
     
     if (habit.type === 'checkbox') {
-      setCurrentValue(todayValue?.isChecked ?? false);
+      setCurrentValue(dateValue?.isChecked ?? false);
     } else {
-      setCurrentValue(todayValue?.quantity ?? 0);
-      setCurrentGoal(todayValue?.goal ?? habit.goal ?? 0);
+      setCurrentValue(dateValue?.quantity ?? 0);
+      setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
     }
-  }
-}, [isCalendarOpen, habit]);
+  }, [selectedDate, habit]);
 
   useEffect(() => {
     const reorderElement = reorderRef.current;
@@ -95,15 +110,22 @@ useEffect(() => {
     const subscription = storage.changes.subscribe(async (data) => {
       const updatedHabit = data.habits.find(h => h.id === habit.id);
       if (updatedHabit) {
-        setCurrentValue(habit.type === 'checkbox' ? updatedHabit.isChecked : updatedHabit.quantity);
-        setCurrentGoal(updatedHabit.goal || 0);
+        const dateKey = formatDateKey(selectedDate);
+        const dateValue = updatedHabit.history[dateKey];
+        
+        if (habit.type === 'checkbox') {
+          setCurrentValue(dateValue?.isChecked ?? false);
+        } else {
+          setCurrentValue(dateValue?.quantity ?? 0);
+          setCurrentGoal(dateValue?.goal ?? updatedHabit.goal ?? 0);
+        }
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [habit.id, habit.type]);
+  }, [habit.id, habit.type, selectedDate]);
 
   useImperativeHandle(ref, () => ({
     closeSliding: async () => {
@@ -115,15 +137,14 @@ useEffect(() => {
   }));
 
   const handleValueChange = useCallback(async (newValue: number | boolean) => {
-    const date = new Date();
     if (habit.type === 'checkbox') {
-      await habit.setChecked(newValue as boolean, date);
+      await habit.setChecked(newValue as boolean, selectedDate);
       setCurrentValue(newValue);
     } else {
-      await habit.setValue(newValue as number, date);
+      await habit.setValue(newValue as number, selectedDate, currentGoal);
       setCurrentValue(newValue);
     }
-  }, [habit]);
+  }, [habit, selectedDate, currentGoal]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -141,6 +162,9 @@ useEffect(() => {
     }
   }, [habit, currentValue, handleValueChange, openCalendarId, onToggleCalendar]);
 
+  const handleDateSelected = useCallback((date: Date) => {
+    setSelectedDate(date);
+  }, []);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if (isReordering) return;
@@ -246,16 +270,16 @@ useEffect(() => {
               flexShrink: 0
             }}>
               {habit.type === 'checkbox' ? (
-  <CheckboxHistory
-    data={getLast56Days(habit) as Array<{ date: string, value: boolean }>}
-    color={habit.bgColor}
-  />
-) : (
-  <QuantityHistory
-    data={getLast56Days(habit) as Array<{ date: string, value: [number, number] }>}
-    color={habit.bgColor}
-  />
-)}
+                <CheckboxHistory
+                  data={getLast56Days(habit) as Array<{ date: string, value: boolean }>}
+                  color={habit.bgColor}
+                />
+              ) : (
+                <QuantityHistory
+                  data={getLast56Days(habit) as Array<{ date: string, value: [number, number] }>}
+                  color={habit.bgColor}
+                />
+              )}
             </div>
 
             {/* Controls section */}
@@ -294,7 +318,7 @@ useEffect(() => {
                 <div style={{width: '100%', display: 'flex', justifyContent: 'space-between'}}>
                   <IonButton
                     fill="clear"
-                    onClick={() => handleValueChange((currentValue as number) - 1)}
+                    onClick={() => handleValueChange(Math.max(0, (currentValue as number) - 1))}
                     style={{
                       '--color': habit.bgColor
                     }}
@@ -327,25 +351,26 @@ useEffect(() => {
             >
               <IonIcon slot="icon-only" icon={calendar} />
             </IonItemOption>
-            )}
-            <IonItemOption color="warning" onClick={onEdit}>
-              <IonIcon slot="icon-only" icon={pencil} />
-            </IonItemOption>
-            <IonItemOption color="danger" onClick={onDelete}>
-              <IonIcon slot="icon-only" icon={trash} />
-            </IonItemOption>
-          </IonItemOptions>
-        </IonItemSliding>
-  
-        {isCalendarOpen && (
-          <Calendar
-            habit={habit}
-            onClose={() => onToggleCalendar(habit.id)}
-            onValueChange={handleValueChange}
-          />
-        )}
-      </>
-    );
-  });
-  
-  HabitListItem.displayName = 'HabitListItem';
+          )}
+          <IonItemOption color="warning" onClick={onEdit}>
+            <IonIcon slot="icon-only" icon={pencil} />
+          </IonItemOption>
+          <IonItemOption color="danger" onClick={onDelete}>
+            <IonIcon slot="icon-only" icon={trash} />
+          </IonItemOption>
+        </IonItemOptions>
+      </IonItemSliding>
+
+      {isCalendarOpen && (
+        <Calendar
+          habit={habit}
+          onClose={() => onToggleCalendar(habit.id)}
+          onValueChange={handleValueChange}
+          onDateSelected={handleDateSelected}
+        />
+      )}
+    </>
+  );
+});
+
+HabitListItem.displayName = 'HabitListItem';
