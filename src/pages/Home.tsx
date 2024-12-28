@@ -62,15 +62,16 @@ const HabitList: React.FC<{
   <IonReorderGroup disabled={false} onIonItemReorder={onReorder}>
     {habits.map((habit) => (
       <HabitListItem
-        key={habit.id}
-        ref={(el) => itemRefs.current[habit.id] = el}
-        habit={habit}
-        onEdit={() => onEdit(habit)}
-        onDelete={() => onDelete(habit)}
-        isCalendarOpen={openCalendarId === habit.id}
-        onToggleCalendar={onToggleCalendar}
-        isReorderMode={isReorderMode}
-      />
+      key={habit.id}
+      ref={(el) => itemRefs.current[habit.id] = el}
+      habit={habit}
+      onEdit={() => onEdit(habit)}
+      onDelete={() => onDelete(habit)}
+      isCalendarOpen={openCalendarId === habit.id}
+      openCalendarId={openCalendarId}  // Add this
+      onToggleCalendar={onToggleCalendar}
+      isReorderMode={isReorderMode}
+    />
     ))}
   </IonReorderGroup>
 );
@@ -130,7 +131,12 @@ const Home: React.FC = () => {
       if (current !== habitId) {
         Object.values(itemRefs.current).forEach(ref => ref?.closeSliding());
       }
-      return current === habitId ? null : habitId;
+      // If clicking the same habit's calendar button, close it
+      if (current === habitId) {
+        return null;
+      }
+      // Otherwise, open the new calendar
+      return habitId;
     });
   }, []);
 

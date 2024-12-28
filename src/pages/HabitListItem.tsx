@@ -15,7 +15,7 @@ import {
 import { add, remove, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
-import { getLast56Days } from './Utilities';
+import { formatDateKey, getLast56Days } from './Utilities';
 import { HabitStorage } from './Storage';
 import { CheckboxHistory, QuantityHistory } from './HistoryGrid';
 
@@ -24,6 +24,7 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   isCalendarOpen: boolean;
+  openCalendarId: string | null;  // Add this
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
   isReorderMode: boolean;
@@ -41,8 +42,8 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   onEdit,
   onDelete,
   isCalendarOpen,
-  onToggleCalendar,
-  isReorderMode
+  openCalendarId,  // Add this here
+  onToggleCalendar
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const reorderRef = useRef<HTMLIonReorderElement>(null);
@@ -51,6 +52,22 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   );
   const [currentGoal, setCurrentGoal] = useState<number>(habit.goal || 0);
   const [isReordering, setIsReordering] = useState(false);
+
+// Add effect to reset to current day's value when calendar closes
+useEffect(() => {
+  if (!isCalendarOpen) {
+    const today = new Date();
+    const todayKey = formatDateKey(today);
+    const todayValue = habit.history[todayKey];
+    
+    if (habit.type === 'checkbox') {
+      setCurrentValue(todayValue?.isChecked ?? false);
+    } else {
+      setCurrentValue(todayValue?.quantity ?? 0);
+      setCurrentGoal(todayValue?.goal ?? habit.goal ?? 0);
+    }
+  }
+}, [isCalendarOpen, habit]);
 
   useEffect(() => {
     const reorderElement = reorderRef.current;
@@ -109,12 +126,21 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [habit]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // If another habit's calendar is open, close it
+    if (openCalendarId && openCalendarId !== habit.id) {
+      onToggleCalendar(openCalendarId);
+      return;
+    }
+    
+    // Toggle checkbox only for checkbox type habits
     if (habit.type === 'checkbox') {
-      e.preventDefault();
-      e.stopPropagation();
       handleValueChange(!currentValue as boolean);
     }
-  }, [habit, currentValue, handleValueChange]);
+  }, [habit, currentValue, handleValueChange, openCalendarId, onToggleCalendar]);
+
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if (isReordering) return;

@@ -45,17 +45,24 @@ export const getLast56Days = (habit: HabitEntity): Array<{date: string, value: [
 // Helper function to get the date key for a given ISO string
 export const getDateKey = (isoString: string): string | undefined => {
   try {
-      const date = new Date(isoString);
-      // Create a new date object in local timezone
-      const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      if (isNaN(localDate.getTime())) {
-          errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
-          return undefined;
-      }
-      return formatDateKey(localDate);
-  } catch (error) {
-      errorHandler.handleError(error, 'Failed to get date key');
+    const date = new Date(isoString);
+    
+    // Get UTC components
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    
+    // Create date in local timezone using UTC components
+    const localDate = new Date(year, month, day);
+    
+    if (isNaN(localDate.getTime())) {
+      errorHandler.handleError(new Error('Invalid date'), 'Invalid date selected');
       return undefined;
+    }
+    return formatDateKey(localDate);
+  } catch (error) {
+    errorHandler.handleError(error, 'Failed to get date key');
+    return undefined;
   }
 };
 

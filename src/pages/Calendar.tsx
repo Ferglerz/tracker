@@ -50,14 +50,25 @@ const handleDateClick = useCallback(async (isoString: string) => {
   if (!dateKey) return;
 
   const date = new Date(isoString);
-  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  // Get UTC components
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  
+  // Create date in local timezone using UTC components
+  const localDate = new Date(year, month, day);
+  
   const dateValue = habit.history[dateKey];
 
   if (habit.type === 'checkbox') {
-      setCurrentValue(dateValue?.isChecked ?? false);
+    // Toggle the checkbox value for the selected date
+    const newValue = !(dateValue?.isChecked ?? false);
+    await habit.setChecked(newValue, localDate);
+    setCurrentValue(newValue);
   } else {
-      setCurrentValue(dateValue?.quantity ?? 0);
-      setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
+    setCurrentValue(dateValue?.quantity ?? 0);
+    setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
   }
 
   setSelectedDate(isoString);
@@ -82,24 +93,29 @@ const getHighlightedDates = useCallback((isoString: string) => {
   if (!dateKey) return undefined;
 
   try {
-      const value = habit.history[dateKey];
-      if (!value) return undefined;
+    const value = habit.history[dateKey];
+    if (!value) return undefined;
 
-      let isComplete = false;
-      if (habit.type === 'checkbox') {
-          isComplete = value.isChecked;
-      } else {
-          const { quantity, goal } = value;
-          isComplete = goal > 0 ? quantity >= goal : quantity > 0;
-      }
-
+    let isComplete = false;
+    if (habit.type === 'checkbox') {
+      isComplete = value.isChecked;
+      // For checkbox type, we only want complete (green) or none (transparent)
+      return value.isChecked ? {
+        textColor: '#ffffff',
+        backgroundColor: '#2dd36f'  // green for complete
+      } : undefined;  // undefined for unchecked to show default style
+    } else {
+      const { quantity, goal } = value;
+      isComplete = goal > 0 ? quantity >= goal : quantity > 0;
+      
       return {
-          textColor: '#ffffff',
-          backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
+        textColor: '#ffffff',
+        backgroundColor: isComplete ? '#2dd36f' : '#ffc409'  // green for complete, orange for partial
       };
+    }
   } catch (error) {
-      console.error('Error in getHighlightedDates:', error);
-      return undefined;
+    console.error('Error in getHighlightedDates:', error);
+    return undefined;
   }
 }, [habit]);
 
