@@ -34,75 +34,74 @@ const HabitCalendar: React.FC<Props> = ({
     const today = new Date().toISOString();
     setSelectedDate(today);
 
-    // Get today's values
     const todayKey = formatDateKey(new Date());
     const todayValue = habit.history[todayKey];
 
     if (habit.type === 'checkbox') {
-      setCurrentValue(todayValue as boolean || false);
+        setCurrentValue(todayValue?.isChecked ?? false);
     } else {
-      if (Array.isArray(todayValue)) {
-        setCurrentValue(todayValue[0] || 0);
-        setCurrentGoal(todayValue[1] || habit.goal || 0);
-      } else {
-        setCurrentValue(0);
-        setCurrentGoal(habit.goal || 0);
-      }
+        setCurrentValue(todayValue?.quantity ?? 0);
+        setCurrentGoal(todayValue?.goal ?? habit.goal ?? 0);
     }
-  }, [habit]);
+}, [habit]);
 
-  const handleDateClick = useCallback(async (isoString: string) => {
-    const dateKey = getDateKey(isoString);
-    if (!dateKey) return;
+const handleDateClick = useCallback(async (isoString: string) => {
+  const dateKey = getDateKey(isoString);
+  if (!dateKey) return;
 
-    const dateValue = habit.getValueForDate(new Date(dateKey));
+  const date = new Date(isoString);
+  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dateValue = habit.history[dateKey];
 
-    if (habit.type === 'checkbox') {
-      setCurrentValue(dateValue as boolean || false);
-    } else if (Array.isArray(dateValue)) {
-      setCurrentValue(dateValue[0] || 0);
-      setCurrentGoal(dateValue[1] || habit.goal || 0);
-    } else {
-      setCurrentValue(0);
-      setCurrentGoal(habit.goal || 0);
-    }
+  if (habit.type === 'checkbox') {
+      setCurrentValue(dateValue?.isChecked ?? false);
+  } else {
+      setCurrentValue(dateValue?.quantity ?? 0);
+      setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
+  }
 
-    setSelectedDate(isoString);
-  }, [habit]);
+  setSelectedDate(isoString);
+}, [habit]);
+
+
 
   const handleSaveDate = useCallback(async (value: number, goal: number) => {
     const date = new Date(selectedDate);
-    await habit.setValue(value, date);
+    await habit.setValue(value, date, goal);  // Pass the goal parameter
     setCurrentValue(value);
     setCurrentGoal(goal);
     setShowEditModal(false);
-  }, [habit, selectedDate]);
+      alert(JSON.stringify(Object.entries(habit.history).slice(-20).reduce<Record<string, unknown>>((acc, [key, value]) => {
+        acc[key] = value
+        return acc
+      }, {}), null, 2))
+}, [habit, selectedDate]);
 
-  const getHighlightedDates = useCallback((isoString: string) => {
-    const dateKey = getDateKey(isoString);
-    if (!dateKey) return undefined;
+const getHighlightedDates = useCallback((isoString: string) => {
+  const dateKey = getDateKey(isoString);
+  if (!dateKey) return undefined;
 
-    try {
+  try {
       const value = habit.history[dateKey];
       if (!value) return undefined;
 
       let isComplete = false;
       if (habit.type === 'checkbox') {
-        isComplete = value === true;
-      } else if (Array.isArray(value)) {
-        const [quantity, goal] = value;
-        isComplete = goal > 0 ? quantity >= goal : quantity > 0;
+          isComplete = value.isChecked;
+      } else {
+          const { quantity, goal } = value;
+          isComplete = goal > 0 ? quantity >= goal : quantity > 0;
       }
 
       return {
-        textColor: '#ffffff',
-        backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
+          textColor: '#ffffff',
+          backgroundColor: isComplete ? '#2dd36f' : '#ffc409'
       };
-    } catch (error) {
+  } catch (error) {
       console.error('Error in getHighlightedDates:', error);
       return undefined;
-    }
-  }, [habit]);
+  }
+}, [habit]);
 
   return (
     <div className="calendar-container" style={{

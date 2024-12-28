@@ -13,7 +13,6 @@ interface StorageStrategy {
 }
 
 class NativeStorageStrategy implements StorageStrategy {
-
   constructor(private group: string) { }
 
   async save(key: string, value: Habit.Data): Promise<void> {
@@ -33,7 +32,6 @@ class NativeStorageStrategy implements StorageStrategy {
 
   async load(key: string): Promise<Habit.Data | null> {
     try {
-
       const result = await WidgetsBridgePlugin.getItem({
         key: String(key),
         group: String(this.group)
@@ -111,7 +109,6 @@ export class HabitStorage {
   private initPromise: Promise<void>;
   private storageSubject = new Subject<Habit.Data>();
 
-
   private constructor() {
     const isNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
     this.storage = isNative
@@ -137,18 +134,17 @@ export class HabitStorage {
     return this.instance;
   }
 
-
   async save(data: Habit.Data): Promise<void> {
     try {
       await this.storage.save(this.storageKey, data);
-      this.storageSubject.next(data); // Emit the full data
+      this.storageSubject.next(data);
 
       if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
         await WidgetsBridgePlugin.reloadAllTimelines();
       }
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit data');
-      throw error; // Re-throw the error after handling
+      throw error;
     }
   }
   
@@ -161,21 +157,19 @@ export class HabitStorage {
       await this.initPromise;
       
       const data = await this.storage.load(this.storageKey);
-      const defaultData = { habits: [] };
-
       if (!data) {
-        return defaultData;
+        return { habits: [] };
       }
 
       return data;
     } catch (error) {
       console.error('Failed to load habit data:', error);
-      const defaultData = { habits: [] };
-      return defaultData;
+      return { habits: [] };
     }
   }
+
   async refresh(): Promise<void> {
-    const data = await this.load();
+    await this.load();
   }
 
   async clear(): Promise<void> {
@@ -199,7 +193,7 @@ export const HabitStorageAPI = {
     return storage.load();
   },
 
-  async handleHabitData(action: 'load' | 'save', data?: Habit.Data ): Promise<Habit.Data> {
+  async handleHabitData(action: 'load' | 'save', data?: Habit.Data): Promise<Habit.Data> {
     const storage = HabitStorage.getInstance();
 
     switch (action) {

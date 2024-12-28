@@ -38,13 +38,14 @@ const DateEditModal: React.FC<Props> = ({
     const history = habit.getValueForDate(dateObject);
 
     if (history && Array.isArray(history)) {
-      setValue(history[0] || 0);
-      setGoal(history[1] || habit.goal || 0);
+        setValue(history[0] || 0);
+        // Use the historical goal if it exists, otherwise fall back to habit goal
+        setGoal(history[1] ?? habit.goal ?? 0);
     } else {
-      setValue(0);
-      setGoal(habit.goal || 0);
+        setValue(0);
+        setGoal(habit.goal ?? 0);
     }
-  }, [habit, date, isOpen]);
+}, [habit, date, isOpen]);
 
   const handleSave = useCallback(async () => {
     try {

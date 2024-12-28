@@ -17,7 +17,7 @@ export class HabitEntity {
   get quantity(): number { return this.props.quantity; }
   get isChecked(): boolean { return this.props.isChecked; }
   get isComplete(): boolean { return this.props.isComplete; }
-  get history(): Record<string, [number, number] | boolean> { return this.props.history; }
+  get history(): Record<string, Habit.HistoryEntry> { return this.props.history; }
   get listOrder(): number { return this.props.listOrder; }
 
   private async update(updates: Partial<Habit.Habit>, date: Date = new Date()): Promise<void> {
@@ -28,22 +28,11 @@ export class HabitEntity {
         throw new Error('Habit not found in storage');
     }
 
-    // Update the habit directly within the habits array
     const updatedHabit = { ...data.habits[habitIndex], ...updates };
     data.habits[habitIndex] = updatedHabit;
 
-    if ('quantity' in updates || 'isChecked' in updates) {
-        const dateKey = formatDateKey(date);
-        updatedHabit.history = updatedHabit.history || {}; // Ensure history exists
-        if (this.type === 'quantity' && typeof updates.quantity === 'number') {
-            updatedHabit.history[dateKey] = [updates.quantity, updates.goal || 0];
-        } else if (this.type === 'checkbox' && typeof updates.isChecked === 'boolean') {
-            updatedHabit.history[dateKey] = updates.isChecked;
-        }
-    }
-
     await HabitStorageAPI.handleHabitData('save', data);
-    this.props = updatedHabit; // Update the local habitData
+    this.props = updatedHabit;
   }
 
   async increment(amount: number = 1): Promise<void> {
@@ -51,9 +40,21 @@ export class HabitEntity {
       throw new Error('Invalid habit for increment operation');
     }
     const newQuantity = Math.max(0, this.quantity + amount);
+    
+    const dateKey = formatDateKey(new Date());
+    const currentEntry = this.history[dateKey] || { quantity: 0, goal: this.goal || 0, isChecked: false };
+    const updatedHistory = {
+      ...this.history,
+      [dateKey]: {
+        ...currentEntry,
+        quantity: newQuantity
+      }
+    };
+
     await this.update({
       quantity: newQuantity,
-      isComplete: this.goal ? newQuantity >= this.goal : false
+      isComplete: this.goal ? newQuantity >= this.goal : false,
+      history: updatedHistory
     });
   }
 
@@ -64,8 +65,12 @@ export class HabitEntity {
 
     const dateKey = formatDateKey(date);
     const updatedHistory = {
-        ...this.history,  // Preserve existing history
-        [dateKey]: checked  // Add/update just this date
+        ...this.history,
+        [dateKey]: {
+            quantity: 0,
+            goal: 0,
+            isChecked: checked
+        }
     };
 
     await this.update({
@@ -73,36 +78,39 @@ export class HabitEntity {
         isComplete: checked,
         history: updatedHistory
     }, date);
-}
+  }
 
-  async rewriteHistory(value: [ number, number ] | boolean, date: Date): Promise<void> {
+  async rewriteHistory(entry: Habit.HistoryEntry, date: Date): Promise<void> {
     const history = {
-      [formatDateKey(date)]: value
+      [formatDateKey(date)]: entry
     };
     await this.update({ history });
   }
 
-  async setValue(value: number, date: Date = new Date()): Promise<void> {
+  async setValue(value: number, date: Date = new Date(), goal?: number): Promise<void> {
     if (this.type !== 'quantity') {
         throw new Error('Invalid habit for value operation');
     }
     
     const dateKey = formatDateKey(date);
     const historicalValue = this.history[dateKey];
-    const currentGoal = Array.isArray(historicalValue) ? historicalValue[1] : this.goal || 0;
+    const currentGoal = goal ?? (historicalValue?.goal ?? this.goal ?? 0);
     
-    // Create new history object that preserves existing entries
     const updatedHistory = {
-        ...this.history,  // Spread existing history
-        [dateKey]: [value, currentGoal]  // Update only the specific date
+        ...this.history,
+        [dateKey]: {
+            quantity: value,
+            goal: currentGoal,
+            isChecked: false
+        }
     };
     
     await this.update({
         quantity: value,
         isComplete: currentGoal ? value >= currentGoal : value > 0,
-        history: updatedHistory as Record<string, [number, number] | boolean>
+        history: updatedHistory
     }, date);
-}
+  }
 
   static async loadAll(): Promise<HabitEntity[]> {
     const data = await HabitStorageAPI.handleHabitData('load');
@@ -113,7 +121,6 @@ export class HabitEntity {
     const storage = await HabitStorageAPI.handleHabitData('load');
     const existingIndex = storage.habits.findIndex(habit => habit.id === props.id);
     
-    // If no listOrder provided, put at end of list
     if (!props.listOrder) {
         const maxOrder = Math.max(...storage.habits.map(h => h.listOrder || 0), 0);
         props.listOrder = maxOrder + 1;
@@ -129,22 +136,21 @@ export class HabitEntity {
 
     await HabitStorageAPI.handleHabitData('save', storage);
     return new HabitEntity(props);
-}
+  }
 
-static async updateListOrder(habits: HabitEntity[]): Promise<void> {
-  const storage = await HabitStorageAPI.handleHabitData('load');
-  
-  // Update listOrder for each habit
-  storage.habits = storage.habits.map(habit => {
-      const updatedHabit = habits.find(h => h.id === habit.id);
-      if (updatedHabit) {
-          return { ...habit, listOrder: updatedHabit.listOrder };
-      }
-      return habit;
-  });
+  static async updateListOrder(habits: HabitEntity[]): Promise<void> {
+    const storage = await HabitStorageAPI.handleHabitData('load');
+    
+    storage.habits = storage.habits.map(habit => {
+        const updatedHabit = habits.find(h => h.id === habit.id);
+        if (updatedHabit) {
+            return { ...habit, listOrder: updatedHabit.listOrder };
+        }
+        return habit;
+    });
 
-  await HabitStorageAPI.handleHabitData('save', storage);
-}
+    await HabitStorageAPI.handleHabitData('save', storage);
+  }
 
   static async delete(id: string): Promise<void> {
     try {
@@ -160,21 +166,10 @@ static async updateListOrder(habits: HabitEntity[]): Promise<void> {
     }
   }
 
-  getValueForDate(date: Date) {
+  getValueForDate(date: Date): Habit.HistoryEntry | undefined {
     const dateKey = formatDateKey(date);
-    const value = this.history[dateKey];
-    
-    if (this.type === 'checkbox') {
-      return typeof value === 'boolean' ? value : false;
-    }
-    
-    // For quantity type, return the array directly
-    if (Array.isArray(value)) {
-      return value;
-    }
-    
-    return undefined;
-  }
+    return this.history[dateKey];
+}
 
   getStatusForDate(date: Date): 'complete' | 'partial' | 'none' {
     const value = this.getValueForDate(date);

@@ -2,6 +2,12 @@
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
+  export interface HistoryEntry {
+    quantity: number;
+    goal: number;
+    isChecked: boolean;
+  }
+
   export interface Habit {
     id: string;
     name: string;
@@ -12,13 +18,12 @@ export namespace Habit {
     quantity: number;
     isChecked: boolean;
     isComplete: boolean;
-    listOrder: number; // Add this line
+    listOrder: number;
     history: {
-      [date: string]: [ number, number ] | boolean;
+      [date: string]: HistoryEntry;
     };
   }
 
-  // Used by HabitStorage.ts
   export interface Data {
     habits: Habit[];
   }
