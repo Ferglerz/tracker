@@ -86,10 +86,6 @@ const handleDateClick = useCallback(async (isoString: string) => {
     setCurrentValue(value);
     setCurrentGoal(goal);
     setShowEditModal(false);
-      alert(JSON.stringify(Object.entries(habit.history).slice(-20).reduce<Record<string, unknown>>((acc, [key, value]) => {
-        acc[key] = value
-        return acc
-      }, {}), null, 2))
 }, [habit, selectedDate]);
 
 const getHighlightedDates = useCallback((isoString: string) => {

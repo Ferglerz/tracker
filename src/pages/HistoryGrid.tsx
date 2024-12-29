@@ -128,12 +128,7 @@ export const QuantityHistory: React.FC<QuantityHistoryProps> = ({ data, color })
         colorIntensity = Math.min(quantity / goal, 1);
 
         
-      }
-      
-      if (day.date.startsWith('2024-12')) {
-        console.log(day.value + ' ' + day.date)
-      }
-          
+      }   
 
       return (
         <div

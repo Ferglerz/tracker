@@ -19,6 +19,7 @@ export class HabitEntity {
   get isComplete(): boolean { return this.props.isComplete; }
   get history(): Record<string, Habit.HistoryEntry> { return this.props.history; }
   get listOrder(): number { return this.props.listOrder; }
+  get widget(): Habit.Widget | undefined { return this.props.widget; }
 
   private async update(updates: Partial<Habit.Habit>, date: Date = new Date()): Promise<void> {
     const data = await HabitStorageAPI.handleHabitData('load');
@@ -78,6 +79,12 @@ export class HabitEntity {
         isComplete: checked,
         history: updatedHistory
     }, date);
+  }
+
+  async updateWidget(widget?: Habit.Widget): Promise<void> {
+    await this.update({
+      widget
+    });
   }
 
   async rewriteHistory(entry: Habit.HistoryEntry, date: Date): Promise<void> {

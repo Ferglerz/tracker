@@ -23,6 +23,7 @@ import '@ionic/react/css/palettes/dark.system.css';
 
 /* Theme variables */
 import './theme/variables.css';
+import WidgetConfig from './pages/WidgetConfig';
 
 setupIonicReact();
 
@@ -38,7 +39,10 @@ const App: React.FC = () => {
           position: 'relative'
         }}>
           <IonRouterOutlet>
-            <Route exact path="/home">
+            
+          <Route exact path="/home" component={Home} />
+          <Route exact path="/widget-config" component={WidgetConfig} />
+          <Route exact path="/">
               <Home />
             </Route>
             <Route exact path="/">

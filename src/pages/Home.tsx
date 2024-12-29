@@ -15,7 +15,8 @@ import {
   IonProgressBar,
   IonReorderGroup,
 } from '@ionic/react';
-import { add, downloadOutline } from 'ionicons/icons';
+import { add, downloadOutline, gridOutline } from 'ionicons/icons';
+import { useHistory } from 'react-router-dom';
 import { HabitEntity } from './HabitEntity';
 import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
@@ -31,23 +32,37 @@ const EmptyState: React.FC = () => (
 const TopToolbar: React.FC<{
   onExport: () => Promise<void>;
   hasHabits: boolean;
-}> = ({ onExport, hasHabits }) => (
-  <IonToolbar>
-    <IonTitle className="ion-text-center">Habits</IonTitle>
-    <IonButtons slot="end">
-      {hasHabits && (
-        <IonButton 
-          onClick={onExport}
+}> = ({ onExport, hasHabits }) => {
+  const history = useHistory();
+
+  return (
+    <IonToolbar>
+      <IonButtons slot="start">
+        <IonButton
+          onClick={() => history.push('/widget-config')}
           style={{
             '--color': 'var(--neutral-button)'
           }}
         >
-          <IonIcon slot="icon-only" icon={downloadOutline} />
+          <IonIcon slot="icon-only" icon={gridOutline} />
         </IonButton>
-      )}
-    </IonButtons>
-  </IonToolbar>
-);
+      </IonButtons>
+      <IonTitle className="ion-text-center">Habits</IonTitle>
+      <IonButtons slot="end">
+        {hasHabits && (
+          <IonButton 
+            onClick={onExport}
+            style={{
+              '--color': 'var(--neutral-button)'
+            }}
+          >
+            <IonIcon slot="icon-only" icon={downloadOutline} />
+          </IonButton>
+        )}
+      </IonButtons>
+    </IonToolbar>
+  );
+};
 
 const HabitList: React.FC<{
   habits: HabitEntity[];
