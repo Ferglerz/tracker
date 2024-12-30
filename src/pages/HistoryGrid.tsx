@@ -1,4 +1,5 @@
 import React from 'react';
+import { Squircle } from './Squircle';
 
 interface GridProps<T> {
   data: Array<{ date: string; value: T }>;
@@ -9,8 +10,50 @@ interface GridProps<T> {
   renderContent: (day: { date: string; value: T }, rowIndex: number, index: number) => React.ReactNode;
 }
 
+const DaySquare = <T,>({ day, index, squareSize, rowOpacity, renderContent, rowIndex }: {
+  day: { date: string; value: T };
+  index: number;
+  squareSize: number;
+  rowOpacity: number;
+  renderContent: (day: { date: string; value: T }, rowIndex: number, index: number) => React.ReactNode;
+  rowIndex: number;
+}) => (
+  <div
+    key={`${day.date}-${index}`}
+    style={{
+      width: `${squareSize}px`,
+      height: `${squareSize}px`,
+      opacity: rowOpacity,
+    }}
+  >
+    {renderContent(day, rowIndex, index)}
+  </div>
+);
+
+const WeekRow = <T,>({ days, gap, squareSize, rowOpacity, renderContent, rowIndex }: {
+  days: Array<{ date: string; value: T }>;
+  gap: number;
+  squareSize: number;
+  rowOpacity: number;
+  renderContent: (day: { date: string; value: T }, rowIndex: number, index: number) => React.ReactNode;
+  rowIndex: number;
+}) => (
+  <div style={{ display: 'flex', gap: `${gap}px` }}>
+    {days.map((day, index) => (
+      <DaySquare
+        key={`${day.date}-${index}`}
+        day={day}
+        index={index}
+        squareSize={squareSize}
+        rowOpacity={rowOpacity}
+        renderContent={renderContent}
+        rowIndex={rowIndex}
+      />
+    ))}
+  </div>
+);
+
 const renderGrid = <T,>({ data, color, gap = 3, squareSize = 8 - gap, rowPadding = 3, renderContent }: GridProps<T>) => {
-  // Take last 56 days
   const last56Days = data.slice(-56);
   
   return (
@@ -22,7 +65,7 @@ const renderGrid = <T,>({ data, color, gap = 3, squareSize = 8 - gap, rowPadding
     }}>
       {[0, 1, 2, 3].map(rowIndex => {
         const rowStart = rowIndex * 14;
-        const rowOpacity = 1 - (3 - rowIndex) * 0.25; // Inverted opacity calculation
+        const rowOpacity = 1 - (3 - rowIndex) * 0.25;
         
         return (
           <div
@@ -32,41 +75,45 @@ const renderGrid = <T,>({ data, color, gap = 3, squareSize = 8 - gap, rowPadding
               gap: `${gap}px`
             }}
           >
-            {/* First 7 days */}
-            <div style={{ display: 'flex', gap: `${gap}px`, marginRight: `${rowPadding}px` }}>
-              {last56Days.slice(rowStart, rowStart + 7).map((day, index) => (
-                <div
-                  key={`${day.date}-${index}`}
-                  style={{
-                    width: `${squareSize}px`,
-                    height: `${squareSize}px`,
-                    opacity: rowOpacity,
-                  }}
-                >
-                  {renderContent(day, rowIndex, index)}
-                </div>
-              ))}
+            <div style={{ marginRight: `${rowPadding}px` }}>
+              <WeekRow
+                days={last56Days.slice(rowStart, rowStart + 7)}
+                gap={gap}
+                squareSize={squareSize}
+                rowOpacity={rowOpacity}
+                renderContent={renderContent}
+                rowIndex={rowIndex}
+              />
             </div>
-            {/* Last 7 days */}
-            <div style={{ display: 'flex', gap: `${gap}px` }}>
-              {last56Days.slice(rowStart + 7, rowStart + 14).map((day, index) => (
-                <div
-                  key={`${day.date}-${index}`}
-                  style={{
-                    width: `${squareSize}px`,
-                    height: `${squareSize}px`,
-                    opacity: rowOpacity,
-                  }}
-                >
-                  {renderContent(day, rowIndex, index)}
-                </div>
-              ))}
-            </div>
+            <WeekRow
+              days={last56Days.slice(rowStart + 7, rowStart + 14)}
+              gap={gap}
+              squareSize={squareSize}
+              rowOpacity={rowOpacity}
+              renderContent={renderContent}
+              rowIndex={rowIndex}
+            />
           </div>
         );
       })}
     </div>
   );
+};
+
+const adjustColorOpacity = (color: string, opacity: number): string => {
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  if (color.startsWith('rgb')) {
+    if (color.startsWith('rgba')) {
+      return color.replace(/[\d.]+\)$/g, `${opacity})`);
+    }
+    return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+  }
+  return color;
 };
 
 interface CheckboxHistoryProps {
@@ -80,12 +127,19 @@ export const CheckboxHistory: React.FC<CheckboxHistoryProps> = ({ data, color })
     color,
     renderContent: (day) => (
       <div
-        style={{
-          width: '100%',
-          height: '100%',
-          backgroundColor: day.value ? color : 'rgba(128, 128, 128, 0.1)',
-        }}
-      />
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'transparent'
+          }}
+        >
+          <Squircle 
+            width="5px" 
+            height="5px" 
+            cornerRadius={2} 
+            fill={day.value ? color : 'rgba(128, 128, 128, 0.1)'}
+          />
+        </div>
     )
   });
 };
@@ -96,50 +150,31 @@ interface QuantityHistoryProps {
 }
 
 export const QuantityHistory: React.FC<QuantityHistoryProps> = ({ data, color }) => {
-  // Helper function to adjust color opacity
-  const adjustColorOpacity = (color: string, opacity: number): string => {
-    // If the color is in hex format (#RRGGBB)
-    if (color.startsWith('#')) {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    }
-    // If the color is already in rgb/rgba format
-    if (color.startsWith('rgb')) {
-      if (color.startsWith('rgba')) {
-        return color.replace(/[\d.]+\)$/g, `${opacity})`);
-      }
-      return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
-    }
-    return color;
-  };
-
   return renderGrid({
     data,
     color,
     renderContent: (day) => {
       const [quantity, goal] = day.value;
       const hasQuantity = quantity > 0;
-      
-      // Calculate color intensity based on quantity/goal ratio
-      let colorIntensity = 1;
-      if (goal && hasQuantity) {
-        colorIntensity = Math.min(quantity / goal, 1);
-
-        
-      }   
+      const colorIntensity = goal && hasQuantity ? Math.min(quantity / goal, 1) : 1;
 
       return (
         <div
           style={{
             width: '100%',
             height: '100%',
-            backgroundColor: hasQuantity 
-              ? adjustColorOpacity(color, colorIntensity)
-              : 'rgba(128, 128, 128, 0.1)',
+            backgroundColor: 'transparent'
           }}
-        />
+        >
+          <Squircle 
+            width="5px" 
+            height="5px" 
+            cornerRadius={2} 
+            fill={hasQuantity 
+              ? adjustColorOpacity(color, colorIntensity)
+              : 'rgba(128, 128, 128, 0.1)'}
+          />
+        </div>
       );
     }
   });

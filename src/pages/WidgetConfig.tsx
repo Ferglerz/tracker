@@ -14,6 +14,7 @@ import {
 import { arrowBack } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { HabitEntity } from './HabitEntity';
+import { Squircle } from './Squircle';
 
 interface WidgetSpace {
     id: string;
@@ -69,27 +70,41 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
                 e.dataTransfer.setData('text/plain', habit.id);
             }}
             style={{
-                padding: '8px',
-                background: `linear-gradient(to bottom, ${getLighterColor(habit.bgColor)}, ${habit.bgColor})`,
-                borderRadius: '16px',
-                color: '#000000',
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                minHeight: '60px',
+                cursor: 'grab',
+                userSelect: 'none',
+            }}
+        >
+            <Squircle
+                width="100%"
+                height="100%"
+                cornerRadius={16}
+                fill={habit.bgColor}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                }}
+            />
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
                 height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                textAlign: 'center',
-                minHeight: '60px',
-                cursor: 'grab',
-                userSelect: 'none',
+                color: '#000000',
                 fontWeight: 'bold',
                 fontSize: '1.2rem',
-                WebkitMask: 'paint(squircle)',
-                maskImage: 'paint(squircle)',
-                clipPath: 'url(#squircle)',
-            }}
-        >
-            {habit.name}
+                padding: '8px',
+            }}>
+                {habit.name}
+            </div>
         </div>
     );
 };
@@ -97,37 +112,59 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
 const DroppableSpace: React.FC<{
     spaceId: string;
     onDrop: (habitId: string, spaceId: string) => void;
-}> = ({ spaceId, onDrop }) => (
-    <div
-        onDragOver={(e) => {
-            e.preventDefault();
-            e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.1)';
-        }}
-        onDragLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-        }}
-        onDrop={(e) => {
-            e.preventDefault();
-            e.currentTarget.style.backgroundColor = 'transparent';
-            const habitId = e.dataTransfer.getData('text/plain');
-            onDrop(habitId, spaceId);
-        }}
-        style={{
-            border: '2px dashed #666666',
-            borderRadius: '16px',
-            width: '100%',
-            height: '100%',
-            minHeight: '60px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background-color 0.2s ease',
-            WebkitMask: 'paint(squircle)',
-            maskImage: 'paint(squircle)',
-            clipPath: 'url(#squircle)',
-        }}
-    />
-);
+}> = ({ spaceId, onDrop }) => {
+    const [isHovered, setIsHovered] = useState(false);
+
+    return (
+        <div
+            onDragOver={(e) => {
+                e.preventDefault();
+                setIsHovered(true);
+            }}
+            onDragLeave={(e) => {
+                setIsHovered(false);
+            }}
+            onDrop={(e) => {
+                e.preventDefault();
+                setIsHovered(false);
+                const habitId = e.dataTransfer.getData('text/plain');
+                onDrop(habitId, spaceId);
+            }}
+            style={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                minHeight: '60px',
+            }}
+        >
+            <Squircle
+                width="100%"
+                height="100%"
+                cornerRadius={16}
+                dashed={true}
+                strokeWidth={2}
+                stroke={isHovered ? '#444444' : '#666666'}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    transition: 'stroke 0.2s ease',
+                }}
+            />
+            <div style={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '60px',
+            }} />
+        </div>
+    );
+};
 
 const HabitsContainer: React.FC<{
     habits: HabitEntity[];
@@ -163,13 +200,13 @@ const HabitsContainer: React.FC<{
                 <IonItem
                     key={habit.id}
                     style={{
-                        '--min-height': 'auto',
+                        '--min-height': '60px',
                         '--padding-start': '0',
                         '--inner-padding-end': '0',
                         '--background': 'transparent',
                         '--background-hover': 'transparent',
                         '--border-width': '0',
-                        overflow: 'hidden',
+                        overflow: 'visible', // Changed from hidden to visible
                     }}
                     lines="none"
                 >
@@ -200,13 +237,13 @@ const WidgetSection: React.FC<{
                 <IonItem
                     key={space.id}
                     style={{
-                        '--min-height': 'auto',
+                        '--min-height': '60px',
                         '--padding-start': '0',
                         '--inner-padding-end': '0',
                         '--background': 'transparent',
                         '--background-hover': 'transparent',
                         '--border-width': '0',
-                        overflow: 'hidden',
+                        overflow: 'visible', // Changed from hidden to visible
                     }}
                     lines="none"
                 >
@@ -239,12 +276,12 @@ const WidgetConfig: React.FC = () => {
                 // Find habit that has this widget type and order assigned
                 const occupyingHabit = loadedHabits.find(habit =>
                     habit.widget?.assignments?.some(
-                        assignment => 
-                            assignment.type === space.type && 
+                        assignment =>
+                            assignment.type === space.type &&
                             assignment.order === parseInt(space.id.split('-')[1], 10)
                     )
                 );
-            
+
                 if (occupyingHabit) {
                     return {
                         ...space,
@@ -262,8 +299,8 @@ const WidgetConfig: React.FC = () => {
 
     const handleDrop = async (habitId: string, spaceId: string) => {
         const habit = habits.find(h => h.id === habitId);
-    if (!habit) return
-    
+        if (!habit) return
+
         // If dropping in habits container, remove from only that specific widget
         if (spaceId.startsWith('habits-')) {
             // Find which widget space the habit was dragged from (if any)
@@ -280,7 +317,7 @@ const WidgetConfig: React.FC = () => {
                     return space;
                 });
                 setWidgetSpaces(updatedSpaces);
-    
+
                 // Remove only this specific assignment
                 const currentAssignments = habit.widget?.assignments || [];
                 const newAssignments = currentAssignments.filter(
@@ -290,21 +327,21 @@ const WidgetConfig: React.FC = () => {
             }
             return;
         }
-    
+
         const [type, orderStr] = spaceId.split('-');
-    const order = parseInt(orderStr, 10);
-    
+        const order = parseInt(orderStr, 10);
+
         // Find any existing widget space that has this habit
         const existingWidgetSpaces = widgetSpaces.filter(space => space.habitId === habitId);
-        
+
         // Determine if this is a widget-to-widget drag
         // It's a widget-to-widget drag if the habit exists in any widget space
         const isWidgetToWidgetDrag = existingWidgetSpaces.length > 0;
-        
+
         // If it's a widget-to-widget drag, find the specific source space
-        const sourceSpace = isWidgetToWidgetDrag ? 
+        const sourceSpace = isWidgetToWidgetDrag ?
             existingWidgetSpaces.find(space => space.type === type) : undefined;
-    
+
         // Update spaces state
         const updatedSpaces = widgetSpaces.map(space => {
             // If this is the drop target space
@@ -325,7 +362,7 @@ const WidgetConfig: React.FC = () => {
                     habitId
                 };
             }
-    
+
             // If this is a widget-to-widget drag and this is the source space, clear it
             if (isWidgetToWidgetDrag && sourceSpace && space.id === sourceSpace.id) {
                 return {
@@ -336,48 +373,48 @@ const WidgetConfig: React.FC = () => {
             }
             return space;
         });
-    
+
         setWidgetSpaces(updatedSpaces);
 
-    // Get current assignments
-    let currentAssignments = habit.widget?.assignments || [];
+        // Get current assignments
+        let currentAssignments = habit.widget?.assignments || [];
 
-    if (isWidgetToWidgetDrag) {
-        // If moving between widgets, update assignments
+        if (isWidgetToWidgetDrag) {
+            // If moving between widgets, update assignments
 
-        // Remove any existing assignment for this habit with the same type
-        currentAssignments = currentAssignments.filter(
-            assignment => !(assignment.type === type)
-        );
+            // Remove any existing assignment for this habit with the same type
+            currentAssignments = currentAssignments.filter(
+                assignment => !(assignment.type === type)
+            );
 
-        // Add the new assignment
-        currentAssignments.push({ type, order });
-        await habit.updateWidget({ assignments: currentAssignments });
+            // Add the new assignment
+            currentAssignments.push({ type, order });
+            await habit.updateWidget({ assignments: currentAssignments });
 
-    } else {
-        // If dragging from Habits, just add new assignment
-        await habit.updateWidget({ 
-            assignments: [...currentAssignments, { type, order }]
-        });
-    }
-};
-    
+        } else {
+            // If dragging from Habits, just add new assignment
+            await habit.updateWidget({
+                assignments: [...currentAssignments, { type, order }]
+            });
+        }
+    };
+
     useEffect(() => {
         const loadHabits = async () => {
             const loadedHabits = await HabitEntity.loadAll();
             setHabits(loadedHabits);
-    
+
             const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
-    
+
             const updatedSpaces = spaces.map(space => {
                 const occupyingHabit = loadedHabits.find(habit =>
                     habit.widget?.assignments.some(
-                        assignment => 
-                            assignment.type === space.type && 
+                        assignment =>
+                            assignment.type === space.type &&
                             assignment.order === parseInt(space.id.split('-')[1], 10)
                     )
                 );
-    
+
                 if (occupyingHabit) {
                     return {
                         ...space,
@@ -387,7 +424,7 @@ const WidgetConfig: React.FC = () => {
                 }
                 return space;
             });
-    
+
             setWidgetSpaces(updatedSpaces);
         };
         loadHabits();

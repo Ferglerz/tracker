@@ -22,6 +22,7 @@ import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './Hooks';
 import { errorHandler } from './ErrorUtilities';
+import { Squircle } from './Squircle';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -202,7 +203,6 @@ const Home: React.FC = () => {
           hasHabits={habits.length > 0}
         />
       </IonHeader>
-      
       <IonContent>
         {habits.length === 0 ? (
           <EmptyState />
