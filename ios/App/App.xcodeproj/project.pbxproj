@@ -115,9 +115,9 @@
 			isa = PBXGroup;
 			children = (
 				434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */,
+				43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */,
 				43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */,
 				43A4B1732D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift */,
-				43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */,
 				43A4B1772D03E9AA005B3C72 /* Assets.xcassets */,
 				43A4B1792D03E9AA005B3C72 /* Info.plist */,
 			);

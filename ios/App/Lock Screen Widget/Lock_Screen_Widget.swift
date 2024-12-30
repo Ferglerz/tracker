@@ -97,19 +97,113 @@ struct SimpleEntry: TimelineEntry {
 struct HabitWidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) var widgetFamily
-    
+
     var body: some View {
         if entry.habits.isEmpty {
             Text("No habits to display")
                 .font(.system(size: 16))
                 .foregroundColor(.secondary)
         } else {
-            VStack(spacing: widgetFamily == .systemMedium ? 12 : 8) {
-                ForEach(entry.habits.prefix(3), id: \.id) { habit in
-                    HabitRow(habit: habit, widgetFamily: widgetFamily)
+            switch widgetFamily {
+            case .accessoryRectangular:
+                AccessoryRectangularWidgetView(entry: entry)
+            case .systemMedium:
+                SystemMediumWidgetView(entry: entry)
+            default:
+                Text("This widget size is not supported")
+            }
+        }
+    }
+}
+
+// MARK: - Accessory Rectangular Widget View
+struct AccessoryRectangularWidgetView: View {
+    var entry: Provider.Entry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(entry.habits, id: \.id) { habit in
+                HabitRow(habit: habit, widgetFamily: .accessoryRectangular)
+            }
+        }
+        .padding(.horizontal, 8)
+    }
+}
+
+// MARK: - System Medium Widget View
+struct SystemMediumWidgetView: View {
+    var entry: Provider.Entry
+
+    var body: some View {
+        HStack(spacing: 16) { // Added horizontal spacing
+            ForEach(getHabitsForWidget(type: "wide1", entry: entry), id: \.id) { habit in
+                WidgetHabitColumn(habit: habit)
+            }
+        }
+        .padding(16)
+    }
+}
+
+// MARK: - Helper function to get habits for a specific widget type
+func getHabitsForWidget(type: String, entry: Provider.Entry) -> [Habit] {
+    var habits: [Habit] = []
+    var order = 1
+
+    while let habit = entry.habits.first(where: { habit in
+        guard let assignments = habit.widget?.assignments else { return false }
+        let matchingAssignment = assignments.contains { $0.type == type && $0.order == order }
+        return matchingAssignment
+    }) {
+        habits.append(habit)
+        order += 1
+    }
+
+    return habits
+}
+
+// MARK: - Widget Habit Column View
+struct WidgetHabitColumn: View {
+    let habit: Habit
+
+    private var habitColor: Color {
+        Color(hex: habit.bgColor ?? "#000000") ?? .blue
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(habit.name)
+                .font(.system(size: 16))
+                .fontWeight(.semibold)
+                .lineLimit(1)
+            if habit.type == .quantity {
+                Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "") \(habit.unit ?? "")")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            HStack(spacing: 8) {
+                if habit.type == .quantity {
+                    Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
+                    Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button(intent: ToggleHabitIntent(habitId: habit.id)) {
+                        Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.vertical, widgetFamily == .systemMedium ? 12 : 8)
         }
     }
 }
@@ -209,6 +303,7 @@ struct HabitRow: View {
         }
     }
 }
+
 extension Color {
     init?(hex: String) {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)

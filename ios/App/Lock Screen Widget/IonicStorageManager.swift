@@ -1,7 +1,7 @@
 import Foundation
 import WidgetKit
 
-struct Habit: Codable {
+struct Habit: Codable, Identifiable { // Added Identifiable
     var id: String
     var name: String
     var type: HabitType
@@ -12,6 +12,16 @@ struct Habit: Codable {
     var isComplete: Bool
     var bgColor: String?
     var history: [String: HistoryValue]
+    var widget: WidgetAssignment? // Added widget property
+}
+
+struct WidgetAssignment: Codable { // Added WidgetAssignment struct
+    var assignments: [Assignment]
+}
+
+struct Assignment: Codable, Hashable { // Added Assignment struct
+    let type: String
+    let order: Int
 }
 
 enum HistoryValue: Codable {
