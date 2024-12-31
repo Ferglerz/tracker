@@ -17,7 +17,7 @@ import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
 import { formatDateKey, getLast56Days } from './Utilities';
 import { HabitStorage } from './Storage';
-import { CheckboxHistory, QuantityHistory } from './HistoryGrid';
+import { HistoryGrid } from './HistoryGrid';
 
 interface Props {
   habit: HabitEntity;
@@ -28,7 +28,7 @@ interface Props {
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
   isReorderMode: boolean;
-  onDateSelected?: (date: Date) => void;  // Add this line
+  onDateSelected?: (date: Date) => void;
 }
 
 export interface HabitListItemRef {
@@ -46,16 +46,24 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   openCalendarId,
   onToggleCalendar,
   isReorderMode,
-  onDateSelected  // Add this line
+  onDateSelected
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const reorderRef = useRef<HTMLIonReorderElement>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentValue, setCurrentValue] = useState<number | boolean>(
-    habit.type === 'checkbox' ? habit.isChecked : habit.quantity
-  );
-  const [currentGoal, setCurrentGoal] = useState<number>(habit.goal || 0);
   const [isReordering, setIsReordering] = useState(false);
+  
+  const [habitState, setHabitState] = useState(() => {
+    const dateKey = formatDateKey(selectedDate);
+    const dateValue = habit.history[dateKey];
+    
+    return {
+      value: habit.type === 'checkbox' 
+        ? (dateValue?.isChecked ?? false)
+        : (dateValue?.quantity ?? 0),
+      goal: dateValue?.goal ?? habit.goal ?? 0
+    };
+  });
 
   useEffect(() => {
     if (!isCalendarOpen) {
@@ -63,39 +71,58 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
       const today = new Date();
       const todayKey = formatDateKey(today);
       const todayValue = habit.history[todayKey];
-      
-      if (habit.type === 'checkbox') {
-        setCurrentValue(todayValue?.isChecked ?? false);
-      } else {
-        setCurrentValue(todayValue?.quantity ?? 0);
-        setCurrentGoal(todayValue?.goal ?? habit.goal ?? 0);
-      }
+
+      setHabitState({
+        value: habit.type === 'checkbox'
+          ? (todayValue?.isChecked ?? false)
+          : (todayValue?.quantity ?? 0),
+        goal: todayValue?.goal ?? habit.goal ?? 0
+      });
       setSelectedDate(today);
     }
   }, [isCalendarOpen, habit]);
 
   useEffect(() => {
-    const dateKey = formatDateKey(selectedDate);
-    const dateValue = habit.history[dateKey];
-    
-    if (habit.type === 'checkbox') {
-      setCurrentValue(dateValue?.isChecked ?? false);
-    } else {
-      setCurrentValue(dateValue?.quantity ?? 0);
-      setCurrentGoal(dateValue?.goal ?? habit.goal ?? 0);
-    }
-  }, [selectedDate, habit]);
+    // Function to update state from a habit instance
+    const updateStateFromHabit = (habitData: HabitEntity) => {
+      const dateKey = formatDateKey(selectedDate);
+      const dateValue = habitData.history[dateKey];
+  
+      setHabitState({
+        value: habitData.type === 'checkbox'
+          ? (dateValue?.isChecked ?? false)
+          : (dateValue?.quantity ?? 0),
+          goal: habit.goal ?? dateValue?.goal ?? 0
+      });
+    };
+  
+    // Initial state update
+    updateStateFromHabit(habit);
+  
+    // Subscribe to storage changes
+    const storage = HabitStorage.getInstance();
+    const subscription = storage.changes.subscribe(async (data) => {
+      // Get fresh habit data from storage
+      const habits = await HabitEntity.loadAll();
+      const updatedHabit = habits.find(h => h.id === habit.id);
+      if (updatedHabit) {
+        updateStateFromHabit(updatedHabit);
+      }
+    });
+  
+    return () => subscription.unsubscribe();
+  }, [habit, selectedDate]);
 
   useEffect(() => {
     const reorderElement = reorderRef.current;
     if (!reorderElement) return;
-  
+
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'reorder') {
           const isReorderActive = reorderElement.hasAttribute('reorder');
           setIsReordering(isReorderActive);
-          
+
           // Close sliding item when reorder starts
           if (isReorderActive) {
             slidingRef.current?.close();
@@ -103,36 +130,14 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
         }
       });
     });
-  
+
     observer.observe(reorderElement, {
       attributes: true,
       attributeFilter: ['reorder']
     });
-  
+
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    const storage = HabitStorage.getInstance();
-    const subscription = storage.changes.subscribe(async (data) => {
-      const updatedHabit = data.habits.find(h => h.id === habit.id);
-      if (updatedHabit) {
-        const dateKey = formatDateKey(selectedDate);
-        const dateValue = updatedHabit.history[dateKey];
-        
-        if (habit.type === 'checkbox') {
-          setCurrentValue(dateValue?.isChecked ?? false);
-        } else {
-          setCurrentValue(dateValue?.quantity ?? 0);
-          setCurrentGoal(dateValue?.goal ?? updatedHabit.goal ?? 0);
-        }
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [habit.id, habit.type, selectedDate]);
 
   useImperativeHandle(ref, () => ({
     closeSliding: async () => {
@@ -146,42 +151,42 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   const handleValueChange = useCallback(async (newValue: number | boolean) => {
     if (habit.type === 'checkbox') {
       await habit.setChecked(newValue as boolean, selectedDate);
-      setCurrentValue(newValue);
+      setHabitState(prev => ({ ...prev, value: newValue }));
     } else {
-      await habit.setValue(newValue as number, selectedDate, currentGoal);
-      setCurrentValue(newValue);
+      await habit.setValue(newValue as number, selectedDate, habitState.goal);
+      setHabitState(prev => ({ ...prev, value: newValue }));
     }
-  }, [habit, selectedDate, currentGoal]);
+  }, [habit, selectedDate, habitState.goal]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     // Don't handle clicks during reorder mode
     if (isReorderMode) return;
-  
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     // If another habit's calendar is open, close it
     if (openCalendarId && openCalendarId !== habit.id) {
       onToggleCalendar(openCalendarId);
       return;
     }
-    
+
     // Toggle checkbox only for checkbox type habits
     if (habit.type === 'checkbox') {
-      handleValueChange(!currentValue as boolean);
+      handleValueChange(!habitState.value as boolean);
     }
-  }, [habit, currentValue, handleValueChange, openCalendarId, onToggleCalendar, isReorderMode]);
+  }, [habit, habitState.value, handleValueChange, openCalendarId, onToggleCalendar, isReorderMode]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     // Don't open slide menu if we're in reorder mode or already sliding
     if (isReordering) return;
-  
+
     // Prevent long press during reorder drag operations
     const target = e.target as HTMLElement;
     if (target.closest('ion-reorder')) return;
-  
+
     let timer: ReturnType<typeof setTimeout>;
-  
+
     const start = () => {
       timer = setTimeout(() => {
         // Double check we're not reordering before opening
@@ -190,13 +195,13 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
         }
       }, LONG_PRESS_DURATION);
     };
-  
+
     const cancel = () => {
       clearTimeout(timer);
     };
-  
+
     start();
-  
+
     document.addEventListener('mouseup', cancel, { once: true });
     document.addEventListener('touchend', cancel, { once: true });
   }, [isReordering]);
@@ -258,9 +263,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               }}>
                 <div style={{ fontWeight: 500 }}>{habit.name}</div>
                 {habit.type === 'quantity' &&
-                  typeof currentValue === 'number' &&
-                  currentGoal > 0 &&
-                  currentValue >= currentGoal && (
+                  typeof habitState.value === 'number' &&
+                  habitState.goal > 0 &&
+                  habitState.value >= habitState.goal && (
                     <IonBadge color="success">Complete!</IonBadge>
                   )}
               </div>
@@ -269,7 +274,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                   fontSize: '0.875rem',
                   color: 'var(--ion-color-medium)'
                 }}>
-                  {currentValue}{currentGoal ? ` / ${currentGoal}` : ''} {habit.unit}
+                  {habitState.value}{habitState.goal ? ` / ${habitState.goal}` : ''} {habit.unit}
                 </div>
               )}
             </div>
@@ -283,21 +288,15 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               justifyContent: 'center',
               flexShrink: 0
             }}>
-              {habit.type === 'checkbox' ? (
-                <CheckboxHistory
-                  data={getLast56Days(habit) as Array<{ date: string, value: boolean }>}
-                  color={habit.bgColor}
-                />
-              ) : (
-                <QuantityHistory
-                  data={getLast56Days(habit) as Array<{ date: string, value: [number, number] }>}
-                  color={habit.bgColor}
-                />
-              )}
+              <HistoryGrid
+                data={getLast56Days(habit)}
+                color={habit.bgColor}
+                type={habit.type}
+              />
             </div>
 
             {/* Controls section */}
-            <div 
+            <div
               style={{
                 width: '100px',
                 display: 'flex',
@@ -314,8 +313,8 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               }}
             >
               {habit.type === 'checkbox' ? (
-                <IonCheckbox 
-                  checked={currentValue as boolean}
+                <IonCheckbox
+                  checked={habitState.value as boolean}
                   alignment="center"
                   onIonChange={async (e) => {
                     e.stopPropagation();
@@ -323,16 +322,16 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                   }}
                   style={{
                     '--checkbox-background-checked': habit.bgColor,
-                    '--checkbox-background-checked-hover': habit.bgColor,
+                    '--checkbox-background-hover': habit.bgColor,
                     '--checkbox-border-color': habit.bgColor,
                     cursor: 'pointer',
                   }}
                 />
               ) : (
-                <div style={{width: '100%', display: 'flex', justifyContent: 'space-between'}}>
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
                   <IonButton
                     fill="clear"
-                    onClick={() => handleValueChange(Math.max(0, (currentValue as number) - 1))}
+                    onClick={() => handleValueChange(Math.max(0, (habitState.value as number) - 1))}
                     style={{
                       '--color': habit.bgColor
                     }}
@@ -341,7 +340,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                   </IonButton>
                   <IonButton
                     fill="clear"
-                    onClick={() => handleValueChange((currentValue as number) + 1)}
+                    onClick={() => handleValueChange((habitState.value as number) + 1)}
                     style={{
                       '--color': habit.bgColor
                     }}
@@ -352,9 +351,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               )}
             </div>
           </div>
-          <IonRippleEffect style={{ 
-  display: isReorderMode ? 'none' : undefined 
-}} />
+          <IonRippleEffect style={{
+            display: isReorderMode ? 'none' : undefined
+          }} />
         </IonItem>
 
         <IonItemOptions side="end">

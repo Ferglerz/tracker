@@ -29,12 +29,18 @@ export class HabitEntity {
         throw new Error('Habit not found in storage');
     }
 
-    const updatedHabit = { ...data.habits[habitIndex], ...updates };
+    // Merge the updates with the current habit data
+    const updatedHabit = { 
+        ...data.habits[habitIndex], 
+        ...updates,
+        // Ensure goal is properly preserved/updated
+        goal: updates.goal !== undefined ? updates.goal : data.habits[habitIndex].goal
+    };
+    
     data.habits[habitIndex] = updatedHabit;
-
     await HabitStorageAPI.handleHabitData('save', data);
     this.props = updatedHabit;
-  }
+}
 
   async increment(amount: number = 1): Promise<void> {
     if (this.type !== 'quantity') {
@@ -87,12 +93,6 @@ export class HabitEntity {
     });
   }
 
-  async rewriteHistory(entry: Habit.HistoryEntry, date: Date): Promise<void> {
-    const history = {
-      [formatDateKey(date)]: entry
-    };
-    await this.update({ history });
-  }
 
   async setValue(value: number, date: Date = new Date(), goal?: number): Promise<void> {
     if (this.type !== 'quantity') {
@@ -112,12 +112,14 @@ export class HabitEntity {
         }
     };
     
-    await this.update({
+    const updates = {
         quantity: value,
         isComplete: currentGoal ? value >= currentGoal : value > 0,
-        history: updatedHistory
-    }, date);
-  }
+        history: updatedHistory,
+    };
+    
+    await this.update(updates, date);
+}
 
   static async loadAll(): Promise<HabitEntity[]> {
     const data = await HabitStorageAPI.handleHabitData('load');

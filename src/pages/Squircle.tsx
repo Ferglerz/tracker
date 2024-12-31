@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 // Export the path generation function so it can be reused
 export const generateSquirclePath = (width: number, height: number, cornerRadius: number) => {
-    const steps = 45;
+    const steps = Math.max(6,Math.max(width, height) / 5); 
     const n = 4;
     const powN = 2 / n;
     const generateCornerPoints = (size: number) => {

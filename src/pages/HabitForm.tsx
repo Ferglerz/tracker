@@ -20,6 +20,7 @@ import { checkmark } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import { Habit } from './Types';
 import { errorHandler } from './ErrorUtilities';
+import { formatDateKey } from './Utilities';
 
 const PRESET_COLORS = [
   '#ff5062',  // Red
@@ -94,15 +95,31 @@ const HabitForm: React.FC<Props> = ({
         listOrder: editedHabit?.listOrder ?? 0
       };
 
-      await HabitEntity.create(habitProps);
+      // If we're editing a quantity habit and changing its goal
+      if (editedHabit && type === 'quantity' && goal !== editedHabit.goal) {
+        const today = new Date();
+        const dateKey = formatDateKey(today);
+        const currentEntry = editedHabit.history[dateKey];
+        
+        // Update today's history entry with the new goal
+        habitProps.history = {
+          ...habitProps.history,
+          [dateKey]: {
+            quantity: currentEntry?.quantity ?? 0,
+            goal: goal ?? 0,
+            isChecked: false
+          }
+        };
+      }
 
+      await HabitEntity.create(habitProps);
       onClose();
     } catch (error) {
       errorHandler.handleError(error, 'Failed to save habit');
     } finally {
       setIsSaving(false);
     }
-  };
+};
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>

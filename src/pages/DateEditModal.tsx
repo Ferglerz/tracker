@@ -35,12 +35,11 @@ const DateEditModal: React.FC<Props> = ({
 
   useEffect(() => {
     const dateObject = new Date(date);
-    const history = habit.getValueForDate(dateObject);
+    const historyEntry = habit.getValueForDate(dateObject);
 
-    if (history && Array.isArray(history)) {
-        setValue(history[0] || 0);
-        // Use the historical goal if it exists, otherwise fall back to habit goal
-        setGoal(history[1] ?? habit.goal ?? 0);
+    if (historyEntry) {
+        setValue(historyEntry.quantity);
+        setGoal(historyEntry.goal ?? habit.goal ?? 0);
     } else {
         setValue(0);
         setGoal(habit.goal ?? 0);
