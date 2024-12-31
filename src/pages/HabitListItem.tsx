@@ -15,7 +15,7 @@ import {
 import { add, remove, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
-import { formatDateKey, getLast56Days } from './Utilities';
+import { formatDateKey, getHistoryRange } from './Utilities';
 import { HabitStorage } from './Storage';
 import { HistoryGrid } from './HistoryGrid';
 
@@ -243,7 +243,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
         display: 'flex',
         width: '100%',
         alignItems: 'stretch',
-        minHeight: '48px'
+        minHeight: '40px'
       }}>
         <IonReorder
           ref={reorderRef}
@@ -262,8 +262,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
         <div style={{
           padding: '8px 16px',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           flex: 1
         }}>
           <div style={{
@@ -348,15 +349,15 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
       {/* History Grid section */}
       <div style={{
         display: 'flex',
-        width: '100%',
-        borderTop: '1px solid var(--ion-border-color)',
+        width: '100%'
       }}>
         <HistoryGrid
-          data={getLast56Days(habit)}
+          data={getHistoryRange(habit, 57)}
           color={habit.bgColor}
           type={habit.type}
-          baseSize={8}
-          gap={1}
+          baseSize={30}
+          gap={4}
+          cellsPerRow={19}
         />
       </div>
     </div>

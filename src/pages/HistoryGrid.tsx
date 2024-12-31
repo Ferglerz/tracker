@@ -8,9 +8,10 @@ interface HistoryGridProps {
   data: Array<{ date: string; value: HistoryValue }>;
   color: string;
   type: Habit.Type;
-  baseSize?: number; // Changed from squareSize to baseSize
+  baseSize?: number; 
   gap?: number;
   rowPadding?: number;
+  cellsPerRow?: number;
 }
 
 const SquircleDefinition: React.FC<{
@@ -101,7 +102,7 @@ const DaySquare: React.FC<{
   );
 };
 
-const WeekRow: React.FC<{
+const GridRow: React.FC<{
   days: Array<{ date: string; value: HistoryValue }>;
   gap: number;
   squareSize: number;
@@ -130,51 +131,36 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   type,
   baseSize = 8,
   gap = 1,
-  rowPadding = 2,
+  cellsPerRow = 20,
 }) => {
   const squareSize = baseSize - gap;
-  const cornerRadius = 2; // Define the corner radius
+  const cornerRadius = 5;
+  const rowsCount = 3;
 
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: `${gap}px`,
-      padding: '8px'
+      margin: 'auto',
+      padding: '10px',
+      gap: `${gap}px`
     }}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
       
-      {[0, 1, 2, 3].map(rowIndex => {
-        const rowStart = rowIndex * 14;
-        const rowOpacity = 1 - (3 - rowIndex) * 0.25;
+      {[...Array(rowsCount)].map((_, rowIndex) => {
+        const rowStart = rowIndex * cellsPerRow;
+        const rowOpacity = 0.7 - (rowsCount - 1 - rowIndex) * 0.15;
 
         return (
-          <div
+          <GridRow
             key={rowIndex}
-            style={{
-              display: 'flex',
-              gap: `${gap}px`
-            }}
-          >
-            <div style={{ marginRight: `${rowPadding}px` }}>
-              <WeekRow
-                days={data.slice(rowStart, rowStart + 7)}
-                gap={gap}
-                squareSize={squareSize}
-                rowOpacity={rowOpacity}
-                type={type}
-                color={color}
-              />
-            </div>
-            <WeekRow
-              days={data.slice(rowStart + 7, rowStart + 14)}
-              gap={gap}
-              squareSize={squareSize}
-              rowOpacity={rowOpacity}
-              type={type}
-              color={color}
-            />
-          </div>
+            days={data.slice(rowStart, rowStart + cellsPerRow)}
+            gap={gap}
+            squareSize={squareSize}
+            rowOpacity={rowOpacity}
+            type={type}
+            color={color}
+          />
         );
       })}
     </div>

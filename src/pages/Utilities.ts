@@ -14,11 +14,11 @@ export const formatDateKey = (date: Date): string => {
   }
 };
 
-export const getLast56Days = (habit: HabitEntity): Array<{date: string, value: [number, number] | boolean}> => {
+export const getHistoryRange = (habit: HabitEntity, days: number): Array<{date: string, value: [number, number] | boolean}> => {
   const dates: Array<{date: string, value: [number, number] | boolean}> = [];
   const today = new Date();
   
-  for (let i = 55; i >= 0; i--) {
+  for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(today.getDate() - i);
       const dateKey = formatDateKey(date);
@@ -41,7 +41,6 @@ export const getLast56Days = (habit: HabitEntity): Array<{date: string, value: [
   
   return dates;
 };
-
 // Helper function to get the date key for a given ISO string
 export const getDateKey = (isoString: string): string | undefined => {
   try {
