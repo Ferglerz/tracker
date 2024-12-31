@@ -8,8 +8,8 @@ interface HistoryGridProps {
   data: Array<{ date: string; value: HistoryValue }>;
   color: string;
   type: Habit.Type;
+  baseSize?: number; // Changed from squareSize to baseSize
   gap?: number;
-  squareSize?: number;
   rowPadding?: number;
 }
 
@@ -128,12 +128,12 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   data,
   color,
   type,
+  baseSize = 8,
   gap = 1,
-  squareSize = 8 - gap,
   rowPadding = 2,
 }) => {
-  const last56Days = data.slice(-56);
-  const cornerRadius = 2;
+  const squareSize = baseSize - gap;
+  const cornerRadius = 2; // Define the corner radius
 
   return (
     <div style={{
@@ -158,7 +158,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
           >
             <div style={{ marginRight: `${rowPadding}px` }}>
               <WeekRow
-                days={last56Days.slice(rowStart, rowStart + 7)}
+                days={data.slice(rowStart, rowStart + 7)}
                 gap={gap}
                 squareSize={squareSize}
                 rowOpacity={rowOpacity}
@@ -167,7 +167,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
               />
             </div>
             <WeekRow
-              days={last56Days.slice(rowStart + 7, rowStart + 14)}
+              days={data.slice(rowStart + 7, rowStart + 14)}
               gap={gap}
               squareSize={squareSize}
               rowOpacity={rowOpacity}
