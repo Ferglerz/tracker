@@ -142,7 +142,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
       display: 'flex',
       flexDirection: 'column',
       margin: 'auto',
-      padding: '10px',
+      padding: '0px',
       gap: `${gap}px`
     }}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />

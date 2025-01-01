@@ -209,163 +209,161 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   return (
     <>
       <IonItemSliding ref={slidingRef}>
-      <IonItem
-  className="ion-activatable"
-  style={{
-    '--padding-start': '0',
-    '--inner-padding-end': '0',
-    cursor: habit.type === 'checkbox' ? 'pointer' : 'default'
-  }}
-  onClick={handleClick}
-  onTouchStart={handleLongPress}
-  onMouseDown={handleLongPress}
->
-  <div style={{
-    display: 'flex',
-    width: '100%',
-    flexDirection: 'row',
-  }}>
-    {/* Color bar */}
-    <div style={{
-      width: '16px',
-      backgroundColor: habit.bgColor,
-      flexShrink: 0
-    }} />
-
-    {/* Content container */}
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      flex: 1,
-    }}>
-      {/* Top row */}
-      <div style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'stretch',
-        minHeight: '40px'
-      }}>
-        <IonReorder
-          ref={reorderRef}
+        <IonItem
+          className="ion-activatable"
           style={{
-            width: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0.3,
-            cursor: 'grab'
+            '--padding-start': '0',
+            '--inner-padding-end': '0',
+            cursor: habit.type === 'checkbox' ? 'pointer' : 'default'
           }}
+          onClick={handleClick}
+          onTouchStart={handleLongPress}
+          onMouseDown={handleLongPress}
         >
-          <IonIcon icon={reorderTwo} />
-        </IonReorder>
-
-        <div style={{
-          padding: '8px 16px',
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flex: 1
-        }}>
+          {/* Main flex container */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+            width: '100%',
+            flexDirection: 'row',
           }}>
-            <div style={{ fontWeight: 500 }}>{habit.name}</div>
-            {habit.type === 'quantity' &&
-              typeof habitState.value === 'number' &&
-              habitState.goal > 0 &&
-              habitState.value >= habitState.goal && (
-                <IonBadge color="success">Complete!</IonBadge>
-              )}
-          </div>
-          {habit.type === 'quantity' && (
+            {/* 1. Color bar - full height */}
             <div style={{
-              fontSize: '0.875rem',
-              color: 'var(--ion-color-medium)'
-            }}>
-              {habitState.value}{habitState.goal ? ` / ${habitState.goal}` : ''} {habit.unit}
-            </div>
-          )}
-        </div>
+              width: '24px',
+              backgroundColor: habit.bgColor,
+              flexShrink: 0
+            }} />
 
-        <div
-          style={{
-            width: '100px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            borderLeft: '1px solid var(--ion-border-color)',
-            padding: '0 8px'
-          }}
-          onClick={(e) => {
-            if (habit.type === 'checkbox') {
-              e.stopPropagation();
-            }
-          }}
-        >
-          {habit.type === 'checkbox' ? (
-            <IonCheckbox
-              checked={habitState.value as boolean}
-              alignment="center"
-              onIonChange={async (e) => {
-                e.stopPropagation();
-                await handleValueChange(e.detail.checked);
-              }}
+            {/* 2. Drag handle - full height */}
+            <IonReorder
+              ref={reorderRef}
               style={{
-                '--checkbox-background-checked': habit.bgColor,
-                '--checkbox-background-hover': habit.bgColor,
-                '--checkbox-border-color': habit.bgColor,
-                cursor: 'pointer',
+                width: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.3,
+                cursor: 'grab',
               }}
-            />
-          ) : (
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-              <IonButton
-                fill="clear"
-                onClick={() => handleValueChange(Math.max(0, (habitState.value as number) - 1))}
-                style={{
-                  '--color': habit.bgColor
-                }}
-              >
-                <IonIcon icon={remove} />
-              </IonButton>
-              <IonButton
-                fill="clear"
-                onClick={() => handleValueChange((habitState.value as number) + 1)}
-                style={{
-                  '--color': habit.bgColor
-                }}
-              >
-                <IonIcon icon={add} />
-              </IonButton>
-            </div>
-          )}
-        </div>
-      </div>
+            >
+              <IonIcon icon={reorderTwo} />
+            </IonReorder>
 
-      {/* History Grid section */}
-      <div style={{
-        display: 'flex',
-        width: '100%'
-      }}>
-        <HistoryGrid
-          data={getHistoryRange(habit, 57)}
-          color={habit.bgColor}
-          type={habit.type}
-          baseSize={30}
-          gap={4}
-          cellsPerRow={19}
-        />
-      </div>
-    </div>
-  </div>
-  <IonRippleEffect style={{
-    display: isReorderMode ? 'none' : undefined
-  }} />
-</IonItem>
+            {/* 3. Main content container - now vertical */}
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '8px 16px',
+            }}>
+              {/* Top row container */}
+              <div style={{
+                display: 'flex',
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                {/* Left side: Name and badge */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flex: 1,
+                }}>
+                  <div style={{ fontWeight: 500 }}>{habit.name}</div>
+                  {habit.type === 'quantity' &&
+                    typeof habitState.value === 'number' &&
+                    habitState.goal > 0 &&
+                    habitState.value >= habitState.goal && (
+                      <IonBadge color="success">Complete!</IonBadge>
+                    )}
+                </div>
+
+                {/* Center: Quantity/Goal display */}
+                {habit.type === 'quantity' && (
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: 'var(--ion-color-medium)',
+                    marginRight: '8px'
+                  }}>
+                    {habitState.value}{habitState.goal ? ` / ${habitState.goal}` : ''} {habit.unit}
+                  </div>
+                )}
+
+                {/* Right side: Controls */}
+                <div style={{
+                  width: '100px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderLeft: '1px solid var(--ion-border-color)',
+                  padding: '0 8px',
+                }}
+                  onClick={(e) => {
+                    if (habit.type === 'checkbox') {
+                      e.stopPropagation();
+                    }
+                  }}>
+                  {habit.type === 'checkbox' ? (
+                    <IonCheckbox
+                      checked={habitState.value as boolean}
+                      alignment='center'
+                      onIonChange={async (e) => {
+                        e.stopPropagation();
+                        await handleValueChange(e.detail.checked);
+                      }}
+                      style={{
+                        '--checkbox-background-checked': habit.bgColor,
+                        '--checkbox-background-hover': habit.bgColor,
+                        '--checkbox-border-color': habit.bgColor,
+                        cursor: 'pointer',
+                      }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                      <IonButton
+                        fill="clear"
+                        onClick={() => handleValueChange(Math.max(0, (habitState.value as number) - 1))}
+                        style={{
+                          '--color': habit.bgColor
+                        }}
+                      >
+                        <IonIcon icon={remove} />
+                      </IonButton>
+                      <IonButton
+                        fill="clear"
+                        onClick={() => handleValueChange((habitState.value as number) + 1)}
+                        style={{
+                          '--color': habit.bgColor
+                        }}
+                      >
+                        <IonIcon icon={add} />
+                      </IonButton>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* History Grid on new row */}
+              <div style={{
+                width: '100%',
+              }}>
+                <HistoryGrid
+                  data={getHistoryRange(habit, 57)}
+                  color={habit.bgColor}
+                  type={habit.type}
+                  baseSize={26}
+                  gap={4}
+                  cellsPerRow={19}
+                />
+              </div>
+            </div>
+          </div>
+
+          <IonRippleEffect style={{
+            display: isReorderMode ? 'none' : undefined
+          }} />
+        </IonItem>
 
         <IonItemOptions side="end">
           {!isCalendarOpen && (
