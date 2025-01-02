@@ -299,104 +299,90 @@ const WidgetConfig: React.FC = () => {
 
     const handleDrop = async (habitId: string, spaceId: string) => {
         const habit = habits.find(h => h.id === habitId);
-        if (!habit) return
-
-        // If dropping in habits container, remove from only that specific widget
+        if (!habit) return;
+    
+        const sourceSpace = widgetSpaces.find(space => 
+            space.habitId === habitId && 
+            space.isOccupied
+        );
+        
+        console.log('Drop details:', {
+            source: sourceSpace,
+            currentWidgetSpaces: widgetSpaces.filter(s => s.habitId === habitId),
+            currentAssignments: habit.widget?.assignments
+        });
+    
         if (spaceId.startsWith('habits-')) {
-            // Find which widget space the habit was dragged from (if any)
-            const sourceSpace = widgetSpaces.find(space => space.habitId === habitId);
             if (sourceSpace) {
-                const updatedSpaces = widgetSpaces.map(space => {
-                    if (space.id === sourceSpace.id) {
-                        return {
-                            ...space,
-                            isOccupied: false,
-                            habitId: undefined
-                        };
-                    }
-                    return space;
-                });
-                setWidgetSpaces(updatedSpaces);
-
-                // Remove only this specific assignment
+                setWidgetSpaces(widgetSpaces.map(space => 
+                    space.id === sourceSpace.id ? 
+                        { ...space, isOccupied: false, habitId: undefined } : 
+                        space
+                ));
+    
                 const currentAssignments = habit.widget?.assignments || [];
-                const newAssignments = currentAssignments.filter(
-                    assignment => !(assignment.type === sourceSpace.type && assignment.order === sourceSpace.order)
-                );
+                const [sourceType, sourceOrderStr] = sourceSpace.id.split('-');
+                const sourceOrder = parseInt(sourceOrderStr, 10);
+                
+                const newAssignments = currentAssignments.filter(assignment => {
+                    console.log('Comparing:', { 
+                        assignment, 
+                        sourceType, 
+                        sourceOrder,
+                        matches: !(assignment.type === sourceType && assignment.order === sourceOrder)
+                    });
+                    return !(assignment.type === sourceType && assignment.order === sourceOrder);
+                });
+                
                 await habit.updateWidget({ assignments: newAssignments });
             }
             return;
         }
-
-        const [type, orderStr] = spaceId.split('-');
-        const order = parseInt(orderStr, 10);
-
-        // Find any existing widget space that has this habit
-        const existingWidgetSpaces = widgetSpaces.filter(space => space.habitId === habitId);
-
-        // Determine if this is a widget-to-widget drag
-        // It's a widget-to-widget drag if the habit exists in any widget space
-        const isWidgetToWidgetDrag = existingWidgetSpaces.length > 0;
-
-        // If it's a widget-to-widget drag, find the specific source space
-        const sourceSpace = isWidgetToWidgetDrag ?
-            existingWidgetSpaces.find(space => space.type === type) : undefined;
-
-        // Update spaces state
+    
+        const [targetType, targetOrderStr] = spaceId.split('-');
+        const targetOrder = parseInt(targetOrderStr, 10);
+    
+        const [sourceType, sourceOrderStr] = sourceSpace ? sourceSpace.id.split('-') : [null, null];
+        const sourceOrder = sourceOrderStr ? parseInt(sourceOrderStr, 10) : null;
+    
         const updatedSpaces = widgetSpaces.map(space => {
-            // If this is the drop target space
             if (space.id === spaceId) {
-                // If there was already a habit here, clear its assignment for this space
-                if (space.habitId) {
+                if (space.habitId && space.habitId !== habitId) {
                     const existingHabit = habits.find(h => h.id === space.habitId);
-                    if (existingHabit && existingHabit.widget) {
+                    if (existingHabit?.widget) {
                         const updatedAssignments = existingHabit.widget.assignments.filter(
-                            assignment => !(assignment.type === type && assignment.order === order)
+                            assignment => !(assignment.type === targetType && assignment.order === targetOrder)
                         );
                         existingHabit.updateWidget({ assignments: updatedAssignments });
                     }
                 }
-                return {
-                    ...space,
-                    isOccupied: true,
-                    habitId
-                };
+                return { ...space, isOccupied: true, habitId };
             }
-
-            // If this is a widget-to-widget drag and this is the source space, clear it
-            if (isWidgetToWidgetDrag && sourceSpace && space.id === sourceSpace.id) {
-                return {
-                    ...space,
-                    isOccupied: false,
-                    habitId: undefined
-                };
+    
+            if (sourceSpace && space.id === sourceSpace.id) {
+                return { ...space, isOccupied: false, habitId: undefined };
             }
             return space;
         });
-
+    
         setWidgetSpaces(updatedSpaces);
-
-        // Get current assignments
-        let currentAssignments = habit.widget?.assignments || [];
-
-        if (isWidgetToWidgetDrag) {
-            // If moving between widgets, update assignments
-
-            // Remove any existing assignment for this habit with the same type
-            currentAssignments = currentAssignments.filter(
-                assignment => !(assignment.type === type)
-            );
-
-            // Add the new assignment
-            currentAssignments.push({ type, order });
-            await habit.updateWidget({ assignments: currentAssignments });
-
-        } else {
-            // If dragging from Habits, just add new assignment
-            await habit.updateWidget({
-                assignments: [...currentAssignments, { type, order }]
-            });
-        }
+    
+        const currentAssignments = habit.widget?.assignments || [];
+        const newAssignments = sourceSpace ? 
+            currentAssignments.filter(assignment => {
+                console.log('Widget move comparison:', {
+                    assignment,
+                    sourceType,
+                    sourceOrder,
+                    matches: !(assignment.type === sourceType && assignment.order === sourceOrder)
+                });
+                return !(assignment.type === sourceType && assignment.order === sourceOrder);
+            }) : 
+            currentAssignments;
+    
+        await habit.updateWidget({
+            assignments: [...newAssignments, { type: targetType, order: targetOrder }]
+        });
     };
 
     useEffect(() => {
