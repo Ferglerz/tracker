@@ -6,8 +6,6 @@ import {
   IonPage,
   IonTitle,
   IonToolbar,
-  IonFab,
-  IonFabButton,
   IonIcon,
   IonAlert,
   IonButtons,
@@ -22,7 +20,6 @@ import { HabitListItem, HabitListItemRef } from './HabitListItem';
 import HabitForm from './HabitForm';
 import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './Hooks';
 import { errorHandler } from './ErrorUtilities';
-import { Squircle } from './Squircle';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -33,7 +30,8 @@ const EmptyState: React.FC = () => (
 const TopToolbar: React.FC<{
   onExport: () => Promise<void>;
   hasHabits: boolean;
-}> = ({ onExport, hasHabits }) => {
+  onNewHabit: () => void;
+}> = ({ onExport, hasHabits, onNewHabit }) => {
   const history = useHistory();
 
   return (
@@ -60,6 +58,14 @@ const TopToolbar: React.FC<{
             <IonIcon slot="icon-only" icon={downloadOutline} />
           </IonButton>
         )}
+        <IonButton
+          onClick={onNewHabit}
+          style={{
+            '--color': 'var(--neutral-button)'
+          }}
+        >
+          <IonIcon slot="icon-only" icon={add} />
+        </IonButton>
       </IonButtons>
     </IonToolbar>
   );
@@ -78,16 +84,16 @@ const HabitList: React.FC<{
   <IonReorderGroup disabled={false} onIonItemReorder={onReorder}>
     {habits.map((habit) => (
       <HabitListItem
-      key={habit.id}
-      ref={(el) => itemRefs.current[habit.id] = el}
-      habit={habit}
-      onEdit={() => onEdit(habit)}
-      onDelete={() => onDelete(habit)}
-      isCalendarOpen={openCalendarId === habit.id}
-      openCalendarId={openCalendarId}  // Add this
-      onToggleCalendar={onToggleCalendar}
-      isReorderMode={isReorderMode}
-    />
+        key={habit.id}
+        ref={(el) => itemRefs.current[habit.id] = el}
+        habit={habit}
+        onEdit={() => onEdit(habit)}
+        onDelete={() => onDelete(habit)}
+        isCalendarOpen={openCalendarId === habit.id}
+        openCalendarId={openCalendarId}
+        onToggleCalendar={onToggleCalendar}
+        isReorderMode={isReorderMode}
+      />
     ))}
   </IonReorderGroup>
 );
@@ -115,7 +121,6 @@ const Home: React.FC = () => {
   }, []);
 
   const closeForm = React.useCallback(async () => {
-    // Close all sliding items
     const closePromises = Object.values(itemRefs.current)
       .map(ref => ref?.closeSliding());
     await Promise.all(closePromises);
@@ -124,7 +129,6 @@ const Home: React.FC = () => {
   }, [originalCloseForm]);
 
   const openForm = React.useCallback(async (habit?: HabitEntity) => {
-    // Close all sliding items before opening form
     const closePromises = Object.values(itemRefs.current)
       .map(ref => ref?.closeSliding());
     await Promise.all(closePromises);
@@ -133,7 +137,6 @@ const Home: React.FC = () => {
   }, [originalOpenForm]);
 
   const handleDelete = React.useCallback(async (habit: HabitEntity) => {
-    // Close all sliding items before showing delete alert
     const closePromises = Object.values(itemRefs.current)
       .map(ref => ref?.closeSliding());
     await Promise.all(closePromises);
@@ -143,32 +146,23 @@ const Home: React.FC = () => {
 
   const handleToggleCalendar = useCallback((habitId: string) => {
     setOpenCalendarId(current => {
-      // If we're opening a new calendar, close any sliding items first
       if (current !== habitId) {
         Object.values(itemRefs.current).forEach(ref => ref?.closeSliding());
       }
-      // If clicking the same habit's calendar button, close it
-      if (current === habitId) {
-        return null;
-      }
-      // Otherwise, open the new calendar
-      return habitId;
+      return current === habitId ? null : habitId;
     });
   }, []);
 
   const handleReorder = useCallback(async (event: CustomEvent) => {
-    // Prevent default to allow manual list update
     event.detail.complete(false);
   
     const from = event.detail.from;
     const to = event.detail.to;
     
-    // Create new array with updated order
     const reorderedHabits = [...habits];
     const [movedItem] = reorderedHabits.splice(from, 1);
     reorderedHabits.splice(to, 0, movedItem);
   
-    // Update listOrder for all habits
     const updatedHabits = reorderedHabits.map((habit, index) => {
       const entity = new HabitEntity({
         id: habit.id,
@@ -186,7 +180,6 @@ const Home: React.FC = () => {
       return entity;
     });
   
-    // Save new order
     try {
       await HabitEntity.updateListOrder(updatedHabits);
       await refreshHabits();
@@ -201,6 +194,7 @@ const Home: React.FC = () => {
         <TopToolbar
           onExport={handleExport}
           hasHabits={habits.length > 0}
+          onNewHabit={() => openForm()}
         />
       </IonHeader>
       <IonContent>
@@ -244,18 +238,6 @@ const Home: React.FC = () => {
             }
           ]}
         />
-
-        <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton 
-            onClick={() => openForm()}
-            style={{
-              '--background': 'var(--neutral-button)',
-              '--background-hover': 'var(--neutral-button-hover)',
-            }}
-          >
-            <IonIcon icon={add} />
-          </IonFabButton>
-        </IonFab>
 
         {isRefreshing && (
           <IonProgressBar type="indeterminate" />

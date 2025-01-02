@@ -2,7 +2,6 @@
 import React, { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react';
 import {
   IonItem,
-  IonButton,
   IonIcon,
   IonRippleEffect,
   IonCheckbox,
@@ -12,12 +11,13 @@ import {
   IonItemOption,
   IonReorder,
 } from '@ionic/react';
-import { add, remove, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
+import { addOutline, removeOutline, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
 import { formatDateKey, getHistoryRange } from './Utilities';
 import { HabitStorage } from './Storage';
 import { HistoryGrid } from './HistoryGrid';
+import { AnimatedIncrements } from './AnimatedIncrements';
 
 interface Props {
   habit: HabitEntity;
@@ -67,7 +67,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
 
   useEffect(() => {
     if (!isCalendarOpen) {
-      // Reset to today when calendar closes
       const today = new Date();
       const todayKey = formatDateKey(today);
       const todayValue = habit.history[todayKey];
@@ -83,7 +82,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [isCalendarOpen, habit]);
 
   useEffect(() => {
-    // Function to update state from a habit instance
     const updateStateFromHabit = (habitData: HabitEntity) => {
       const dateKey = formatDateKey(selectedDate);
       const dateValue = habitData.history[dateKey];
@@ -96,13 +94,10 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
       });
     };
 
-    // Initial state update
     updateStateFromHabit(habit);
 
-    // Subscribe to storage changes
     const storage = HabitStorage.getInstance();
     const subscription = storage.changes.subscribe(async (data) => {
-      // Get fresh habit data from storage
       const habits = await HabitEntity.loadAll();
       const updatedHabit = habits.find(h => h.id === habit.id);
       if (updatedHabit) {
@@ -123,7 +118,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
           const isReorderActive = reorderElement.hasAttribute('reorder');
           setIsReordering(isReorderActive);
 
-          // Close sliding item when reorder starts
           if (isReorderActive) {
             slidingRef.current?.close();
           }
@@ -159,29 +153,24 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
   }, [habit, selectedDate, habitState.goal]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Don't handle clicks during reorder mode
     if (isReorderMode) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    // If another habit's calendar is open, close it
     if (openCalendarId && openCalendarId !== habit.id) {
       onToggleCalendar(openCalendarId);
       return;
     }
 
-    // Toggle checkbox only for checkbox type habits
     if (habit.type === 'checkbox') {
       handleValueChange(!habitState.value as boolean);
     }
   }, [habit, habitState.value, handleValueChange, openCalendarId, onToggleCalendar, isReorderMode]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    // Don't open slide menu if we're in reorder mode or already sliding
     if (isReordering) return;
 
-    // Prevent long press during reorder drag operations
     const target = e.target as HTMLElement;
     if (target.closest('ion-reorder')) return;
 
@@ -189,7 +178,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
 
     const start = () => {
       timer = setTimeout(() => {
-        // Double check we're not reordering before opening
         if (!isReordering) {
           slidingRef.current?.open('end');
         }
@@ -220,20 +208,17 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
           onTouchStart={handleLongPress}
           onMouseDown={handleLongPress}
         >
-          {/* Main flex container */}
           <div style={{
             display: 'flex',
             width: '100%',
             flexDirection: 'row',
           }}>
-            {/* 1. Color bar - full height */}
             <div style={{
               width: '24px',
               backgroundColor: habit.bgColor,
               flexShrink: 0
             }} />
 
-            {/* 2. Drag handle - full height */}
             <IonReorder
               ref={reorderRef}
               style={{
@@ -248,22 +233,19 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               <IonIcon icon={reorderTwo} />
             </IonReorder>
 
-            {/* 3. Main content container - now vertical */}
             <div style={{
-              flex: 1,
+              flex: 0,
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
               padding: '8px 16px',
             }}>
-              {/* Top row container */}
               <div style={{
                 display: 'flex',
                 width: '100%',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}>
-                {/* Left side: Name and badge */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -279,7 +261,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                     )}
                 </div>
 
-                {/* Center: Quantity/Goal display */}
                 {habit.type === 'quantity' && (
                   <div style={{
                     fontSize: '0.875rem',
@@ -290,14 +271,12 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                   </div>
                 )}
 
-                {/* Right side: Controls */}
                 <div style={{
-                  width: '100px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderLeft: '1px solid var(--ion-border-color)',
-                  padding: '0 8px',
+                  padding: '0px',
                 }}
                   onClick={(e) => {
                     if (habit.type === 'checkbox') {
@@ -320,33 +299,23 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                       }}
                     />
                   ) : (
-                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                      <IonButton
-                        fill="clear"
+                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AnimatedIncrements
                         onClick={() => handleValueChange(Math.max(0, (habitState.value as number) - 1))}
-                        style={{
-                          '--color': habit.bgColor
-                        }}
-                      >
-                        <IonIcon icon={remove} />
-                      </IonButton>
-                      <IonButton
-                        fill="clear"
+                        color={habit.bgColor}
+                        type="decrement"
+                      />
+                      <AnimatedIncrements
                         onClick={() => handleValueChange((habitState.value as number) + 1)}
-                        style={{
-                          '--color': habit.bgColor
-                        }}
-                      >
-                        <IonIcon icon={add} />
-                      </IonButton>
+                        color={habit.bgColor}
+                        type="increment"
+                      />
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* History Grid on new row */}
               <div style={{
-                width: '100%',
               }}>
                 <HistoryGrid
                   data={getHistoryRange(habit, 57)}

@@ -136,7 +136,7 @@ const getHighlightedDates = useCallback((isoString: string) => {
     <div className="calendar-container" style={{
       display: 'flex',
       width: '100%',
-      backgroundColor: 'transparent'
+      backgroundColor: 'background'
     }}>
       {/* Left column - Back button */}
       <div style={{
@@ -170,8 +170,10 @@ const getHighlightedDates = useCallback((isoString: string) => {
       }}>
         <IonCard style={{ 
           margin: '0',
+          padding: '0px',
           width: '100%',
-          maxWidth: '400px'
+          maxWidth: '400px',
+          background: 'transparent'
         }}>
           <IonCardContent style={{ padding: '0' }}>
             <style>
@@ -179,6 +181,7 @@ const getHighlightedDates = useCallback((isoString: string) => {
                 .calendar-custom {
                   --ion-color-primary: ${habit.bgColor} !important;
                   --ion-color-primary-contrast: #ffffff !important;
+                  margin: auto !important;
                 }
                 
                 .calendar-custom::part(calendar-day) {

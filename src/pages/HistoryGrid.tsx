@@ -139,9 +139,9 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
 
   return (
     <div style={{
+      width: `${cellsPerRow * squareSize + (cellsPerRow - 1) * gap}px`,
       display: 'flex',
       flexDirection: 'column',
-      margin: 'auto',
       padding: '0px',
       gap: `${gap}px`
     }}>

@@ -23,23 +23,16 @@ import { errorHandler } from './ErrorUtilities';
 import { formatDateKey } from './Utilities';
 
 const PRESET_COLORS = [
-  '#ff5062',  // Red
-  '#ff7093',  // Pink-Red
-  '#ffc386',  // Peach
-  '#d0e87b',  // Yellow-Green
-  '#88e0b1',  // Green
-  '#97a5e3',  // Light Blue
-  '#5c5c5c',  // Dark Gray
-  '#f483b1',  // Pink
-
-  '#f040a2',  // Magenta
-  '#d96ab3',  // Purple
-  '#c099d3',  // Lavender
-  '#a0c0e0',  // Sky Blue
-  '#60a0d0',  // Ocean Blue
-  '#4080c0',  // Deep Blue
-  '#2060a0',  // Indigo
-  '#a0a0a0',  // Gray
+  '#657c9a', // Muted Blue 
+  '#228B22', // Dark Green (4.39)
+  '#FA8072', // Salmon (2.50)
+  '#CC0000', // Red (5.89)
+  '#1B4B9E', // Dark Blue (8.25)
+  '#33cca1', // Sea Foam
+  '#F4781D', // Orange (2.78)
+  '#CC9933', // Ocre Yellow (2.57)
+  '#663399', // Purple (8.41)
+  '#8B4513'  // Brown (7.10)
 ] as const;
 
 interface Props {
