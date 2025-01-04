@@ -1,15 +1,8 @@
-//
-//  Lock_Screen_WidgetLiveActivity.swift
-//  Lock Screen Widget
-//
-//  Created by Fearghas Gundy on 2024-12-06.
-//
-
 import ActivityKit
 import WidgetKit
 import SwiftUI
 
-struct Lock_Screen_WidgetAttributes: ActivityAttributes {
+struct HabitWidgetsAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         // Dynamic stateful properties about your activity go here!
         var emoji: String
@@ -19,9 +12,9 @@ struct Lock_Screen_WidgetAttributes: ActivityAttributes {
     var name: String
 }
 
-struct Lock_Screen_WidgetLiveActivity: Widget {
+struct HabitWidgetsLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: Lock_Screen_WidgetAttributes.self) { context in
+        ActivityConfiguration(for: HabitWidgetsAttributes.self) { context in
             // Lock screen/banner UI goes here
             VStack {
                 Text("Hello \(context.state.emoji)")
@@ -56,25 +49,25 @@ struct Lock_Screen_WidgetLiveActivity: Widget {
     }
 }
 
-extension Lock_Screen_WidgetAttributes {
-    fileprivate static var preview: Lock_Screen_WidgetAttributes {
-        Lock_Screen_WidgetAttributes(name: "World")
+extension HabitWidgetsAttributes {
+    fileprivate static var preview: HabitWidgetsAttributes {
+        HabitWidgetsAttributes(name: "World")
     }
 }
 
-extension Lock_Screen_WidgetAttributes.ContentState {
-    fileprivate static var smiley: Lock_Screen_WidgetAttributes.ContentState {
-        Lock_Screen_WidgetAttributes.ContentState(emoji: "😀")
+extension HabitWidgetsAttributes.ContentState {
+    fileprivate static var smiley: HabitWidgetsAttributes.ContentState {
+        HabitWidgetsAttributes.ContentState(emoji: "😀")
      }
      
-     fileprivate static var starEyes: Lock_Screen_WidgetAttributes.ContentState {
-         Lock_Screen_WidgetAttributes.ContentState(emoji: "🤩")
+     fileprivate static var starEyes: HabitWidgetsAttributes.ContentState {
+         HabitWidgetsAttributes.ContentState(emoji: "🤩")
      }
 }
 
-#Preview("Notification", as: .content, using: Lock_Screen_WidgetAttributes.preview) {
-   Lock_Screen_WidgetLiveActivity()
+#Preview("Notification", as: .content, using: HabitWidgetsAttributes.preview) {
+   HabitWidgetsLiveActivity()
 } contentStates: {
-    Lock_Screen_WidgetAttributes.ContentState.smiley
-    Lock_Screen_WidgetAttributes.ContentState.starEyes
+    HabitWidgetsAttributes.ContentState.smiley
+    HabitWidgetsAttributes.ContentState.starEyes
 }

@@ -150,7 +150,7 @@ func getHabitsForWidget(type: String, entry: Provider.Entry) -> [Habit] {
     var order = 1
 
     while let habit = entry.habits.first(where: { habit in
-        guard let assignments = habit.widget?.assignments else { return false }
+        guard let assignments = habit.widgets?.assignments else { return false }
         let matchingAssignment = assignments.contains { $0.type == type && $0.order == order }
         return matchingAssignment
     }) {
@@ -321,8 +321,8 @@ extension Color {
 }
 
 // MARK: - Widget Configuration
-struct Lock_Screen_Widget: Widget {
-    let kind: String = "Lock_Screen_Widget"
+struct HabitWidgets: Widget {
+    let kind: String = "Habit_Widgets"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
@@ -343,13 +343,13 @@ struct Lock_Screen_Widget: Widget {
 
 // MARK: - Previews
 #Preview(as: .systemMedium) {
-    Lock_Screen_Widget()
+    HabitWidgets()
 } timeline: {
     SimpleEntry(date: .now, habits: [], error: nil)
 }
 
 #Preview(as: .accessoryRectangular) {
-    Lock_Screen_Widget()
+    HabitWidgets()
 } timeline: {
     SimpleEntry(date: .now, habits: [], error: nil)
 }

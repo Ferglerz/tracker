@@ -13,9 +13,9 @@
 		434EF6902D0A22D90002ED92 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */; };
 		43A4B16D2D03E9A8005B3C72 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */; };
 		43A4B16F2D03E9A8005B3C72 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */; };
-		43A4B1722D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */; };
-		43A4B1742D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1732D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift */; };
-		43A4B1762D03E9A8005B3C72 /* Lock_Screen_Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */; };
+		43A4B1722D03E9A8005B3C72 /* HabitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */; };
+		43A4B1742D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */; };
+		43A4B1762D03E9A8005B3C72 /* HabitWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */; };
 		43A4B1782D03E9AA005B3C72 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43A4B1772D03E9AA005B3C72 /* Assets.xcassets */; };
 		43A4B17C2D03E9AA005B3C72 /* Lock Screen WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 43A4B16B2D03E9A8005B3C72 /* Lock Screen WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -60,9 +60,9 @@
 		43A4B16B2D03E9A8005B3C72 /* Lock Screen WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Lock Screen WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lock_Screen_WidgetBundle.swift; sourceTree = "<group>"; };
-		43A4B1732D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lock_Screen_WidgetLiveActivity.swift; sourceTree = "<group>"; };
-		43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lock_Screen_Widget.swift; sourceTree = "<group>"; };
+		43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetsBundle.swift; sourceTree = "<group>"; };
+		43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetsLiveActivity.swift; sourceTree = "<group>"; };
+		43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgets.swift; sourceTree = "<group>"; };
 		43A4B1772D03E9AA005B3C72 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		43A4B1792D03E9AA005B3C72 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -115,9 +115,9 @@
 			isa = PBXGroup;
 			children = (
 				434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */,
-				43A4B1752D03E9A8005B3C72 /* Lock_Screen_Widget.swift */,
-				43A4B1712D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift */,
-				43A4B1732D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift */,
+				43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */,
+				43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */,
+				43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */,
 				43A4B1772D03E9AA005B3C72 /* Assets.xcassets */,
 				43A4B1792D03E9AA005B3C72 /* Info.plist */,
 			);
@@ -317,10 +317,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				43A4B1762D03E9A8005B3C72 /* Lock_Screen_Widget.swift in Sources */,
-				43A4B1722D03E9A8005B3C72 /* Lock_Screen_WidgetBundle.swift in Sources */,
+				43A4B1762D03E9A8005B3C72 /* HabitWidgets.swift in Sources */,
+				43A4B1722D03E9A8005B3C72 /* HabitWidgetsBundle.swift in Sources */,
 				434EF68F2D0A22C70002ED92 /* IonicStorageManager.swift in Sources */,
-				43A4B1742D03E9A8005B3C72 /* Lock_Screen_WidgetLiveActivity.swift in Sources */,
+				43A4B1742D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -8,13 +8,13 @@ export namespace Habit {
     isChecked: boolean;
   }
 
-  export interface WidgetAssignment {
+  export interface WidgetsAssignment {
     type: string;
     order: number;
 }
 
-export interface Widget {
-    assignments: WidgetAssignment[];
+export interface Widgets {
+    assignments: WidgetsAssignment[];
 }
 
   export interface Habit {
@@ -28,7 +28,7 @@ export interface Widget {
     isChecked: boolean;
     isComplete: boolean;
     listOrder: number;
-    widget?: Widget;
+    widget?: Widgets;
     history: {
       [date: string]: HistoryEntry;
     };

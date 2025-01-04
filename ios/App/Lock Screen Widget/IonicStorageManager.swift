@@ -12,7 +12,7 @@ struct Habit: Codable, Identifiable { // Added Identifiable
     var isComplete: Bool
     var bgColor: String?
     var history: [String: HistoryValue]
-    var widget: WidgetAssignment? // Added widget property
+    var widgets: WidgetAssignment? // Added widget property
 }
 
 struct WidgetAssignment: Codable { // Added WidgetAssignment struct

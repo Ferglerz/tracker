@@ -272,21 +272,22 @@ const WidgetConfig: React.FC = () => {
 
             const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
 
-            const updatedSpaces = spaces.map(space => {
-                // Find habit that has this widget type and order assigned
-                const occupyingHabit = loadedHabits.find(habit =>
-                    habit.widget?.assignments?.some(
-                        assignment =>
-                            assignment.type === space.type &&
-                            assignment.order === parseInt(space.id.split('-')[1], 10)
-                    )
-                );
+            // Create a map of habit assignments for faster lookup
+            const habitAssignments: { [key: string]: string } = {};
+            loadedHabits.forEach(habit => {
+                habit.widgets?.assignments?.forEach(assignment => {
+                    const spaceId = `${assignment.type}-${assignment.order}`;
+                    habitAssignments[spaceId] = habit.id;
+                });
+            });
 
-                if (occupyingHabit) {
+            const updatedSpaces = spaces.map(space => {
+                // Check if there's an assignment for this space
+                if (habitAssignments[space.id]) {
                     return {
                         ...space,
                         isOccupied: true,
-                        habitId: occupyingHabit.id
+                        habitId: habitAssignments[space.id]
                     };
                 }
                 return space;
@@ -297,124 +298,86 @@ const WidgetConfig: React.FC = () => {
         loadHabits();
     }, []);
 
+
     const handleDrop = async (habitId: string, spaceId: string) => {
+        // console.log('handleDrop called with habitId:', habitId, 'spaceId:', spaceId);
+    
         const habit = habits.find(h => h.id === habitId);
         if (!habit) return;
+        // console.log('Current habit assignments:', JSON.stringify(habit.widgets?.assignments));
     
-        const sourceSpace = widgetSpaces.find(space => 
-            space.habitId === habitId && 
-            space.isOccupied
-        );
-        
-        console.log('Drop details:', {
-            source: sourceSpace,
-            currentWidgetSpaces: widgetSpaces.filter(s => s.habitId === habitId),
-            currentAssignments: habit.widget?.assignments
-        });
-    
-        if (spaceId.startsWith('habits-')) {
+        // If dropping on habits container
+        if (spaceId === 'habits-container') {
+            // Find which space the habit was dragged from
+            const sourceSpace = widgetSpaces.find(space =>
+                space.habitId === habitId && space.isOccupied
+            );
+            
             if (sourceSpace) {
-                setWidgetSpaces(widgetSpaces.map(space => 
-                    space.id === sourceSpace.id ? 
-                        { ...space, isOccupied: false, habitId: undefined } : 
-                        space
+                // Only remove the specific widget assignment
+                const newAssignments = (habit.widgets?.assignments || []).filter(a =>
+                    !(a.type === sourceSpace.type && a.order === sourceSpace.order)
+                );
+                
+                // Update UI
+                setWidgetSpaces(prevSpaces => prevSpaces.map(space =>
+                    space.id === sourceSpace.id 
+                        ? { ...space, isOccupied: false, habitId: undefined }
+                        : space
                 ));
-    
-                const currentAssignments = habit.widget?.assignments || [];
-                const [sourceType, sourceOrderStr] = sourceSpace.id.split('-');
-                const sourceOrder = parseInt(sourceOrderStr, 10);
                 
-                const newAssignments = currentAssignments.filter(assignment => {
-                    console.log('Comparing:', { 
-                        assignment, 
-                        sourceType, 
-                        sourceOrder,
-                        matches: !(assignment.type === sourceType && assignment.order === sourceOrder)
-                    });
-                    return !(assignment.type === sourceType && assignment.order === sourceOrder);
-                });
-                
+                // Save changes
                 await habit.updateWidget({ assignments: newAssignments });
             }
             return;
         }
     
+        // Get target widget details
         const [targetType, targetOrderStr] = spaceId.split('-');
         const targetOrder = parseInt(targetOrderStr, 10);
     
-        const [sourceType, sourceOrderStr] = sourceSpace ? sourceSpace.id.split('-') : [null, null];
-        const sourceOrder = sourceOrderStr ? parseInt(sourceOrderStr, 10) : null;
+        // Create a copy of current assignments
+        let newAssignments = [...(habit.widgets?.assignments || [])];
     
-        const updatedSpaces = widgetSpaces.map(space => {
-            if (space.id === spaceId) {
-                if (space.habitId && space.habitId !== habitId) {
-                    const existingHabit = habits.find(h => h.id === space.habitId);
-                    if (existingHabit?.widget) {
-                        const updatedAssignments = existingHabit.widget.assignments.filter(
-                            assignment => !(assignment.type === targetType && assignment.order === targetOrder)
-                        );
-                        existingHabit.updateWidget({ assignments: updatedAssignments });
-                    }
+        // Check if this habit is already in any space for this widget type
+        const existingSpaceForType = widgetSpaces.find(space => 
+            space.habitId === habitId && 
+            space.type === targetType &&
+            space.isOccupied
+        );
+    
+        if (existingSpaceForType) {
+            // Update existing assignment for this widget type
+            newAssignments = newAssignments.map(a =>
+                a.type === targetType ? { ...a, order: targetOrder } : a
+            );
+    
+            // Update UI spaces
+            setWidgetSpaces(prevSpaces => prevSpaces.map(space => {
+                if (space.id === spaceId) {
+                    return { ...space, isOccupied: true, habitId };
                 }
-                return { ...space, isOccupied: true, habitId };
-            }
-    
-            if (sourceSpace && space.id === sourceSpace.id) {
-                return { ...space, isOccupied: false, habitId: undefined };
-            }
-            return space;
-        });
-    
-        setWidgetSpaces(updatedSpaces);
-    
-        const currentAssignments = habit.widget?.assignments || [];
-        const newAssignments = sourceSpace ? 
-            currentAssignments.filter(assignment => {
-                console.log('Widget move comparison:', {
-                    assignment,
-                    sourceType,
-                    sourceOrder,
-                    matches: !(assignment.type === sourceType && assignment.order === sourceOrder)
-                });
-                return !(assignment.type === sourceType && assignment.order === sourceOrder);
-            }) : 
-            currentAssignments;
-    
-        await habit.updateWidget({
-            assignments: [...newAssignments, { type: targetType, order: targetOrder }]
-        });
-    };
-
-    useEffect(() => {
-        const loadHabits = async () => {
-            const loadedHabits = await HabitEntity.loadAll();
-            setHabits(loadedHabits);
-
-            const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
-
-            const updatedSpaces = spaces.map(space => {
-                const occupyingHabit = loadedHabits.find(habit =>
-                    habit.widget?.assignments.some(
-                        assignment =>
-                            assignment.type === space.type &&
-                            assignment.order === parseInt(space.id.split('-')[1], 10)
-                    )
-                );
-
-                if (occupyingHabit) {
-                    return {
-                        ...space,
-                        isOccupied: true,
-                        habitId: occupyingHabit.id
-                    };
+                if (space.id === existingSpaceForType.id) {
+                    return { ...space, isOccupied: false, habitId: undefined };
                 }
                 return space;
-            });
+            }));
+        } else {
+            // Add new assignment without affecting others
+            newAssignments.push({ type: targetType, order: targetOrder });
+    
+            // Update UI for target space only
+            setWidgetSpaces(prevSpaces => prevSpaces.map(space =>
+                space.id === spaceId 
+                    ? { ...space, isOccupied: true, habitId }
+                    : space
+            ));
+        }
+    
+        // console.log('New assignments:', JSON.stringify(newAssignments));
+        await habit.updateWidget({ assignments: newAssignments });
+    };
 
-            setWidgetSpaces(updatedSpaces);
-        };
-        loadHabits();
-    }, []);
 
     return (
         <IonPage>
@@ -429,14 +392,15 @@ const WidgetConfig: React.FC = () => {
                 </IonToolbar>
             </IonHeader>
             <IonContent>
-                <HabitsContainer habits={habits} onDrop={handleDrop} />
+                <HabitsContainer habits={habits} onDrop={(habitId, spaceId) => handleDrop(habitId, spaceId)} />
+
                 {WIDGET_SECTIONS.map((section) => (
                     <WidgetSection
                         key={section.type}
                         title={section.title}
                         spaces={widgetSpaces.filter((space) => space.type === section.type)}
                         habits={habits}
-                        onDrop={handleDrop}
+                        onDrop={(habitId, spaceId) => handleDrop(habitId, spaceId)}
                     />
                 ))}
             </IonContent>
