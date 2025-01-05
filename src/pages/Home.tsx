@@ -37,6 +37,8 @@ const TopToolbar: React.FC<{
   return (
     <IonToolbar>
       <IonButtons slot="start">
+        
+      {hasHabits && (
         <IonButton
           onClick={() => history.push('/widget-config')}
           style={{
@@ -45,6 +47,7 @@ const TopToolbar: React.FC<{
         >
           <IonIcon slot="icon-only" icon={gridOutline} />
         </IonButton>
+      )}
       </IonButtons>
       <IonTitle className="ion-text-center">Habits</IonTitle>
       <IonButtons slot="end">
