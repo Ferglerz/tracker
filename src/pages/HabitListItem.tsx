@@ -239,6 +239,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
               flexDirection: 'column',
               gap: '12px',
               padding: '8px 16px',
+              margin: 'auto'
             }}>
               <div style={{
                 display: 'flex',
@@ -321,9 +322,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                   data={getHistoryRange(habit, 57)}
                   color={habit.bgColor}
                   type={habit.type}
-                  baseSize={26}
-                  gap={4}
-                  cellsPerRow={19}
+                  baseSize={22}
+                  gap={3}
+                  cellsPerRow={14}
                 />
               </div>
             </div>

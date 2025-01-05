@@ -1,7 +1,7 @@
 import Foundation
 import WidgetKit
 
-struct Habit: Codable, Identifiable { // Added Identifiable
+struct Habit: Codable {
     var id: String
     var name: String
     var type: HabitType
@@ -12,16 +12,6 @@ struct Habit: Codable, Identifiable { // Added Identifiable
     var isComplete: Bool
     var bgColor: String?
     var history: [String: HistoryValue]
-    var widgets: WidgetAssignment? // Added widget property
-}
-
-struct WidgetAssignment: Codable { // Added WidgetAssignment struct
-    var assignments: [Assignment]
-}
-
-struct Assignment: Codable, Hashable { // Added Assignment struct
-    let type: String
-    let order: Int
 }
 
 enum HistoryValue: Codable {
@@ -33,10 +23,10 @@ enum HistoryValue: Codable {
         if let boolValue = try? container.decode(Bool.self) {
             self = .boolean(boolValue)
         } else if let arrayValue = try? container.decode([Int].self) {
-            self = .quantity(arrayValue)
-        } else {
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "History value must be either Bool or [Int]")
-        }
+                self = .quantity(arrayValue)
+            } else {
+                    throw DecodingError.dataCorruptedError(in: container, debugDescription: "History value must be either Bool or [Int]")
+            }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -82,31 +72,31 @@ class IonicStorageManager {
             let dateKey = date ?? ISO8601DateFormatter().string(from: Date())
 
             switch value {
-            case let checked as Bool:
+        case let checked as Bool:
                 updatedHistory[dateKey] = .boolean(checked)
                 updatedHabit.isChecked = checked
                 updatedHabit.isComplete = checked
                 updatedHabit.history = updatedHistory
             case let quantity as Int:
                 updatedHistory[dateKey] = .quantity([quantity, updatedHabit.goal ?? 0])
-                updatedHabit.quantity = quantity
+            updatedHabit.quantity = quantity
                 updatedHabit.isComplete = quantity >= (updatedHabit.goal ?? Int.max)
                 updatedHabit.history = updatedHistory
             default:
                 throw NSError(domain: "IonicStorage", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid value type"])
-            }
+        }
 
             currentData[index] = updatedHabit
 
             let habitsContainer = HabitsData(habits: currentData)
             let encoder = JSONEncoder()
             if let jsonData = try? encoder.encode(habitsContainer),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
                 userDefaults.set(jsonString, forKey: storageKey)
                 userDefaults.synchronize()
 
                 if #available(iOS 14.0, *) {
-                    WidgetCenter.shared.reloadAllTimelines()
+                WidgetCenter.shared.reloadAllTimelines()
                 }
             }
         }
