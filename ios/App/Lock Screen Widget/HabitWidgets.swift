@@ -93,7 +93,7 @@ struct SimpleEntry: TimelineEntry {
     let error: Error?
 }
 
-// MARK: - Widget View
+// MARK: - Widget Views
 struct HabitWidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) var widgetFamily
@@ -106,9 +106,41 @@ struct HabitWidgetEntryView: View {
         } else {
             switch widgetFamily {
             case .accessoryRectangular:
-                AccessoryRectangularWidgetView(entry: entry)
+                // Lock Screen widgets
+                Group {
+                    if !getHabitsForWidget(type: "lock1", entry: entry).isEmpty {
+                        LockScreenWidget(entry: entry, widgetType: "lock1")
+                    } else if !getHabitsForWidget(type: "lock2", entry: entry).isEmpty {
+                        LockScreenWidget(entry: entry, widgetType: "lock2")
+                    }
+                }
+            case .systemSmall:
+                // Small widgets (2x2)
+                Group {
+                    if !getHabitsForWidget(type: "small1", entry: entry).isEmpty {
+                        SmallWidget(entry: entry, widgetType: "small1")
+                    } else if !getHabitsForWidget(type: "small2", entry: entry).isEmpty {
+                        SmallWidget(entry: entry, widgetType: "small2")
+                    }
+                }
             case .systemMedium:
-                SystemMediumWidgetView(entry: entry)
+                // Medium widgets (2x4)
+                Group {
+                    if !getHabitsForWidget(type: "medium1", entry: entry).isEmpty {
+                        MediumWidget(entry: entry, widgetType: "medium1")
+                    } else if !getHabitsForWidget(type: "medium2", entry: entry).isEmpty {
+                        MediumWidget(entry: entry, widgetType: "medium2")
+                    }
+                }
+            case .systemLarge:
+                // Large widgets (4x4)
+                Group {
+                    if !getHabitsForWidget(type: "large1", entry: entry).isEmpty {
+                        LargeWidget(entry: entry, widgetType: "large1")
+                    } else if !getHabitsForWidget(type: "large2", entry: entry).isEmpty {
+                        LargeWidget(entry: entry, widgetType: "large2")
+                    }
+                }
             default:
                 Text("This widget size is not supported")
             }
@@ -116,13 +148,14 @@ struct HabitWidgetEntryView: View {
     }
 }
 
-// MARK: - Accessory Rectangular Widget View
-struct AccessoryRectangularWidgetView: View {
-    var entry: Provider.Entry
-
+// Lock Screen Widget (Accessory Rectangular)
+struct LockScreenWidget: View {
+    let entry: Provider.Entry
+    let widgetType: String
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(entry.habits, id: \.id) { habit in
+            ForEach(getHabitsForWidget(type: widgetType, entry: entry), id: \.id) { habit in
                 HabitRow(habit: habit, widgetFamily: .accessoryRectangular)
             }
         }
@@ -130,13 +163,32 @@ struct AccessoryRectangularWidgetView: View {
     }
 }
 
-// MARK: - System Medium Widget View
-struct SystemMediumWidgetView: View {
-    var entry: Provider.Entry
-
+// Small Widget (2x2)
+struct SmallWidget: View {
+    let entry: Provider.Entry
+    let widgetType: String
+    
     var body: some View {
-        HStack(spacing: 16) { // Added horizontal spacing
-            ForEach(getHabitsForWidget(type: "wide1", entry: entry), id: \.id) { habit in
+        VStack(spacing: 8) {
+            ForEach(getHabitsForWidget(type: widgetType, entry: entry), id: \.id) { habit in
+                HabitRow(habit: habit, widgetFamily: .systemSmall)
+            }
+        }
+        .padding(12)
+    }
+}
+
+// Medium Widget (2x4)
+struct MediumWidget: View {
+    let entry: Provider.Entry
+    let widgetType: String
+    
+    var body: some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ], spacing: 16) {
+            ForEach(getHabitsForWidget(type: widgetType, entry: entry), id: \.id) { habit in
                 WidgetHabitColumn(habit: habit)
             }
         }
@@ -144,70 +196,25 @@ struct SystemMediumWidgetView: View {
     }
 }
 
-// MARK: - Helper function to get habits for a specific widget type
-func getHabitsForWidget(type: String, entry: Provider.Entry) -> [Habit] {
-    var habits: [Habit] = []
-    var order = 1
-
-    while let habit = entry.habits.first(where: { habit in
-        guard let assignments = habit.widgets?.assignments else { return false }
-        let matchingAssignment = assignments.contains { $0.type == type && $0.order == order }
-        return matchingAssignment
-    }) {
-        habits.append(habit)
-        order += 1
-    }
-
-    return habits
-}
-
-// MARK: - Widget Habit Column View
-struct WidgetHabitColumn: View {
-    let habit: Habit
-
-    private var habitColor: Color {
-        Color(hex: habit.bgColor ?? "#000000") ?? .blue
-    }
-
+// Large Widget (4x4)
+struct LargeWidget: View {
+    let entry: Provider.Entry
+    let widgetType: String
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(habit.name)
-                .font(.system(size: 16))
-                .fontWeight(.semibold)
-                .lineLimit(1)
-            if habit.type == .quantity {
-                Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "") \(habit.unit ?? "")")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-            HStack(spacing: 8) {
-                if habit.type == .quantity {
-                    Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(habitColor)
-                    }
-                    .buttonStyle(.plain)
-                    Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(habitColor)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Button(intent: ToggleHabitIntent(habitId: habit.id)) {
-                        Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 20))
-                            .foregroundColor(habitColor)
-                    }
-                    .buttonStyle(.plain)
-                }
+        LazyVGrid(columns: [
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ], spacing: 16) {
+            ForEach(getHabitsForWidget(type: widgetType, entry: entry), id: \.id) { habit in
+                WidgetHabitColumn(habit: habit)
             }
         }
+        .padding(16)
     }
 }
 
+// MARK: - Helper Views
 struct HabitRow: View {
     let habit: Habit
     let widgetFamily: WidgetFamily
@@ -304,6 +311,69 @@ struct HabitRow: View {
     }
 }
 
+struct WidgetHabitColumn: View {
+    let habit: Habit
+
+    private var habitColor: Color {
+        Color(hex: habit.bgColor ?? "#000000") ?? .blue
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(habit.name)
+                .font(.system(size: 16))
+                .fontWeight(.semibold)
+                .lineLimit(1)
+            if habit.type == .quantity {
+                Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "") \(habit.unit ?? "")")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            HStack(spacing: 8) {
+                if habit.type == .quantity {
+                    Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
+                    Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button(intent: ToggleHabitIntent(habitId: habit.id)) {
+                        Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 20))
+                            .foregroundColor(habitColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Helper Functions
+func getHabitsForWidget(type: String, entry: Provider.Entry) -> [Habit] {
+    var habits: [Habit] = []
+    var order = 1
+
+    while let habit = entry.habits.first(where: { habit in
+        guard let assignments = habit.widgets?.assignments else { return false }
+        let matchingAssignment = assignments.contains { $0.type == type && $0.order == order }
+        return matchingAssignment
+    }) {
+        habits.append(habit)
+        order += 1
+    }
+
+    return habits
+}
+
 extension Color {
     init?(hex: String) {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -337,19 +407,12 @@ struct HabitWidgets: Widget {
         }
         .configurationDisplayName("Habit Tracker")
         .description("Track your daily habits")
-        .supportedFamilies([.accessoryRectangular, .systemMedium])
-    }
-}
+        .supportedFamilies([
+            .accessoryRectangular,  // Lock Screen
+            .systemSmall,           // Home Screen 2x2
+            .systemMedium,          // Home Screen 2x4
+            .systemLarge            // Home Screen 4x4
+                    ])
+                }
+            }
 
-// MARK: - Previews
-#Preview(as: .systemMedium) {
-    HabitWidgets()
-} timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil)
-}
-
-#Preview(as: .accessoryRectangular) {
-    HabitWidgets()
-} timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil)
-}

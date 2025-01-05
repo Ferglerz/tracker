@@ -31,15 +31,14 @@ interface WidgetSection {
 }
 
 const WIDGET_SECTIONS: WidgetSection[] = [
-    { title: 'Wide Widget 1', spaces: 6, type: 'wide1' },
-    { title: 'Wide Widget 2', spaces: 6, type: 'wide2' },
-    { title: 'Large Widget 1', spaces: 8, type: 'large1' },
-    { title: 'Large Widget 2', spaces: 8, type: 'large2' },
+    { title: 'Lock Screen 1', spaces: 1, type: 'lock1' },
+    { title: 'Lock Screen 2', spaces: 1, type: 'lock2' },
     { title: 'Small Widget 1', spaces: 3, type: 'small1' },
     { title: 'Small Widget 2', spaces: 3, type: 'small2' },
-    { title: 'Lock Screen Wide', spaces: 2, type: 'lockwide' },
-    { title: 'Lock Screen Half', spaces: 1, type: 'lockhalf' },
-    { title: 'Lock Screen Single', spaces: 1, type: 'locksingle' },
+    { title: 'Medium Widget 1', spaces: 6, type: 'medium1' },
+    { title: 'Medium Widget 2', spaces: 6, type: 'medium2' },
+    { title: 'Large Widget 1', spaces: 8, type: 'large1' },
+    { title: 'Large Widget 2', spaces: 8, type: 'large2' },
 ];
 
 const createEmptySpaces = (section: WidgetSection): WidgetSpace[] => {
