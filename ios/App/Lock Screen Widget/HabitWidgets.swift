@@ -119,7 +119,7 @@ struct HabitRow: View {
     let widgetFamily: WidgetFamily
     
     private var habitColor: Color {
-        Color(hex: habit.bgColor ?? "#000000") ?? .blue
+        Color(hex: habit.bgColor ) ?? .blue
     }
     
     var body: some View {

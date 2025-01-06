@@ -28,16 +28,16 @@ export function useHabits() {
 
   useEffect(() => {
     const setupListener = async () => {
-      const subscription = await App.addListener('appStateChange', ({ isActive }) => {
+      const subscription = await App.addListener('appStateChange', async ({ isActive }) => {
         if (isActive) {
-          loadHabits(true);
+          await loadHabits(true);
         }
       });
       return () => { subscription.remove(); };
     };
   
     setupListener();
-  }, [loadHabits]);
+}, [loadHabits])
 
   // Subscribe to storage changes
   useEffect(() => {

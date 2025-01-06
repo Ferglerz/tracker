@@ -1,4 +1,3 @@
-// HabitListItem.tsx
 import React, { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react';
 import {
   IonItem,
@@ -316,8 +315,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                 </div>
               </div>
 
-              <div style={{
-              }}>
+              <div>
                 <HistoryGrid
                   data={getHistoryRange(habit, 57)}
                   color={habit.bgColor}
