@@ -24,6 +24,7 @@ class NativeStorageStrategy implements StorageStrategy {
       });
 
       await WidgetsBridgePlugin.reloadAllTimelines();
+      //alert('Saved to native storage: ' + key + ' - ' + JSON.stringify(value));
     } catch (error) {
       alert('Failed to save to native storage:' + error);
       throw error;

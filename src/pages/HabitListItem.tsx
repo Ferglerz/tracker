@@ -11,7 +11,7 @@ import {
   IonItemOption,
   IonReorder,
 } from '@ionic/react';
-import { addOutline, removeOutline, calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
+import { calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
 import { formatDateKey, getHistoryRange } from './Utilities';
