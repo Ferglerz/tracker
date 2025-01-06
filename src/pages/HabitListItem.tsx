@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useCallback, useRef, useState, useEffect } from 'react';
+import React, { forwardRef, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -13,7 +13,7 @@ import {
 import { calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
 import Calendar from './Calendar';
-import { formatDateKey, getHistoryRange } from './Utilities';
+import { getHistoryRange } from './Utilities';
 import { HabitStorage } from './Storage';
 import { HistoryGrid } from './HistoryGrid';
 import { AnimatedIncrements } from './AnimatedIncrements';
@@ -26,35 +26,120 @@ interface Props {
   openCalendarId: string | null;
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
-  isReorderMode: boolean;
-  onDateSelected?: (date: Date) => void;
 }
 
-export interface HabitListItemRef {
-  closeSliding: () => Promise<void>;
-  openSliding: () => Promise<void>;
-}
+const LONG_PRESS_DURATION = 350;
 
-const LONG_PRESS_DURATION = 500;
+const HabitDetails = ({ habit, habitListItemState }:
+  {
+    habit: HabitEntity;
+    habitListItemState: {
+      value: number | boolean;
+      goal: number;
+    };
+  }
+) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1,
+  }}>
+    <div style={{ fontWeight: 500 }}>{habit.name}</div>
+    {habit.type === 'quantity' &&
+      typeof habitListItemState.value === 'number' &&
+      habitListItemState.goal > 0 &&
+      habitListItemState.value >= habitListItemState.goal && (
+        <IonBadge color="success">Complete!</IonBadge>
+      )}
+    {habit.type === 'quantity' && (
+      <div style={{
+        fontSize: '0.875rem',
+        color: 'var(--ion-color-medium)',
+        marginRight: '8px'
+      }}>
+        {habitListItemState.value}{habitListItemState.goal ? ` / ${habitListItemState.goal}` : ''} {habit.unit}
+      </div>
+    )}
+  </div>
+);
 
-export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
+const InteractionControls = ({ 
+  habit, 
+  habitListItemState, 
+  handleValueChange 
+}: {
+  habit: HabitEntity;
+  habitListItemState: {
+    value: number | boolean;
+    goal: number;
+  };
+  handleValueChange: (value: number | boolean) => Promise<void>;
+}) => (
+  <div style={{    
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeft: '1px solid var(--ion-border-color)',
+    padding: '0px',
+  }}
+    onClick={(e) => {
+      if (habit.type === 'checkbox') {
+        e.stopPropagation();
+      }
+    }}>
+    {habit.type === 'checkbox' ? (
+      <IonCheckbox
+        checked={habitListItemState.value as boolean}
+        alignment='center'
+        onIonChange={async (e) => {
+          e.stopPropagation();
+          await handleValueChange(e.detail.checked);
+        }}
+        style={{
+          '--checkbox-background-checked': habit.bgColor,
+          '--checkbox-background-hover': habit.bgColor,
+          '--checkbox-border-color': habit.bgColor,
+          cursor: 'pointer',
+        }}
+      />
+    ) : (
+      <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <AnimatedIncrements
+          onClick={() => handleValueChange(Math.max(0, (habitListItemState.value as number) - 1))}
+          color={habit.bgColor}
+          type="decrement"
+        />
+        <AnimatedIncrements
+          onClick={() => handleValueChange((habitListItemState.value as number) + 1)}
+          color={habit.bgColor}
+          type="increment"
+        />
+      </div>
+    )}
+  </div>
+);
+
+export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
   habit,
   onEdit,
   onDelete,
   isCalendarOpen,
   openCalendarId,
   onToggleCalendar,
-  isReorderMode,
-  onDateSelected
 }, ref) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
-  const reorderRef = useRef<HTMLIonReorderElement>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isReordering, setIsReordering] = useState(false);
+  
+  const getTodayString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
 
-  const [habitState, setHabitState] = useState(() => {
-    const dateKey = formatDateKey(selectedDate);
-    const dateValue = habit.history[dateKey];
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const cellsPerRow = 14;
+
+  const [habitListItemState, setHabitState] = useState(() => {
+    const dateValue = habit.history[selectedDate];
 
     return {
       value: habit.type === 'checkbox'
@@ -64,26 +149,25 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
     };
   });
 
-  useEffect(() => {
-    if (!isCalendarOpen) {
-      const today = new Date();
-      const todayKey = formatDateKey(today);
-      const todayValue = habit.history[todayKey];
+  const longPressActive = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    const todayString = getTodayString();
+    const todayValue = habit.history[todayString];
+
+    if (!isCalendarOpen) {
       setHabitState({
         value: habit.type === 'checkbox'
           ? (todayValue?.isChecked ?? false)
           : (todayValue?.quantity ?? 0),
         goal: todayValue?.goal ?? habit.goal ?? 0
       });
-      setSelectedDate(today);
+      setSelectedDate(todayString);
     }
-  }, [isCalendarOpen, habit]);
 
-  useEffect(() => {
     const updateStateFromHabit = (habitData: HabitEntity) => {
-      const dateKey = formatDateKey(selectedDate);
-      const dateValue = habitData.history[dateKey];
+      const dateValue = habitData.history[selectedDate];
 
       setHabitState({
         value: habitData.type === 'checkbox'
@@ -96,7 +180,7 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
     updateStateFromHabit(habit);
 
     const storage = HabitStorage.getInstance();
-    const subscription = storage.changes.subscribe(async (data) => {
+    const subscription = storage.changes.subscribe(async () => {
       const habits = await HabitEntity.loadAll();
       const updatedHabit = habits.find(h => h.id === habit.id);
       if (updatedHabit) {
@@ -105,55 +189,18 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
     });
 
     return () => subscription.unsubscribe();
-  }, [habit, selectedDate]);
-
-  useEffect(() => {
-    const reorderElement = reorderRef.current;
-    if (!reorderElement) return;
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'reorder') {
-          const isReorderActive = reorderElement.hasAttribute('reorder');
-          setIsReordering(isReorderActive);
-
-          if (isReorderActive) {
-            slidingRef.current?.close();
-          }
-        }
-      });
-    });
-
-    observer.observe(reorderElement, {
-      attributes: true,
-      attributeFilter: ['reorder']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  useImperativeHandle(ref, () => ({
-    closeSliding: async () => {
-      await slidingRef.current?.close();
-    },
-    openSliding: async () => {
-      await slidingRef.current?.open('end');
-    }
-  }));
+  }, [isCalendarOpen, habit, selectedDate]);
 
   const handleValueChange = useCallback(async (newValue: number | boolean) => {
     if (habit.type === 'checkbox') {
       await habit.setChecked(newValue as boolean, selectedDate);
-      setHabitState(prev => ({ ...prev, value: newValue }));
     } else {
-      await habit.setValue(newValue as number, selectedDate, habitState.goal);
-      setHabitState(prev => ({ ...prev, value: newValue }));
+      await habit.setValue(newValue as number, selectedDate, habitListItemState.goal);
     }
-  }, [habit, selectedDate, habitState.goal]);
+    setHabitState(prev => ({ ...prev, value: newValue }));
+  }, [habit, selectedDate, habitListItemState.goal]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    if (isReorderMode) return;
-
     e.preventDefault();
     e.stopPropagation();
 
@@ -163,39 +210,58 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
     }
 
     if (habit.type === 'checkbox') {
-      handleValueChange(!habitState.value as boolean);
+      handleValueChange(!habitListItemState.value as boolean);
     }
-  }, [habit, habitState.value, handleValueChange, openCalendarId, onToggleCalendar, isReorderMode]);
+  }, [habit, habitListItemState.value, handleValueChange, openCalendarId, onToggleCalendar]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (isReordering) return;
-
     const target = e.target as HTMLElement;
     if (target.closest('ion-reorder')) return;
 
-    let timer: ReturnType<typeof setTimeout>;
+    longPressActive.current = true;
 
-    const start = () => {
-      timer = setTimeout(() => {
-        if (!isReordering) {
-          slidingRef.current?.open('end');
-        }
-      }, LONG_PRESS_DURATION);
+    timer.current = setTimeout(() => {
+      if (longPressActive.current) {
+        slidingRef.current?.open('end');
+      }
+    }, LONG_PRESS_DURATION);
+  }, []);
+
+  const cancelLongPress = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    longPressActive.current = false;
+  }, []);
+
+  const handleEdit = useCallback(() => {
+    slidingRef.current?.close();
+    onEdit();
+  }, [onEdit]);
+
+  const handleToggleCalendarInternal = useCallback(() => {
+    slidingRef.current?.close();
+    onToggleCalendar(habit.id);
+  }, [habit.id, onToggleCalendar]);
+
+  useEffect(() => {
+    document.addEventListener('mouseup', cancelLongPress);
+    document.addEventListener('touchend', cancelLongPress);
+
+    return () => {
+      document.removeEventListener('mouseup', cancelLongPress);
+      document.removeEventListener('touchend', cancelLongPress);
     };
+  }, [cancelLongPress]);
 
-    const cancel = () => {
-      clearTimeout(timer);
-    };
-
-    start();
-
-    document.addEventListener('mouseup', cancel, { once: true });
-    document.addEventListener('touchend', cancel, { once: true });
-  }, [isReordering]);
+  const historyRange = useMemo(() => {
+    return getHistoryRange(habit, cellsPerRow * 3);
+  }, [habit, cellsPerRow]);
 
   return (
     <>
-      <IonItemSliding ref={slidingRef}>
+      <IonItemSliding ref={slidingRef} key={habit.id}>
         <IonItem
           className="ion-activatable"
           style={{
@@ -219,7 +285,6 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
             }} />
 
             <IonReorder
-              ref={reorderRef}
               style={{
                 width: '32px',
                 display: 'flex',
@@ -246,105 +311,36 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  flex: 1,
-                }}>
-                  <div style={{ fontWeight: 500 }}>{habit.name}</div>
-                  {habit.type === 'quantity' &&
-                    typeof habitState.value === 'number' &&
-                    habitState.goal > 0 &&
-                    habitState.value >= habitState.goal && (
-                      <IonBadge color="success">Complete!</IonBadge>
-                    )}
-                </div>
-
-                {habit.type === 'quantity' && (
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--ion-color-medium)',
-                    marginRight: '8px'
-                  }}>
-                    {habitState.value}{habitState.goal ? ` / ${habitState.goal}` : ''} {habit.unit}
-                  </div>
-                )}
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderLeft: '1px solid var(--ion-border-color)',
-                  padding: '0px',
-                }}
-                  onClick={(e) => {
-                    if (habit.type === 'checkbox') {
-                      e.stopPropagation();
-                    }
-                  }}>
-                  {habit.type === 'checkbox' ? (
-                    <IonCheckbox
-                      checked={habitState.value as boolean}
-                      alignment='center'
-                      onIonChange={async (e) => {
-                        e.stopPropagation();
-                        await handleValueChange(e.detail.checked);
-                      }}
-                      style={{
-                        '--checkbox-background-checked': habit.bgColor,
-                        '--checkbox-background-hover': habit.bgColor,
-                        '--checkbox-border-color': habit.bgColor,
-                        cursor: 'pointer',
-                      }}
-                    />
-                  ) : (
-                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AnimatedIncrements
-                        onClick={() => handleValueChange(Math.max(0, (habitState.value as number) - 1))}
-                        color={habit.bgColor}
-                        type="decrement"
-                      />
-                      <AnimatedIncrements
-                        onClick={() => handleValueChange((habitState.value as number) + 1)}
-                        color={habit.bgColor}
-                        type="increment"
-                      />
-                    </div>
-                  )}
-                </div>
+                <HabitDetails habit={habit} habitListItemState={habitListItemState} />
+                <InteractionControls habit={habit} habitListItemState={habitListItemState} handleValueChange={handleValueChange} />
               </div>
 
               <div>
                 <HistoryGrid
-                  data={getHistoryRange(habit, 57)}
                   color={habit.bgColor}
                   type={habit.type}
                   baseSize={22}
                   gap={3}
-                  cellsPerRow={14}
+                  cellsPerRow={cellsPerRow}
+                  data={historyRange}
                 />
               </div>
             </div>
           </div>
 
-          <IonRippleEffect style={{
-            display: isReorderMode ? 'none' : undefined
-          }} />
+          <IonRippleEffect />
         </IonItem>
 
         <IonItemOptions side="end">
           {!isCalendarOpen && (
             <IonItemOption
               color="primary"
-              onClick={() => {
-                onToggleCalendar(habit.id);
-              }}
+              onClick={handleToggleCalendarInternal}
             >
               <IonIcon slot="icon-only" icon={calendar} />
             </IonItemOption>
           )}
-          <IonItemOption color="warning" onClick={onEdit}>
+          <IonItemOption color="warning" onClick={handleEdit}>
             <IonIcon slot="icon-only" icon={pencil} />
           </IonItemOption>
           <IonItemOption color="danger" onClick={onDelete}>
@@ -358,7 +354,9 @@ export const HabitListItem = forwardRef<HabitListItemRef, Props>(({
           habit={habit}
           onClose={() => onToggleCalendar(habit.id)}
           onValueChange={handleValueChange}
-          onDateSelected={onDateSelected}
+          onDateSelected={(date: string) => {
+            setSelectedDate(date);
+          }}
         />
       )}
     </>

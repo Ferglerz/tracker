@@ -9,7 +9,6 @@ import {
   IonLabel,
   IonInput,
   IonButton,
-  IonButtons,
   IonFooter
 } from '@ionic/react';
 import { format, isValid, parseISO } from 'date-fns';
@@ -34,17 +33,16 @@ const DateEditModal: React.FC<Props> = ({
   const [goal, setGoal] = useState<number>(habit.goal || 0);
 
   useEffect(() => {
-    const dateObject = new Date(date);
-    const historyEntry = habit.getValueForDate(dateObject);
+    const historyEntry = habit.history[date];
 
     if (historyEntry) {
-        setValue(historyEntry.quantity);
-        setGoal(historyEntry.goal ?? habit.goal ?? 0);
+      setValue(historyEntry.quantity);
+      setGoal(historyEntry.goal ?? habit.goal ?? 0);
     } else {
-        setValue(0);
-        setGoal(habit.goal ?? 0);
+      setValue(0);
+      setGoal(habit.goal ?? 0);
     }
-}, [habit, date, isOpen]);
+  }, [habit, date, isOpen]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -77,11 +75,11 @@ const DateEditModal: React.FC<Props> = ({
     <IonModal
       isOpen={isOpen}
       onDidDismiss={onClose}
-      className="date-edit-modal"
-      style={{
-        '--width': '50%',
-        '--height': '320px'
-      } as React.CSSProperties}
+      breakpoints={[0, 1]}
+      initialBreakpoint={1}
+      handle
+      handleBehavior="cycle"
+      className="auto-height-modal"
     >
       <IonHeader>
         <IonToolbar>
@@ -89,8 +87,8 @@ const DateEditModal: React.FC<Props> = ({
         </IonToolbar>
       </IonHeader>
 
-      <IonContent className="ion-padding">
-        <div style={{ maxWidth: '300px', margin: '0 auto' }}>
+      <IonContent className="ion-padding dateEditModal">
+        
           <IonItem>
             <IonLabel position="stacked">{inputLabel}</IonLabel>
             <IonInput
@@ -111,7 +109,6 @@ const DateEditModal: React.FC<Props> = ({
               step="1"
             />
           </IonItem>
-        </div>
       </IonContent>
 
       <IonFooter>

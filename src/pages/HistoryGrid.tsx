@@ -1,24 +1,25 @@
 import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
-import { Habit } from './Types';
+import { Habit } from './TypesAndProps';
+import { HistoryGridProps } from './TypesAndProps';
 
-type HistoryValue = boolean | [number, number];
+// --- Constants ---
+const DEFAULT_GRAY = 'rgba(128, 128, 128, 0.1)';
+const MAX_ROW_OPACITY = 0.7;
+const ROW_OPACITY_DECREMENT = 0.15;
+const DEFAULT_BASE_SIZE = 8;
+const DEFAULT_GAP = 1;
+const DEFAULT_CELLS_PER_ROW = 20;
+const DEFAULT_ROWS_COUNT = 3;
+const DEFAULT_CORNER_RADIUS = 5;
 
-interface HistoryGridProps {
-  data: Array<{ date: string; value: HistoryValue }>;
-  color: string;
-  type: Habit.Type;
-  baseSize?: number; 
-  gap?: number;
-  rowPadding?: number;
-  cellsPerRow?: number;
-}
+export type HistoryValue = boolean | [number, number];
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
   cornerRadius: number;
 }> = ({ squareSize, cornerRadius }) => {
-  const pathD = useMemo(() => 
+  const pathD = useMemo(() =>
     generateSquirclePath(squareSize, squareSize, cornerRadius),
     [squareSize, cornerRadius]
   );
@@ -56,13 +57,13 @@ const getFillColor = (
   type: Habit.Type,
   color: string
 ): string => {
-  if (type === 'checkbox') {
-    return (value as boolean) ? color : 'rgba(128, 128, 128, 0.1)';
+  if (typeof value === 'boolean') {
+    return value ? color : DEFAULT_GRAY;
   } else {
-    const [quantity, goal] = value as [number, number];
+    const [quantity, goal] = value;
     const hasQuantity = quantity > 0;
     const colorIntensity = goal && hasQuantity ? Math.min(quantity / goal, 1) : 1;
-    return hasQuantity ? adjustColorOpacity(color, colorIntensity) : 'rgba(128, 128, 128, 0.1)';
+    return hasQuantity ? adjustColorOpacity(color, colorIntensity) : DEFAULT_GRAY;
   }
 };
 
@@ -75,16 +76,19 @@ const DaySquare: React.FC<{
   color: string;
 }> = ({ day, index, squareSize, rowOpacity, type, color }) => {
   const fill = getFillColor(day.value, type, color);
-  
+
+  // --- Optimize Render Cycles: Extract Static Style ---
+  const containerStyle = {
+    width: `${squareSize}px`,
+    height: `${squareSize}px`,
+    opacity: rowOpacity,
+    position: 'relative' as const, // Explicitly type as 'relative'
+  };
+
   return (
     <div
       key={`${day.date}-${index}`}
-      style={{
-        width: `${squareSize}px`,
-        height: `${squareSize}px`,
-        opacity: rowOpacity,
-        position: 'relative'
-      }}
+      style={containerStyle}
     >
       <svg
         width="100%"
@@ -129,27 +133,31 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   data,
   color,
   type,
-  baseSize = 8,
-  gap = 1,
-  cellsPerRow = 20,
+  baseSize = DEFAULT_BASE_SIZE,
+  gap = DEFAULT_GAP,
+  cellsPerRow = DEFAULT_CELLS_PER_ROW,
 }) => {
   const squareSize = baseSize - gap;
-  const cornerRadius = 5;
-  const rowsCount = 3;
+  const cornerRadius = DEFAULT_CORNER_RADIUS;
+  const rowsCount = DEFAULT_ROWS_COUNT;
+  const gridWidth = cellsPerRow * squareSize + (cellsPerRow - 1) * gap;
+
+  // --- Optimize Render Cycles: Extract Static Style ---
+  const gridContainerStyle = {
+    width: `${gridWidth}px`,
+    display: 'flex',
+    flexDirection: 'column' as const, // Explicitly type as 'column'
+    padding: '0px',
+    gap: `${gap}px`,
+  };
 
   return (
-    <div style={{
-      width: `${cellsPerRow * squareSize + (cellsPerRow - 1) * gap}px`,
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '0px',
-      gap: `${gap}px`
-    }}>
+    <div style={gridContainerStyle}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
-      
+
       {[...Array(rowsCount)].map((_, rowIndex) => {
         const rowStart = rowIndex * cellsPerRow;
-        const rowOpacity = 0.7 - (rowsCount - 1 - rowIndex) * 0.15;
+        const rowOpacity = MAX_ROW_OPACITY - (rowsCount - 1 - rowIndex) * ROW_OPACITY_DECREMENT;
 
         return (
           <GridRow

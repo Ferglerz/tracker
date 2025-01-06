@@ -1,9 +1,8 @@
 // HabitStorage.ts
 import { Storage } from '@ionic/storage';
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
-import { errorHandler } from './ErrorUtilities';
 import { Capacitor } from '@capacitor/core';
-import { Habit } from './Types';
+import { Habit } from './TypesAndProps';
 import { Subject, Observable } from 'rxjs';
 
 interface StorageStrategy {
@@ -144,7 +143,7 @@ export class HabitStorage {
         await WidgetsBridgePlugin.reloadAllTimelines();
       }
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit data');
+      alert('Failed to save habit data');
       throw error;
     }
   }
@@ -177,13 +176,6 @@ export class HabitStorage {
     await this.storage.clear(this.storageKey);
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
       await WidgetsBridgePlugin.reloadAllTimelines();
-    }
-  }
-
-  destroy(): void {
-    if (this.pollInterval !== null) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
     }
   }
 }

@@ -56,15 +56,14 @@ ion-item.habit::part(native) {
   height: 1px;
 }
 
-.date-edit-modal {
-  --min-width: 280px; /* Set a minimum width for very small screens */
+.dateEditModal {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.date-edit-modal ion-modal {
-  --border-radius: 8px;
-}
-
-.date-edit-modal::part(content) {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.auto-height-modal {
+  --height: auto;
 }

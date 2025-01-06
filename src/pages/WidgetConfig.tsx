@@ -60,7 +60,7 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
             const r = parseInt(color.slice(1, 3), 16);
             const g = parseInt(color.slice(3, 5), 16);
             const b = parseInt(color.slice(5, 7), 16);
-            const lighter = [r, g, b].map(c => Math.min(255, c + (255 - c) * 0.1));
+            const lighter = [r, g, b].map(c => Math.min(255, c + (255 - c) * 0.3));
             return `rgb(${lighter[0]}, ${lighter[1]}, ${lighter[2]})`;
         }
         return color;
@@ -85,8 +85,7 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
                 width="100%"
                 height="100%"
                 cornerRadius={16}
-                fill={habit.bgColor}
-                style={{
+                fill={[getLighterColor(habit.bgColor), habit.bgColor]}                style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,

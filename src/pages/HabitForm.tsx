@@ -18,9 +18,8 @@ import {
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
 import { HabitEntity } from './HabitEntity';
-import { Habit } from './Types';
-import { errorHandler } from './ErrorUtilities';
-import { formatDateKey } from './Utilities';
+import { Habit } from './TypesAndProps';
+import { getTodayString } from './Utilities';
 
 const PRESET_COLORS = [
   '#657c9a', // Muted Blue 
@@ -67,80 +66,66 @@ const HabitForm: React.FC<Props> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      errorHandler.showWarning('Please enter a habit name');
-      return;
-    }
 
     setIsSaving(true);
     try {
+      const today = getTodayString();
+
       const habitProps: Habit.Habit = {
+        ...editedHabit as Habit.Habit ?? {},
         id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
         goal: type === 'quantity' ? goal : undefined,
         bgColor: color,
-        quantity: editedHabit?.quantity ?? 0,
-        isChecked: editedHabit?.isChecked ?? false,
-        isComplete: editedHabit?.isComplete ?? false,
-        history: editedHabit?.history ?? {},
-        listOrder: editedHabit?.listOrder ?? 0
-      };
-
-      // If we're editing a quantity habit and changing its goal
-      if (editedHabit && type === 'quantity' && goal !== editedHabit.goal) {
-        const today = new Date();
-        const dateKey = formatDateKey(today);
-        const currentEntry = editedHabit.history[dateKey];
-        
-        // Update today's history entry with the new goal
-        habitProps.history = {
-          ...habitProps.history,
-          [dateKey]: {
-            quantity: currentEntry?.quantity ?? 0,
-            goal: goal ?? 0,
+        listOrder: editedHabit?.listOrder ?? 0,
+        history: {
+          ...editedHabit?.history,
+          [today]: {
+            quantity: type === 'quantity' ? (goal ?? 0) : 0, 
+            goal: type === 'quantity' ? (goal ?? 0) : 0,   
             isChecked: false
           }
-        };
-      }
+        }
+      };
 
       await HabitEntity.create(habitProps);
       onClose();
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to save habit');
+      alert('Failed to save habit');
     } finally {
       setIsSaving(false);
     }
-};
-
+  };
+  
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
         <IonToolbar>
           <IonTitle>{title}</IonTitle>
           <IonButtons slot="start">
-  <IonButton 
-    onClick={onClose}
-    style={{
-      '--color': 'var(--neutral-button)'
-    }}
-  >
-    Cancel
-  </IonButton>
-</IonButtons>
-<IonButtons slot="end">
-  <IonButton
-    strong
-    onClick={handleSubmit}
-    disabled={isSaving || !name.trim()}
-    style={{
-      '--color': color // Using the selected habit color
-    }}
-  >
-    {isSaving ? 'Saving...' : 'Save'}
-  </IonButton>
-</IonButtons>
+            <IonButton
+              onClick={onClose}
+              style={{
+                '--color': 'var(--neutral-button)'
+              }}
+            >
+              Cancel
+            </IonButton>
+          </IonButtons>
+          <IonButtons slot="end">
+            <IonButton
+              strong
+              onClick={handleSubmit}
+              disabled={isSaving || !name.trim()}
+              style={{
+                '--color': color // Using the selected habit color
+              }}
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </IonButton>
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
 

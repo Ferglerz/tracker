@@ -1,9 +1,8 @@
 // HabitCSVService.ts
 import { format } from 'date-fns';
 import Papa from 'papaparse';
-import { Habit } from './Types';
+import { Habit } from './TypesAndProps';
 import { HabitEntity } from './HabitEntity';
-import { errorHandler } from './ErrorUtilities';
 
 interface CSVRow {
   Date: string;
@@ -16,7 +15,7 @@ interface ParsedHabitData {
   type: Habit.Type;
   values: { 
     date: string; 
-    value: Habit.HistoryEntry;  // Changed this to use our new HistoryEntry type
+    value: Habit.HistoryEntry; 
   }[];
 }
 
@@ -95,7 +94,7 @@ export class HabitCSVService {
       this.createDownload(csv, `habit-tracker-export-${format(new Date(), 'yyyy-MM-dd')}.csv`);
       
     } catch (error) {
-      errorHandler.handleError(error, 'Failed to export habits to CSV');
+      alert('Failed to export habits to CSV');
       throw error;
     }
   }
