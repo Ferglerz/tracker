@@ -1,11 +1,9 @@
 import Foundation
 import WidgetKit
 
-// Matching the TypeScript interfaces
 struct HistoryEntry: Codable {
     var quantity: Int
     var goal: Int
-    var isChecked: Bool
 }
 
 struct WidgetsAssignment: Codable {
@@ -25,7 +23,6 @@ struct Habit: Codable {
     var goal: Int?
     var bgColor: String
     var quantity: Int
-    var isChecked: Bool
     var isComplete: Bool
     var listOrder: Int
     var widget: Widgets?
@@ -62,7 +59,7 @@ class IonicStorageManager {
         }
     }
 
-    func updateHabitValue(habitId: String, value: Any, date: String? = nil) throws {
+    func updateHabitValue(habitId: String, value: Int, date: String? = nil) throws {
         guard let userDefaults = userDefaults else { return }
 
         var currentData = try loadHabits()
@@ -72,34 +69,17 @@ class IonicStorageManager {
             let dateKey = date ?? ISO8601DateFormatter().string(from: Date())
             let currentEntry = updatedHabit.history[dateKey] ?? HistoryEntry(
                 quantity: 0,
-                goal: updatedHabit.goal ?? 0,
-                isChecked: false
+                goal: updatedHabit.goal ?? 0
             )
 
-            switch value {
-            case let checked as Bool:
-                let newEntry = HistoryEntry(
-                    quantity: currentEntry.quantity,
-                    goal: currentEntry.goal,
-                    isChecked: checked
-                )
-                updatedHabit.history[dateKey] = newEntry
-                updatedHabit.isChecked = checked
-                updatedHabit.isComplete = checked
-                
-            case let quantity as Int:
-                let newEntry = HistoryEntry(
-                    quantity: quantity,
-                    goal: currentEntry.goal,
-                    isChecked: currentEntry.isChecked
-                )
-                updatedHabit.history[dateKey] = newEntry
-                updatedHabit.quantity = quantity
-                updatedHabit.isComplete = quantity >= (updatedHabit.goal ?? Int.max)
-                
-            default:
-                throw NSError(domain: "IonicStorage", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid value type"])
-            }
+            let newEntry = HistoryEntry(
+                quantity: value,
+                goal: currentEntry.goal
+            )
+            
+            updatedHabit.history[dateKey] = newEntry
+            updatedHabit.quantity = value
+            updatedHabit.isComplete = value >= (updatedHabit.goal ?? Int.max)
 
             currentData[index] = updatedHabit
 

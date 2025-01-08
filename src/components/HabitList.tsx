@@ -1,7 +1,7 @@
 import React from 'react';
 import { IonReorderGroup } from '@ionic/react';
-import { HabitEntity } from './HabitEntity';
-import { HabitListItem } from './HabitListItem';
+import { HabitEntity } from '@utils/HabitEntity';
+import { HabitListItem } from '@components/HabitListItem';
 
 export const HabitList: React.FC<{
   habits: HabitEntity[];

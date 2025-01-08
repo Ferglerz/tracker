@@ -1,8 +1,8 @@
 // HabitHooks.ts
 import { useState, useCallback, useEffect } from 'react';
-import { HabitEntity } from './HabitEntity';
-import { HabitCSVService } from './ImportCSV';
-import { HabitStorage } from './Storage'; 
+import { HabitEntity } from '@utils/HabitEntity';
+import { HabitCSVService } from '@utils/ImportCSV';
+import { HabitStorage } from '@utils/Storage'; 
 import { App } from '@capacitor/app';
 
 export function useHabits() {

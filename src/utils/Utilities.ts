@@ -1,5 +1,5 @@
-import { HabitEntity } from './HabitEntity';
-import { Habit } from './TypesAndProps';
+import { HabitEntity } from '@utils/HabitEntity';
+import { Habit } from '@utils/TypesAndProps';
 
 export const getTodayString = () => {
   const today = new Date();
@@ -7,19 +7,16 @@ export const getTodayString = () => {
 };
 
 // Calculates the status history for a habit for a given number of days
-export const getHistoryRange = (habit: HabitEntity, days: number): Array<{ date: string; value: [number, number] | boolean }> => {
-  const dates: Array<{ date: string; value: [number, number] | boolean }> = [];
+export const getHistoryRange = (habit: HabitEntity, days: number): Array<{ date: string; value: [number, number] }> => {
+  const dates: Array<{ date: string; value: [number, number] }> = [];
   const today = new Date();
 
   // Start from the date `days` ago
   const startDate = new Date(today);
   startDate.setDate(today.getDate() - (days - 1));
 
-  const getValue = habit.type === 'checkbox'
-    ? (historyValue: Habit.HistoryEntry | undefined): boolean => historyValue?.isChecked ?? false
-    : (historyValue: Habit.HistoryEntry | undefined): [number, number] => historyValue
-      ? [historyValue.quantity, historyValue.goal]
-      : [0, habit.goal || 0];
+  const getValue = (historyValue: Habit.HistoryEntry | undefined): [number, number] => 
+    historyValue ? [historyValue.quantity, historyValue.goal] : [0, habit.goal || 0];
 
   // Use a loop to iterate through the days
   for (let i = 0; i < days; i++) {
@@ -59,9 +56,9 @@ export const getHabitStatus = (
   habit: HabitEntity
 ): 'complete' | 'partial' | 'none' => {
   if (!value) return 'none';
-
+  
   if (habit.type === 'checkbox') {
-    return value.isChecked ? 'complete' : 'none';
+    return value.quantity > 0 ? 'complete' : 'none';
   }
 
   if (value.goal <= 0) {

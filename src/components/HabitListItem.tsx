@@ -11,12 +11,12 @@ import {
   IonReorder,
 } from '@ionic/react';
 import { calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
-import { HabitEntity } from './HabitEntity';
+import { HabitEntity } from '@utils/HabitEntity';
 import Calendar from './Calendar';
-import { getHistoryRange } from './Utilities';
-import { HabitStorage } from './Storage';
+import { getHistoryRange } from '@utils/Utilities';
+import { HabitStorage } from '@utils/Storage';
 import { HistoryGrid } from './HistoryGrid';
-import { AnimatedIncrements } from './AnimatedIncrements';
+import { AnimatedIncrements } from '@components/AnimatedIncrements';
 
 interface Props {
   habit: HabitEntity;
@@ -34,7 +34,7 @@ const HabitDetails = ({ habit, habitListItemState }:
   {
     habit: HabitEntity;
     habitListItemState: {
-      value: number | boolean;
+      value: number;
       goal: number;
     };
   }
@@ -47,7 +47,6 @@ const HabitDetails = ({ habit, habitListItemState }:
   }}>
     <div style={{ fontWeight: 500 }}>{habit.name}</div>
     {habit.type === 'quantity' &&
-      typeof habitListItemState.value === 'number' &&
       habitListItemState.goal > 0 &&
       habitListItemState.value >= habitListItemState.goal && (
         <IonBadge color="success">Complete!</IonBadge>
@@ -71,10 +70,10 @@ const InteractionControls = ({
 }: {
   habit: HabitEntity;
   habitListItemState: {
-    value: number | boolean;
+    value: number;
     goal: number;
   };
-  handleValueChange: (value: number | boolean) => Promise<void>;
+  handleValueChange: (value: number) => Promise<void>;
 }) => (
   <div style={{    
     display: 'flex',
@@ -90,11 +89,11 @@ const InteractionControls = ({
     }}>
     {habit.type === 'checkbox' ? (
       <IonCheckbox
-        checked={habitListItemState.value as boolean}
+        checked={habitListItemState.value > 0}
         alignment='center'
         onIonChange={async (e) => {
           e.stopPropagation();
-          await handleValueChange(e.detail.checked);
+          await handleValueChange(e.detail.checked ? 1 : 0);
         }}
         style={{
           '--checkbox-background-checked': habit.bgColor,
@@ -106,12 +105,12 @@ const InteractionControls = ({
     ) : (
       <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <AnimatedIncrements
-          onClick={() => handleValueChange(Math.max(0, (habitListItemState.value as number) - 1))}
+          onClick={() => handleValueChange(Math.max(0, habitListItemState.value - 1))}
           color={habit.bgColor}
           type="decrement"
         />
         <AnimatedIncrements
-          onClick={() => handleValueChange((habitListItemState.value as number) + 1)}
+          onClick={() => handleValueChange(habitListItemState.value + 1)}
           color={habit.bgColor}
           type="increment"
         />
@@ -140,11 +139,8 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
 
   const [habitListItemState, setHabitState] = useState(() => {
     const dateValue = habit.history[selectedDate];
-
     return {
-      value: habit.type === 'checkbox'
-        ? (dateValue?.isChecked ?? false)
-        : (dateValue?.quantity ?? 0),
+      value: dateValue?.quantity ?? 0,
       goal: dateValue?.goal ?? habit.goal ?? 0
     };
   });
@@ -158,9 +154,7 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
 
     if (!isCalendarOpen) {
       setHabitState({
-        value: habit.type === 'checkbox'
-          ? (todayValue?.isChecked ?? false)
-          : (todayValue?.quantity ?? 0),
+        value: todayValue?.quantity ?? 0,
         goal: todayValue?.goal ?? habit.goal ?? 0
       });
       setSelectedDate(todayString);
@@ -168,11 +162,8 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
 
     const updateStateFromHabit = (habitData: HabitEntity) => {
       const dateValue = habitData.history[selectedDate];
-
       setHabitState({
-        value: habitData.type === 'checkbox'
-          ? (dateValue?.isChecked ?? false)
-          : (dateValue?.quantity ?? 0),
+        value: dateValue?.quantity ?? 0,
         goal: habit.goal ?? dateValue?.goal ?? 0
       });
     };
@@ -191,14 +182,11 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
     return () => subscription.unsubscribe();
   }, [isCalendarOpen, habit, selectedDate]);
 
-  const handleValueChange = useCallback(async (newValue: number | boolean) => {
-    if (habit.type === 'checkbox') {
-      await habit.setChecked(newValue as boolean, selectedDate);
-    } else {
-      await habit.setValue(newValue as number, selectedDate, habitListItemState.goal);
-    }
+  const handleValueChange = useCallback(async (newValue: number) => {
+    const currentValue = habitListItemState.value;
+    await habit.increment(newValue - currentValue, selectedDate);
     setHabitState(prev => ({ ...prev, value: newValue }));
-  }, [habit, selectedDate, habitListItemState.goal]);
+  }, [habit, selectedDate, habitListItemState.value]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -210,7 +198,7 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
     }
 
     if (habit.type === 'checkbox') {
-      handleValueChange(!habitListItemState.value as boolean);
+      handleValueChange(habitListItemState.value > 0 ? 0 : 1);
     }
   }, [habit, habitListItemState.value, handleValueChange, openCalendarId, onToggleCalendar]);
 

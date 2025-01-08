@@ -2,7 +2,7 @@
 import { Storage } from '@ionic/storage';
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 import { Capacitor } from '@capacitor/core';
-import { Habit } from './TypesAndProps';
+import { Habit } from '@utils/TypesAndProps';
 import { Subject, Observable } from 'rxjs';
 
 interface StorageStrategy {

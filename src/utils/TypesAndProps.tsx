@@ -1,10 +1,5 @@
-
-import { HistoryValue } from "./HistoryGrid";
-
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
-
-
 
   export interface WidgetsAssignment {
     type: string;
@@ -18,7 +13,6 @@ export namespace Habit {
   export interface HistoryEntry {
     quantity: number;
     goal: number;
-    isChecked: boolean;
   }
 
   export interface Habit {
@@ -29,7 +23,6 @@ export namespace Habit {
     goal?: number;
     bgColor: string;
     quantity: number;
-    isChecked: boolean;
     isComplete: boolean;
     listOrder: number;
     widget?: Widgets;
@@ -44,7 +37,7 @@ export namespace Habit {
 }
 
 export interface HistoryGridProps {
-  data: Array<{ date: string; value: HistoryValue; }>;
+  data: Array<{ date: string; value: [number, number]; }>;
   color: string;
   type: Habit.Type;
   baseSize?: number;

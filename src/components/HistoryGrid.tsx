@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
-import { Habit } from './TypesAndProps';
-import { HistoryGridProps } from './TypesAndProps';
+import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
 
 // --- Constants ---
 const DEFAULT_GRAY = 'rgba(128, 128, 128, 0.1)';
@@ -12,8 +11,6 @@ const DEFAULT_GAP = 1;
 const DEFAULT_CELLS_PER_ROW = 20;
 const DEFAULT_ROWS_COUNT = 3;
 const DEFAULT_CORNER_RADIUS = 5;
-
-export type HistoryValue = boolean | [number, number];
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
@@ -53,14 +50,14 @@ const adjustColorOpacity = (color: string, opacity: number): string => {
 };
 
 const getFillColor = (
-  value: HistoryValue,
+  value: [number, number],
   type: Habit.Type,
   color: string
 ): string => {
-  if (typeof value === 'boolean') {
-    return value ? color : DEFAULT_GRAY;
+  const [quantity, goal] = value;
+  if (type === 'checkbox') {
+    return quantity > 0 ? color : DEFAULT_GRAY;
   } else {
-    const [quantity, goal] = value;
     const hasQuantity = quantity > 0;
     const colorIntensity = goal && hasQuantity ? Math.min(quantity / goal, 1) : 1;
     return hasQuantity ? adjustColorOpacity(color, colorIntensity) : DEFAULT_GRAY;
@@ -68,7 +65,7 @@ const getFillColor = (
 };
 
 const DaySquare: React.FC<{
-  day: { date: string; value: HistoryValue };
+  day: { date: string; value: [number, number] };
   index: number;
   squareSize: number;
   rowOpacity: number;
@@ -77,12 +74,11 @@ const DaySquare: React.FC<{
 }> = ({ day, index, squareSize, rowOpacity, type, color }) => {
   const fill = getFillColor(day.value, type, color);
 
-  // --- Optimize Render Cycles: Extract Static Style ---
   const containerStyle = {
     width: `${squareSize}px`,
     height: `${squareSize}px`,
     opacity: rowOpacity,
-    position: 'relative' as const, // Explicitly type as 'relative'
+    position: 'relative' as const,
   };
 
   return (
@@ -107,7 +103,7 @@ const DaySquare: React.FC<{
 };
 
 const GridRow: React.FC<{
-  days: Array<{ date: string; value: HistoryValue }>;
+  days: Array<{ date: string; value: [number, number] }>;
   gap: number;
   squareSize: number;
   rowOpacity: number;
@@ -142,11 +138,10 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   const rowsCount = DEFAULT_ROWS_COUNT;
   const gridWidth = cellsPerRow * squareSize + (cellsPerRow - 1) * gap;
 
-  // --- Optimize Render Cycles: Extract Static Style ---
   const gridContainerStyle = {
     width: `${gridWidth}px`,
     display: 'flex',
-    flexDirection: 'column' as const, // Explicitly type as 'column'
+    flexDirection: 'column' as const,
     padding: '0px',
     gap: `${gap}px`,
   };

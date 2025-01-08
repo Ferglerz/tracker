@@ -18,7 +18,8 @@ struct ToggleHabitIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let habits = try IonicStorageManager.shared.loadHabits()
         if let habit = habits.first(where: { $0.id == habitId }) {
-            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: !habit.isChecked)
+            let newQuantity = habit.quantity > 0 ? 0 : 1
+            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: newQuantity)
         }
         if #available(iOS 14.0, *) {
             WidgetCenter.shared.reloadAllTimelines()
@@ -104,15 +105,16 @@ struct HabitWidgetEntryView: View {
                 .font(.system(size: 16))
                 .foregroundColor(.secondary)
         } else {
-                VStack(spacing: widgetFamily == .systemMedium ? 12 : 8) {
-                    ForEach(entry.habits.prefix(3), id: \.id) { habit in
-                        HabitRow(habit: habit, widgetFamily: widgetFamily)
-                    }
+            VStack(spacing: widgetFamily == .systemMedium ? 12 : 8) {
+                ForEach(entry.habits.prefix(3), id: \.id) { habit in
+                    HabitRow(habit: habit, widgetFamily: widgetFamily)
                 }
-                .padding(.vertical, widgetFamily == .systemMedium ? 12 : 8)
             }
+            .padding(.vertical, widgetFamily == .systemMedium ? 12 : 8)
+        }
     }
 }
+
 
 struct HabitRow: View {
     let habit: Habit
@@ -125,45 +127,45 @@ struct HabitRow: View {
     var body: some View {
         if widgetFamily == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 2) {
-            Text(habit.name)
+                Text(habit.name)
                     .font(.system(size: 12))
-                .fontWeight(.medium)
-                .lineLimit(1)
-            
-            HStack {
-                if habit.type == .quantity {
-                    Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "")")
-                        .font(.system(size: 12))
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(habitColor)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                
+                HStack {
+                    if habit.type == .quantity {
+                        Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "")")
+                            .font(.system(size: 12))
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(habitColor)
+                            }
+                            .buttonStyle(.plain)
+                            Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(habitColor)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                        Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
-                            Image(systemName: "plus.circle.fill")
+                    } else {
+                        Spacer()
+                        Button(intent: ToggleHabitIntent(habitId: habit.id)) {
+                            Image(systemName: habit.quantity > 0 ? "checkmark.square.fill" : "square")
                                 .font(.system(size: 24))
                                 .foregroundColor(habitColor)
                         }
                         .buttonStyle(.plain)
                     }
-                } else {
-                    Spacer()
-                    Button(intent: ToggleHabitIntent(habitId: habit.id)) {
-                        Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 24))
-                            .foregroundColor(habitColor)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                }
             }
-        }
-        .padding(.horizontal, 8)
+            .padding(.horizontal, 8)
         } else {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -198,17 +200,18 @@ struct HabitRow: View {
                     }
                 } else {
                     Button(intent: ToggleHabitIntent(habitId: habit.id)) {
-                        Image(systemName: habit.isChecked ? "checkmark.square.fill" : "square")
-                                .font(.system(size: widgetFamily == .systemMedium ? 20 : 16))
-                                .foregroundColor(habitColor)
+                        Image(systemName: habit.quantity > 0 ? "checkmark.square.fill" : "square")
+                            .font(.system(size: widgetFamily == .systemMedium ? 20 : 16))
+                            .foregroundColor(habitColor)
                     }
                     .buttonStyle(.plain)
-                    }
+                }
             }
             .padding(.horizontal, widgetFamily == .systemMedium ? 16 : 12)
         }
     }
 }
+
 extension Color {
     init?(hex: String) {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)

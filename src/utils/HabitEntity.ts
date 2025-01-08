@@ -1,7 +1,7 @@
 // HabitEntity.ts
-import { getHabitStatus, getTodayString } from './Utilities';
-import { Habit } from './TypesAndProps';
-import { HabitStorageAPI } from './Storage';
+import { getHabitStatus, getTodayString } from '@utils/Utilities';
+import { Habit } from '@utils/TypesAndProps';
+import { HabitStorageAPI } from '@utils/Storage';
 
 export class HabitEntity {
   constructor(private props: Habit.Habit) { }
@@ -14,7 +14,6 @@ export class HabitEntity {
   get goal(): number | undefined { return this.props.goal; }
   get bgColor(): string { return this.props.bgColor; }
   get quantity(): number { return this.props.quantity; }
-  get isChecked(): boolean { return this.props.isChecked; }
   get isComplete(): boolean { return this.props.isComplete; }
   get history(): Record<string, Habit.HistoryEntry> { return this.props.history; }
   get listOrder(): number { return this.props.listOrder; }
@@ -33,6 +32,22 @@ export class HabitEntity {
       throw new Error('Habit not found in storage');
     }
 
+    const currentEntry = this.history[dateString] || {
+      quantity: 0,
+      goal: this.goal || 0
+    };
+
+    // If there are history updates, merge them with existing history
+    if (updates.history) {
+      updates.history = {
+        ...this.history,
+        [dateString]: {
+          ...currentEntry,
+          ...updates.history[dateString]
+        }
+      };
+    }
+
     // Merge the updates with the current habit data
     const updatedHabit = {
       ...data.habits[habitIndex],
@@ -46,16 +61,11 @@ export class HabitEntity {
     this.props = updatedHabit;
   }
 
-  async increment(amount: number = 1): Promise<void> {
-    if (this.type !== 'quantity') {
-      throw new Error('Invalid habit for increment operation');
-    }
-    const newQuantity = Math.max(0, this.quantity + amount);
+  async increment(amount: number = 1, dateString: string = this.getTodayString()): Promise<void> {
+    const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
+    const newQuantity = Math.max(0, currentEntry.quantity + amount);
 
-    const dateString = this.getTodayString();
-    const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0, isChecked: false };
     const updatedHistory = {
-      ...this.history,
       [dateString]: {
         ...currentEntry,
         quantity: newQuantity
@@ -64,28 +74,7 @@ export class HabitEntity {
 
     await this.update({
       quantity: newQuantity,
-      isComplete: this.goal ? newQuantity >= this.goal : false,
-      history: updatedHistory
-    });
-  }
-
-  async setChecked(checked: boolean, dateString: string = this.getTodayString()): Promise<void> {
-    if (this.type !== 'checkbox') {
-      throw new Error('Invalid habit for checkbox operation');
-    }
-
-    const updatedHistory = {
-      ...this.history,
-      [dateString]: {
-        quantity: 0,
-        goal: 0,
-        isChecked: checked
-      }
-    };
-
-    await this.update({
-      isChecked: checked,
-      isComplete: checked,
+      isComplete: this.goal ? newQuantity >= this.goal : newQuantity > 0,
       history: updatedHistory
     }, dateString);
   }
@@ -94,32 +83,6 @@ export class HabitEntity {
     await this.update({
       widget
     });
-  }
-
-  async setValue(value: number, dateString: string = this.getTodayString(), goal?: number): Promise<void> {
-    if (this.type !== 'quantity') {
-      throw new Error('Invalid habit for value operation');
-    }
-
-    const historicalValue = this.history[dateString];
-    const currentGoal = goal ?? (historicalValue?.goal ?? this.goal ?? 0);
-
-    const updatedHistory = {
-      ...this.history,
-      [dateString]: {
-        quantity: value,
-        goal: currentGoal,
-        isChecked: false
-      }
-    };
-
-    const updates = {
-      quantity: value,
-      isComplete: currentGoal ? value >= currentGoal : value > 0,
-      history: updatedHistory,
-    };
-
-    await this.update(updates, dateString);
   }
 
   static async loadAll(): Promise<HabitEntity[]> {
@@ -131,16 +94,16 @@ export class HabitEntity {
     const storage = await HabitStorageAPI.handleHabitData('load');
     const existingIndex = storage.habits.findIndex(habit => habit.id === props.id);
     const today = getTodayString();
-  
+
     if (!props.listOrder) {
       const maxOrder = Math.max(...storage.habits.map(h => h.listOrder || 0), 0);
       props.listOrder = maxOrder + 1;
     }
-  
-    // Handle goal updates for existing quantity habits
+
+    // Handle goal updates for existing habits
     if (existingIndex !== -1) {
       const existingHabit = storage.habits[existingIndex];
-      if (props.type === 'quantity' && props.goal !== existingHabit.goal) {
+      if (props.goal !== existingHabit.goal) {
         const todayEntry = existingHabit.history[today];
         if (todayEntry) {
           props.history = {
@@ -158,7 +121,7 @@ export class HabitEntity {
       const newProps = { ...props, id: newId };
       storage.habits.push(newProps);
     }
-  
+
     await HabitStorageAPI.handleHabitData('save', storage);
     return new HabitEntity(props);
   }

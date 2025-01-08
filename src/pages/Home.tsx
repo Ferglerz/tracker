@@ -7,12 +7,12 @@ import {
   IonAlert,
   IonProgressBar,
 } from '@ionic/react';
-import { HabitEntity } from './HabitEntity';
-import HabitForm from './HabitForm';
-import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from './Hooks';
-import { Habit } from './TypesAndProps';
-import { HabitList } from './HabitList';
-import { TopToolbar } from './TopToolbar';
+import { HabitEntity } from '@utils/HabitEntity';
+import HabitForm from '@components/HabitForm';
+import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from '@utils/Hooks';
+import { Habit } from '@utils/TypesAndProps';
+import { HabitList } from '@components/HabitList';
+import { TopToolbar } from '@components/TopToolbar';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>

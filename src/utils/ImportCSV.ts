@@ -1,8 +1,8 @@
 // HabitCSVService.ts
 import { format } from 'date-fns';
 import Papa from 'papaparse';
-import { Habit } from './TypesAndProps';
-import { HabitEntity } from './HabitEntity';
+import { Habit } from '@utils/TypesAndProps';
+import { HabitEntity } from '@utils/HabitEntity';
 
 interface CSVRow {
   Date: string;
@@ -83,9 +83,7 @@ export class HabitCSVService {
         const row: CSVRow = { Date: date };
         habitHistories.forEach(({ habit, history }) => {
           const value = history[date];
-          row[habit.name] = habit.type === 'checkbox' ? 
-            (value?.isChecked ? '1' : '0') : 
-            value?.quantity?.toString() ?? '';
+          row[habit.name] = value?.quantity?.toString() ?? '';
         });
         return row;
       });
@@ -147,30 +145,23 @@ export class HabitCSVService {
             return;
           }
 
-          let historyEntry: Habit.HistoryEntry;
-          
+          let quantity: number;
           if (habit.type === 'checkbox') {
-            const isChecked = typeof rawValue === 'boolean' ? rawValue :
-                            typeof rawValue === 'number' ? rawValue === 1 :
-                            typeof rawValue === 'string' ? ['1', 'true', 'yes', 'y'].includes(rawValue.toLowerCase()) :
-                            false;
-            
-            historyEntry = {
-              quantity: 0,
-              goal: 0,
-              isChecked
-            };
+            quantity = typeof rawValue === 'boolean' ? (rawValue ? 1 : 0) :
+                      typeof rawValue === 'number' ? (rawValue === 1 ? 1 : 0) :
+                      typeof rawValue === 'string' ? (['1', 'true', 'yes', 'y'].includes(rawValue.toLowerCase()) ? 1 : 0) :
+                      0;
           } else {
-            const numValue = Number(rawValue);
-            if (isNaN(numValue)) {
+            quantity = Number(rawValue);
+            if (isNaN(quantity)) {
               return;
             }
-            historyEntry = {
-              quantity: numValue,
-              goal: 0,
-              isChecked: false
-            };
           }
+
+          const historyEntry: Habit.HistoryEntry = {
+            quantity,
+            goal: 0
+          };
 
           habit.values.push({ date, value: historyEntry });
         });

@@ -7,13 +7,13 @@ import {
   IonDatetime,
 } from '@ionic/react';
 import { arrowBack, create } from 'ionicons/icons';
-import { HabitEntity } from './HabitEntity';
-import DateEditModal from './DateEditModal';
+import { HabitEntity } from '@utils/HabitEntity';
+import DateEditModal from '@components/DateEditModal';
 
 interface Props {
   habit: HabitEntity;
   onClose: () => void;
-  onValueChange: (value: number | boolean) => Promise<void>;
+  onValueChange: (value: number) => Promise<void>;
   onDateSelected?: (date: string) => void;
 }
 
@@ -23,7 +23,6 @@ const HabitCalendar: React.FC<Props> = ({
   onValueChange,
   onDateSelected
 }) => {
-  // Get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -37,32 +36,31 @@ const HabitCalendar: React.FC<Props> = ({
     setSelectedDate(today);
   }, []);
 
-  // In Calendar.tsx
-const handleDateClick = useCallback(async (date: string) => {
-  onDateSelected?.(date);
-  setSelectedDate(date);
+  const handleDateClick = useCallback(async (date: string) => {
+    onDateSelected?.(date);
+    setSelectedDate(date);
 
-  if (habit.type === 'checkbox') {
-    const dateValue = habit.history[date];
-    const newValue = !(dateValue?.isChecked ?? false);
-    await habit.setChecked(newValue, date);
-    await onValueChange(newValue);
-  }
-}, [habit, onDateSelected, onValueChange]);
+    if (habit.type === 'checkbox') {
+      const dateValue = habit.history[date]?.quantity ?? 0;
+      const newValue = dateValue > 0 ? 0 : 1;
+      await habit.increment(newValue - dateValue, date);
+      await onValueChange(newValue);
+    }
+  }, [habit, onDateSelected, onValueChange]);
 
   const handleSaveDate = useCallback(async (value: number, goal: number) => {
-    await habit.setValue(value, selectedDate, goal);
+    const currentValue = habit.history[selectedDate]?.quantity ?? 0;
+    await habit.increment(value - currentValue, selectedDate);
     setShowEditModal(false);
   }, [habit, selectedDate]);
 
   const getHighlightedDates = useCallback((date: string) => {
-
     try {
       const value = habit.history[date];
       if (!value) return undefined;
 
       if (habit.type === 'checkbox') {
-        return value.isChecked
+        return value.quantity > 0
           ? {
               textColor: '#000000',
               backgroundColor: habit.bgColor,

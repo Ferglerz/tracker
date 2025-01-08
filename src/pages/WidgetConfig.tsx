@@ -1,3 +1,4 @@
+//WidgetConfig.tsx
 import React, { useState, useEffect } from 'react';
 import {
     IonPage,
@@ -17,8 +18,8 @@ import {
 } from '@ionic/react';
 import { arrowBack, lockClosed, apps, square } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import { HabitEntity } from './HabitEntity';
-import { Squircle } from './Squircle';
+import { Squircle } from '@components/Squircle';
+import { HabitEntity } from '@utils/HabitEntity';
 
 interface WidgetSpace {
     id: string;

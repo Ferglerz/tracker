@@ -12,7 +12,7 @@ import {
   IonFooter
 } from '@ionic/react';
 import { format, isValid, parseISO } from 'date-fns';
-import { HabitEntity } from './HabitEntity';
+import { HabitEntity } from '@utils/HabitEntity';
 
 interface Props {
   isOpen: boolean;
@@ -54,7 +54,6 @@ const DateEditModal: React.FC<Props> = ({
   }, [value, goal, onSave, onClose]);
 
   const dateDisplay = useMemo(() => {
-    // Add validation for the date string
     const parsedDate = parseISO(date);
     if (!isValid(parsedDate)) {
       return 'Invalid Date';
@@ -88,27 +87,26 @@ const DateEditModal: React.FC<Props> = ({
       </IonHeader>
 
       <IonContent className="ion-padding dateEditModal">
-        
-          <IonItem>
-            <IonLabel position="stacked">{inputLabel}</IonLabel>
-            <IonInput
-              type="number"
-              value={value}
-              onIonInput={e => setValue(Number(e.detail.value))}
-              min="0"
-              step="1"
-            />
-          </IonItem>
-          <IonItem>
-            <IonLabel position="stacked">Goal {habit.unit ? `(${habit.unit})` : ''}</IonLabel>
-            <IonInput
-              type="number"
-              value={goal}
-              onIonInput={e => setGoal(Number(e.detail.value))}
-              min="0"
-              step="1"
-            />
-          </IonItem>
+        <IonItem>
+          <IonLabel position="stacked">{inputLabel}</IonLabel>
+          <IonInput
+            type="number"
+            value={value}
+            onIonInput={e => setValue(Number(e.detail.value))}
+            min="0"
+            step="1"
+          />
+        </IonItem>
+        <IonItem>
+          <IonLabel position="stacked">Goal {habit.unit ? `(${habit.unit})` : ''}</IonLabel>
+          <IonInput
+            type="number"
+            value={goal}
+            onIonInput={e => setGoal(Number(e.detail.value))}
+            min="0"
+            step="1"
+          />
+        </IonItem>
       </IonContent>
 
       <IonFooter>
@@ -144,5 +142,3 @@ const DateEditModal: React.FC<Props> = ({
 };
 
 export default React.memo(DateEditModal);
-
-
