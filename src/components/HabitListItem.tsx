@@ -13,10 +13,10 @@ import {
 import { calendar, pencil, trash, reorderTwo } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
 import Calendar from './Calendar';
-import { getHistoryRange } from '@utils/Utilities';
-import { HabitStorage } from '@utils/Storage';
+import { getHistoryRange, getTodayString } from '@utils/Utilities';
 import { HistoryGrid } from './HistoryGrid';
 import { AnimatedIncrements } from '@components/AnimatedIncrements';
+import { useHabitReload } from '@utils/Hooks';
 
 interface Props {
   habit: HabitEntity;
@@ -28,17 +28,18 @@ interface Props {
   dragHandleProps?: any;
 }
 
-const LONG_PRESS_DURATION = 350;
+interface HabitListItemState {
+  value: number;
+  goal: number;
+}
 
-const HabitDetails = ({ habit, habitListItemState }:
-  {
-    habit: HabitEntity;
-    habitListItemState: {
-      value: number;
-      goal: number;
-    };
-  }
-) => (
+const HabitDetails = ({ 
+  habit, 
+  habitListItemState 
+}: {
+  habit: HabitEntity;
+  habitListItemState: HabitListItemState;
+}) => (
   <div style={{
     display: 'flex',
     alignItems: 'center',
@@ -57,7 +58,9 @@ const HabitDetails = ({ habit, habitListItemState }:
         color: 'var(--ion-color-medium)',
         marginRight: '8px'
       }}>
-        {habitListItemState.value}{habitListItemState.goal ? ` / ${habitListItemState.goal}` : ''} {habit.unit}
+        {habitListItemState.value}
+        {habitListItemState.goal ? ` / ${habitListItemState.goal}` : ''} 
+        {habit.unit}
       </div>
     )}
   </div>
@@ -69,10 +72,7 @@ const InteractionControls = ({
   handleValueChange 
 }: {
   habit: HabitEntity;
-  habitListItemState: {
-    value: number;
-    goal: number;
-  };
+  habitListItemState: HabitListItemState;
   handleValueChange: (value: number) => Promise<void>;
 }) => (
   <div style={{    
@@ -120,71 +120,60 @@ const InteractionControls = ({
 );
 
 export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
-  habit,
+  habit: initialHabit,
   onEdit,
   onDelete,
   isCalendarOpen,
   openCalendarId,
   onToggleCalendar,
 }, ref) => {
+  const habit = useHabitReload(initialHabit.id);
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
-  
-  const getTodayString = () => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  };
-
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const cellsPerRow = 14;
-
-  const [habitListItemState, setHabitState] = useState(() => {
-    const dateValue = habit.history[selectedDate];
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const [habitListItemState, setHabitState] = useState<HabitListItemState>(() => {
+    const dateValue = initialHabit.history[selectedDate];
     return {
       value: dateValue?.quantity ?? 0,
-      goal: dateValue?.goal ?? habit.goal ?? 0
+      goal: dateValue?.goal ?? initialHabit.goal ?? 0
     };
   });
 
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Update state when habit changes
   useEffect(() => {
-    const todayString = getTodayString();
-    const todayValue = habit.history[todayString];
+    if (habit) {
+      const dateValue = habit.history[selectedDate];
+      setHabitState({
+        value: dateValue?.quantity ?? 0,
+        goal: habit.goal ?? dateValue?.goal ?? 0
+      });
+    }
+  }, [habit, selectedDate]);
 
-    if (!isCalendarOpen) {
+  // Update state when calendar closes
+  useEffect(() => {
+    if (!isCalendarOpen && habit) {
+      const todayString = getTodayString();
+      const todayValue = habit.history[todayString];
       setHabitState({
         value: todayValue?.quantity ?? 0,
         goal: todayValue?.goal ?? habit.goal ?? 0
       });
       setSelectedDate(todayString);
     }
-
-    const updateStateFromHabit = (habitData: HabitEntity) => {
-      const dateValue = habitData.history[selectedDate];
-      setHabitState({
-        value: dateValue?.quantity ?? 0,
-        goal: habit.goal ?? dateValue?.goal ?? 0
-      });
-    };
-
-    updateStateFromHabit(habit);
-
-    const storage = HabitStorage.getInstance();
-    const subscription = storage.changes.subscribe(async () => {
-      const habits = await HabitEntity.loadAll();
-      const updatedHabit = habits.find(h => h.id === habit.id);
-      if (updatedHabit) {
-        updateStateFromHabit(updatedHabit);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isCalendarOpen, habit, selectedDate]);
+  }, [isCalendarOpen, habit]);
 
   const handleValueChange = useCallback(async (newValue: number) => {
+    if (!habit) return;
+    
     const currentValue = habitListItemState.value;
     await habit.increment(newValue - currentValue, selectedDate);
+    
+    // Update local state immediately for UI responsiveness
     setHabitState(prev => ({ ...prev, value: newValue }));
   }, [habit, selectedDate, habitListItemState.value]);
 
@@ -192,12 +181,12 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
     e.preventDefault();
     e.stopPropagation();
 
-    if (openCalendarId && openCalendarId !== habit.id) {
+    if (openCalendarId && openCalendarId !== habit?.id) {
       onToggleCalendar(openCalendarId);
       return;
     }
 
-    if (habit.type === 'checkbox') {
+    if (habit?.type === 'checkbox') {
       handleValueChange(habitListItemState.value > 0 ? 0 : 1);
     }
   }, [habit, habitListItemState.value, handleValueChange, openCalendarId, onToggleCalendar]);
@@ -212,7 +201,7 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
       if (longPressActive.current) {
         slidingRef.current?.open('end');
       }
-    }, LONG_PRESS_DURATION);
+    }, 350);
   }, []);
 
   const cancelLongPress = useCallback(() => {
@@ -229,9 +218,10 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
   }, [onEdit]);
 
   const handleToggleCalendarInternal = useCallback(() => {
+    if (!habit) return;
     slidingRef.current?.close();
     onToggleCalendar(habit.id);
-  }, [habit.id, onToggleCalendar]);
+  }, [habit, onToggleCalendar]);
 
   useEffect(() => {
     document.addEventListener('mouseup', cancelLongPress);
@@ -244,8 +234,12 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
   }, [cancelLongPress]);
 
   const historyRange = useMemo(() => {
-    return getHistoryRange(habit, cellsPerRow * 3);
+    return habit ? getHistoryRange(habit, cellsPerRow * 3) : [];
   }, [habit, cellsPerRow]);
+
+  if (!habit) {
+    return null;
+  }
 
   return (
     <>
@@ -300,7 +294,11 @@ export const HabitListItem = forwardRef<HTMLIonItemSlidingElement, Props>(({
                 justifyContent: 'space-between',
               }}>
                 <HabitDetails habit={habit} habitListItemState={habitListItemState} />
-                <InteractionControls habit={habit} habitListItemState={habitListItemState} handleValueChange={handleValueChange} />
+                <InteractionControls 
+                  habit={habit} 
+                  habitListItemState={habitListItemState} 
+                  handleValueChange={handleValueChange}
+                />
               </div>
 
               <div>

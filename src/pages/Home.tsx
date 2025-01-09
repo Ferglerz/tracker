@@ -5,14 +5,13 @@ import {
   IonHeader,
   IonPage,
   IonAlert,
-  IonProgressBar,
 } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
 import HabitForm from '@components/HabitForm';
+import HabitList from '@components/HabitList';
+import { TopToolbar } from '@components/TopToolbar';
 import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from '@utils/Hooks';
 import { Habit } from '@utils/TypesAndProps';
-import { HabitList } from '@components/HabitList';
-import { TopToolbar } from '@components/TopToolbar';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -21,7 +20,7 @@ const EmptyState: React.FC = () => (
 );
 
 const Home: React.FC = () => {
-  const { habits, isRefreshing, refreshHabits } = useHabits();
+  const { habits, refreshHabits } = useHabits();
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const { editingHabit, setEditingHabit } = useHabitForm();
   const { habitToDelete, setHabitToDelete, handleDeleteHabit } = useHabitDelete(refreshHabits);
@@ -116,9 +115,6 @@ const Home: React.FC = () => {
           ]}
         />
 
-        {isRefreshing && (
-          <IonProgressBar type="indeterminate" />
-        )}
       </IonContent>
     </IonPage>
   );

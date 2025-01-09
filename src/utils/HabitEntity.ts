@@ -1,7 +1,6 @@
-// HabitEntity.ts
 import { getHabitStatus, getTodayString } from '@utils/Utilities';
 import { Habit } from '@utils/TypesAndProps';
-import { HabitStorageAPI } from '@utils/Storage';
+import  { HabitStorageWrapper } from '@utils/Storage';
 
 export class HabitEntity {
   constructor(private props: Habit.Habit) { }
@@ -24,15 +23,15 @@ export class HabitEntity {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   }
 
-  private async update(updates: Partial<Habit.Habit>, dateString: string = this.getTodayString()): Promise<void> {
-    const data = await HabitStorageAPI.handleHabitData('load');
+  private async update(updates: Partial<Habit.Habit>, dateString?: string): Promise<void> {
+    const data = await HabitStorageWrapper.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === this.id);
 
     if (habitIndex === -1) {
       throw new Error('Habit not found in storage');
     }
 
-    const currentEntry = this.history[dateString] || {
+    const currentEntry = this.history[dateString || this.getTodayString()] || {
       quantity: 0,
       goal: this.goal || 0
     };
@@ -41,9 +40,9 @@ export class HabitEntity {
     if (updates.history) {
       updates.history = {
         ...this.history,
-        [dateString]: {
+        [dateString || this.getTodayString()]: {
           ...currentEntry,
-          ...updates.history[dateString]
+          ...updates.history[dateString || this.getTodayString()]
         }
       };
     }
@@ -52,12 +51,11 @@ export class HabitEntity {
     const updatedHabit = {
       ...data.habits[habitIndex],
       ...updates,
-      // Ensure goal is properly preserved/updated
-      goal: updates.goal !== undefined ? updates.goal : data.habits[habitIndex].goal
+      goal: updates.goal !== undefined ? updates.goal : data.habits[habitIndex].goal // TODO: Simplify? Should be in updates?
     };
 
     data.habits[habitIndex] = updatedHabit;
-    await HabitStorageAPI.handleHabitData('save', data);
+    await HabitStorageWrapper.handleHabitData('save', data, this.id);
     this.props = updatedHabit;
   }
 
@@ -79,19 +77,19 @@ export class HabitEntity {
     }, dateString);
   }
 
-  async updateWidget(widget?: Habit.Widgets): Promise<void> {
+  async updateWidgetAssignment(widget?: Habit.Widgets): Promise<void> {
     await this.update({
       widget
     });
   }
 
   static async loadAll(): Promise<HabitEntity[]> {
-    const data = await HabitStorageAPI.handleHabitData('load');
+    const data = await HabitStorageWrapper.handleHabitData('load');
     return data.habits.map(habitData => new HabitEntity(habitData));
   }
 
   static async create(props: Habit.Habit): Promise<HabitEntity> {
-    const storage = await HabitStorageAPI.handleHabitData('load');
+    const storage = await HabitStorageWrapper.handleHabitData('load');
     const existingIndex = storage.habits.findIndex(habit => habit.id === props.id);
     const today = getTodayString();
 
@@ -122,12 +120,12 @@ export class HabitEntity {
       storage.habits.push(newProps);
     }
 
-    await HabitStorageAPI.handleHabitData('save', storage);
+    await HabitStorageWrapper.handleHabitData('save', storage, props.id);
     return new HabitEntity(props);
   }
 
   static async updateListOrder(habits: HabitEntity[]): Promise<void> {
-    const storage = await HabitStorageAPI.handleHabitData('load');
+    const storage = await HabitStorageWrapper.handleHabitData('load');
 
     storage.habits = storage.habits.map(habit => {
       const updatedHabit = habits.find(h => h.id === habit.id);
@@ -137,17 +135,18 @@ export class HabitEntity {
       return habit;
     });
 
-    await HabitStorageAPI.handleHabitData('save', storage);
+    // In this case, we don't pass a specific habit ID since multiple habits are updated
+    await HabitStorageWrapper.handleHabitData('save', storage);
   }
 
   static async delete(id: string): Promise<void> {
     try {
-      const data = await HabitStorageAPI.handleHabitData('load');
+      const data = await HabitStorageWrapper.handleHabitData('load');
       const updatedHabits = data.habits.filter(h => h.id !== id);
-      await HabitStorageAPI.handleHabitData('save', {
+      await HabitStorageWrapper.handleHabitData('save', {
         habits: updatedHabits
-      });
-      await HabitStorageAPI.refreshWidgets();
+      }, id);
+      await HabitStorageWrapper.refreshWidgets();
     } catch (error) {
       alert('Failed to delete habit');
       throw error;

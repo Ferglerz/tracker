@@ -2,65 +2,70 @@
 import { useState, useCallback, useEffect } from 'react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { HabitCSVService } from '@utils/ImportCSV';
-import { HabitStorage } from '@utils/Storage'; 
+import { HabitStorage } from '@utils/Storage';
 import { App } from '@capacitor/app';
+
+export function useHabitReload(habitId: string) {
+  const [habit, setHabit] = useState<HabitEntity | null>(null);
+
+  const reloadHabit = useCallback(async () => {
+    const habits = await HabitEntity.loadAll();
+    const updatedHabit = habits.find(h => h.id === habitId);
+    if (updatedHabit) {
+      setHabit(updatedHabit);
+    }
+  }, [habitId]);
+
+  useEffect(() => {
+    const storage = HabitStorage.getInstance();
+
+    // Initial load
+    reloadHabit();
+
+    // Register for updates
+    storage.registerHabitCallback(habitId, reloadHabit);
+
+    return () => {
+      storage.unregisterHabitCallback(habitId, reloadHabit);
+    };
+  }, [habitId, reloadHabit]);
+
+  return habit;
+}
 
 export function useHabits() {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadHabits = useCallback(async (forceRefresh: boolean = false) => {
+  const loadHabits = useCallback(async () => {
     try {
-      if (forceRefresh) {
-        setIsRefreshing(true);
-      }
       const loadedHabits = await HabitEntity.loadAll();
       setHabits(loadedHabits);
+      //alert(JSON.stringify(loadedHabits));
     } catch (error) {
-      alert('Failed to load habits!');
-    } finally {
-      setIsRefreshing(false);
+      console.error('Failed to load habits:', error);
     }
   }, []);
 
   useEffect(() => {
-    const setupListener = async () => {
-      const subscription = await App.addListener('appStateChange', async ({ isActive }) => {
-        if (isActive) {
-          await loadHabits(true);
-        }
-      });
-      return () => { subscription.remove(); };
-    };
-  
-    setupListener();
-}, [loadHabits]);
-
-  // Subscribe to storage changes
-  useEffect(() => {
-    const storage = HabitStorage.getInstance();
-    const subscription = storage.changes.subscribe(async () => {
-      // When storage changes, refresh habits
-      await loadHabits();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [loadHabits]);
-
-  // Initial load
-  useEffect(() => {
+    // Initial load
     loadHabits();
+
+    // Set up listener for future state changes
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        loadHabits();
+
+        alert('Focus state change');
+      }
+    });
   }, [loadHabits]);
 
   const refreshHabits = useCallback(async () => {
-    await loadHabits(true);
+    await loadHabits();
   }, [loadHabits]);
 
   return {
     habits,
-    isRefreshing,
     refreshHabits,
     loadHabits
   };

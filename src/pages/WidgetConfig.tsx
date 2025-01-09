@@ -319,7 +319,7 @@ const WidgetConfig: React.FC = () => {
                         : space
                 ));
                 
-                await habit.updateWidget({ assignments: newAssignments });
+                await habit.updateWidgetAssignment({ assignments: newAssignments });
             }
             return;
         }
@@ -359,7 +359,7 @@ const WidgetConfig: React.FC = () => {
             ));
         }
 
-        await habit.updateWidget({ assignments: newAssignments });
+        await habit.updateWidgetAssignment({ assignments: newAssignments });
     };
 
     const renderTabContent = (filterPrefix: string) => (

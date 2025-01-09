@@ -45,3 +45,9 @@ export interface HistoryGridProps {
   rowPadding?: number;
   cellsPerRow?: number;
 }
+
+export interface StorageStrategy {
+  save(key: string, value: Habit.Data): Promise<void>;
+  load(key: string): Promise<Habit.Data | null>;
+  clear(key: string): Promise<void>;
+}
