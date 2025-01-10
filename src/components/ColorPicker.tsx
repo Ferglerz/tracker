@@ -2,11 +2,12 @@
 import React from 'react';
 import { IonIcon } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
+import { CONSTANTS } from '@utils/Constants'; // Make sure you import CONSTANTS
 
 interface Props {
-  colors: readonly string[];
-  selectedColor: string;
-  onColorSelect: (color: string) => void;
+  colors: typeof CONSTANTS.PRESET_COLORS; // Use the type directly
+  selectedColor: typeof CONSTANTS.PRESET_COLORS[number];
+  onColorSelect: (color: typeof CONSTANTS.PRESET_COLORS[number]) => void;
 }
 
 export const ColorPicker: React.FC<Props> = ({ colors, selectedColor, onColorSelect }) => (

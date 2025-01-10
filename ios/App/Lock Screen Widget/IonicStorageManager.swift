@@ -23,7 +23,6 @@ struct Habit: Codable {
     var goal: Int?
     var bgColor: String
     var quantity: Int
-    var isComplete: Bool
     var listOrder: Int
     var widget: Widgets?
     var history: [String: HistoryEntry]
@@ -79,7 +78,6 @@ class IonicStorageManager {
             
             updatedHabit.history[dateKey] = newEntry
             updatedHabit.quantity = value
-            updatedHabit.isComplete = value >= (updatedHabit.goal ?? Int.max)
 
             currentData[index] = updatedHabit
 

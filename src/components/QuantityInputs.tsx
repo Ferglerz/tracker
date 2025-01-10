@@ -6,7 +6,7 @@ interface Props {
   unit: string | undefined;
   goal: number | undefined;
   onUnitChange: (unit: string | undefined) => void;
-  onGoalChange: (goal: number | undefined) => void;
+  onGoalChange: (goal: number ) => void;
 }
 
 export const QuantityInputs: React.FC<Props> = ({ unit, goal, onUnitChange, onGoalChange }) => (
@@ -29,7 +29,7 @@ export const QuantityInputs: React.FC<Props> = ({ unit, goal, onUnitChange, onGo
         value={goal?.toString() ?? ''}
         onIonChange={e => {
           const val = e.detail.value;
-          onGoalChange(val ? parseInt(val, 10) : undefined);
+          onGoalChange(val ? parseInt(val, 10) : 1);
         }}
       />
     </IonItem>

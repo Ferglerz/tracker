@@ -37,20 +37,19 @@ const HabitCalendar: React.FC<Props> = ({
   }, []);
 
   const handleDateClick = useCallback(async (date: string) => {
-    onDateSelected?.(date);
     setSelectedDate(date);
-
+    onDateSelected?.(date);
+    
     if (habit.type === 'checkbox') {
       const dateValue = habit.history[date]?.quantity ?? 0;
       const newValue = dateValue > 0 ? 0 : 1;
       await habit.increment(newValue - dateValue, date);
-      await onValueChange(newValue);
     }
-  }, [habit, onDateSelected, onValueChange]);
+}, [habit, onDateSelected]);
 
-  const handleSaveDate = useCallback(async (value: number, goal: number) => {
-    const currentValue = habit.history[selectedDate]?.quantity ?? 0;
-    await habit.increment(value - currentValue, selectedDate);
+  const handleSaveDate = useCallback(async (quantity: number, goal: number) => {
+    const newValue = { quantity: quantity || 0, goal: goal || 0 }
+    await habit.update(newValue, selectedDate);
     setShowEditModal(false);
   }, [habit, selectedDate]);
 
@@ -62,9 +61,9 @@ const HabitCalendar: React.FC<Props> = ({
       if (habit.type === 'checkbox') {
         return value.quantity > 0
           ? {
-              textColor: '#000000',
-              backgroundColor: habit.bgColor,
-            }
+            textColor: '#000000',
+            backgroundColor: habit.bgColor,
+          }
           : undefined;
       } else {
         const { quantity, goal } = value;
@@ -95,25 +94,18 @@ const HabitCalendar: React.FC<Props> = ({
   return (
     <div className="calendar-container" style={{
       display: 'flex',
-      width: '100%',
       backgroundColor: 'background',
     }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: '16px',
-        width: '60px',
-      }}>
+      <div className="ion-padding ion-justify-content-center">
         <IonButton
           fill="clear"
           onClick={() => {
             resetToToday();
             onClose();
           }}
+          className="ion-no-margin"
           style={{
             '--color': habit.bgColor,
-            margin: 0,
             height: '36px',
           }}
         >
@@ -126,36 +118,8 @@ const HabitCalendar: React.FC<Props> = ({
         display: 'flex',
         justifyContent: 'center',
       }}>
-        <IonCard style={{
-          margin: '0',
-          padding: '0px',
-          width: '100%',
-          maxWidth: '400px',
-          background: 'transparent',
-        }}>
-          <IonCardContent style={{ padding: '0' }}>
-            <style>
-              {`
-                .calendar-custom {
-                  --ion-color-primary: ${habit.bgColor} !important;
-                  --ion-color-primary-contrast: #ffffff !important;
-                  margin: auto !important;
-                }
-                
-                .calendar-custom::part(calendar-day) {
-                  color: var(--ion-text-color);
-                }
-
-                .calendar-custom::part(calendar-day-active) {
-                  color: #ffffff !important;
-                  background-color: ${habit.bgColor} !important;
-                }
-
-                .calendar-custom::part(calendar-day-today) {
-                  border-color: ${habit.bgColor} !important;
-                }
-              `}
-            </style>
+        <IonCard className="ion-no-margin">
+          <IonCardContent className="ion-no-padding">
             <IonDatetime
               presentation="date"
               preferWheel={false}

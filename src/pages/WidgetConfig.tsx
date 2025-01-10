@@ -277,7 +277,7 @@ const WidgetConfig: React.FC = () => {
 
             const habitAssignments: { [key: string]: string } = {};
             loadedHabits.forEach(habit => {
-                habit.widgets?.assignments?.forEach(assignment => {
+                habit.widgetAssignment?.assignments?.forEach(assignment => {
                     const spaceId = `${assignment.type}-${assignment.order}`;
                     habitAssignments[spaceId] = habit.id;
                 });
@@ -309,7 +309,7 @@ const WidgetConfig: React.FC = () => {
             );
             
             if (sourceSpace) {
-                const newAssignments = (habit.widgets?.assignments || []).filter(a =>
+                const newAssignments = (habit.widgetAssignment?.assignments || []).filter(a =>
                     !(a.type === sourceSpace.type && a.order === sourceSpace.order)
                 );
                 
@@ -327,7 +327,7 @@ const WidgetConfig: React.FC = () => {
         const [targetType, targetOrderStr] = spaceId.split('-');
         const targetOrder = parseInt(targetOrderStr, 10);
 
-        let newAssignments = [...(habit.widgets?.assignments || [])];
+        let newAssignments = [...(habit.widgetAssignment?.assignments || [])];
 
         const existingSpaceForType = widgetSpaces.find(space => 
             space.habitId === habitId && 

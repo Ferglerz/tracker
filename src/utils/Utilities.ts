@@ -1,72 +1,69 @@
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
 
-export const getTodayString = () => {
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+interface HistoryRangeItem {
+  date: string;
+  value: [number, number];
+}
+
+export const getTodayString = (): string => {
+  const date = new Date();
+  return date.toISOString().split('T')[0];
 };
 
-// Calculates the status history for a habit for a given number of days
-export const getHistoryRange = (habit: HabitEntity, days: number): Array<{ date: string; value: [number, number] }> => {
-  const dates: Array<{ date: string; value: [number, number] }> = [];
+export const getHistoryRange = (
+  habit: HabitEntity, 
+  days: number
+): HistoryRangeItem[] => {
   const today = new Date();
-
-  // Start from the date `days` ago
   const startDate = new Date(today);
   startDate.setDate(today.getDate() - (days - 1));
 
-  const getValue = (historyValue: Habit.HistoryEntry | undefined): [number, number] => 
-    historyValue ? [historyValue.quantity, historyValue.goal] : [0, habit.goal || 0];
-
-  // Use a loop to iterate through the days
-  for (let i = 0; i < days; i++) {
-    // Calculate the date for the current iteration
+  return Array.from({ length: days }, (_, index) => {
     const currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + i);
-
-    // Format the date as a string (e.g., 'YYYY-MM-DD')
+    currentDate.setDate(startDate.getDate() + index);
     const dateString = currentDate.toISOString().split('T')[0];
-
     const historyValue = habit.history[dateString];
-
-    dates.push({
-      date: dateString, // Use the formatted date string
-      value: getValue(historyValue),
-    });
-  }
-
-  return dates;
+    
+    return {
+      date: dateString,
+      value: [
+        historyValue?.quantity ?? 0,
+        historyValue?.goal ?? habit.goal // goal is now required
+      ]
+    };
+  });
 };
 
-// Color map for different habit statuses
-const statusColorMap = {
+type StatusType = 'complete' | 'partial' | 'none';
+
+interface StatusColors {
+  complete: string;
+  partial: string;
+  none: string;
+}
+
+const STATUS_COLORS: StatusColors = {
   complete: '#2dd36f',
   partial: '#ffc409',
   none: 'transparent',
+} as const;
+
+export const getStatusColor = (status: StatusType): string => {
+  return STATUS_COLORS[status];
 };
 
-// Returns the color associated with a given habit status
-export const getStatusColor = (status: 'complete' | 'partial' | 'none'): string => {
-  return statusColorMap[status];
-};
-
-// Determines the status of a habit for a specific date
 export const getHabitStatus = (
   value: Habit.HistoryEntry | undefined,
   habit: HabitEntity
-): 'complete' | 'partial' | 'none' => {
-  if (!value) return 'none';
+): StatusType => {
+  if (!value || value.quantity <= 0) {
+    return 'none';
+  }
   
-  if (habit.type === 'checkbox') {
-    return value.quantity > 0 ? 'complete' : 'none';
+  if (habit.type === 'checkbox' || value.goal <= 0) {
+    return 'complete';
   }
 
-  if (value.goal <= 0) {
-    return value.quantity > 0 ? 'complete' : 'none';
-  }
-
-  if (value.quantity >= value.goal) return 'complete';
-  if (value.quantity > 0) return 'partial';
-
-  return 'none';
+  return value.quantity >= value.goal ? 'complete' : 'partial';
 };

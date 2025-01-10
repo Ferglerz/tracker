@@ -1,6 +1,30 @@
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
+  export interface HistoryEntry {
+    quantity: number | 0;
+    goal: number | 0;
+  }
+
+  export interface Habit {
+    id: string;
+    name: string;
+    type: Type;
+    unit?: string;
+    goal: number;
+    bgColor: string;
+    quantity: number;
+    history: {
+      [date: string]: HistoryEntry;
+    };
+    listOrder?: number;
+    widgets?: Widgets;
+  }
+
+  export interface Data {
+    habits: Habit[];
+  }
+
   export interface WidgetsAssignment {
     type: string;
     order: number;
@@ -10,30 +34,18 @@ export namespace Habit {
     assignments: WidgetsAssignment[];
   }
 
-  export interface HistoryEntry {
-    quantity: number;
-    goal: number;
-  }
+}
 
-  export interface Habit {
-    id: string;
-    name: string;
-    type: Type;
-    unit?: string;
-    goal?: number;
-    bgColor: string;
-    quantity: number;
-    isComplete: boolean;
-    listOrder: number;
-    widget?: Widgets;
-    history: {
-      [date: string]: HistoryEntry;
-    };
-  }
+export interface HabitItemState {
+  selectedDate: string;
+  quantity: number;
+  goal: number;
+}
 
-  export interface Data {
-    habits: Habit[];
-  }
+export interface InteractionControlsProps {
+  habit: Habit.Habit;
+  habitItemState: HabitItemState;
+  handleValueChange: (newValue: number) => void;
 }
 
 export interface HistoryGridProps {
@@ -44,6 +56,40 @@ export interface HistoryGridProps {
   gap?: number;
   rowPadding?: number;
   cellsPerRow?: number;
+}
+
+export interface CalendarProps {
+  habit: Habit.Habit;
+  onClose: () => void;
+  onValueChange: (newValue: number) => void;
+  onDateSelected: (date: string) => void;
+}
+
+export interface CalendarDayProps {
+  date: Date;
+  habit: Habit.Habit;
+  isSelected: boolean;
+  onValueChange: (newValue: number) => void;
+  onDateSelected: () => void;
+}
+
+export interface HabitModalProps {
+  isOpen: boolean;
+  onDidDismiss: () => void;
+  onSubmit: (name: string, type: Habit.Type, goal: number, unit: string | undefined, color: string, quantity: number, history: Record<string, Habit.HistoryEntry>, widgets: Habit.Widgets | undefined) => void;
+  onDelete: () => void;
+  initialHabit?: Habit.Habit;
+  showDeleteButton: boolean;
+}
+
+export interface Props {
+  habit: Habit.Habit;
+  onEdit: () => void;
+  onDelete: () => void;
+  isCalendarOpen: boolean;
+  openCalendarId: string | null;
+  onToggleCalendar: (habitId: string) => void;
+  dragHandleProps?: any;
 }
 
 export interface StorageStrategy {

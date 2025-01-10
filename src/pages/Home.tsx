@@ -10,7 +10,8 @@ import { HabitEntity } from '@utils/HabitEntity';
 import HabitForm from '@components/HabitForm';
 import HabitList from '@components/HabitList';
 import { TopToolbar } from '@components/TopToolbar';
-import { useHabits, useHabitForm, useHabitDelete, useHabitExport } from '@utils/Hooks';
+import { useHabits } from '@utils/useHabits';
+import { HabitCSVService } from '@utils/ImportCSV';
 import { Habit } from '@utils/TypesAndProps';
 
 const EmptyState: React.FC = () => (
@@ -21,38 +22,48 @@ const EmptyState: React.FC = () => (
 
 const Home: React.FC = () => {
   const { habits, refreshHabits } = useHabits();
-  const [isMenuOpen, setIsMenuOpen] = useState(false); 
-  const { editingHabit, setEditingHabit } = useHabitForm();
-  const { habitToDelete, setHabitToDelete, handleDeleteHabit } = useHabitDelete(refreshHabits);
-  const { handleExport } = useHabitExport(habits);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>();
+  const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
 
-  const handleOpenHabitForm = useCallback((habit?: HabitEntity) => {
-    setEditingHabit(habit);
-    setIsMenuOpen(true);
-  }, []); 
+  const handleHabitForm = useCallback((isOpen: boolean, habit?: HabitEntity) => {
+    setIsMenuOpen(isOpen);
+    setEditingHabit(isOpen ? habit : undefined);
+  }, []);
 
-  const handleDelete = useCallback((habit: HabitEntity) => {
-    setHabitToDelete(habit);
-  }, [setHabitToDelete]);
+  const handleDeleteHabit = useCallback(async () => {
+    if (!habitToDelete) return;
+
+    try {
+      await HabitEntity.delete(habitToDelete.id);
+      await refreshHabits();
+      setHabitToDelete(null);
+    } catch (error) {
+      alert('Failed to delete habit');
+    }
+  }, [habitToDelete, refreshHabits]);
+
+  const handleExport = useCallback(async () => {
+    try {
+      await HabitCSVService.exportHabits(habits);
+      alert('Export completed successfully');
+    } catch (error) {
+      alert('Failed to export habit data');
+    }
+  }, [habits]);
 
   const handleToggleCalendar = useCallback((habitId: string) => {
-    setOpenCalendarId(current => {
-      if (current !== habitId) {
-        // No need to close HabitForm here anymore
-      }
-      return current === habitId ? null : habitId;
-    });
+    setOpenCalendarId(current => current === habitId ? null : habitId);
   }, []);
 
   const handleReorder = useCallback(async (event: CustomEvent) => {
     const { from, to } = event.detail;
-
     const reorderedHabits = [...habits];
     const [movedItem] = reorderedHabits.splice(from, 1);
     reorderedHabits.splice(to, 0, movedItem);
 
-    const updatedHabits = reorderedHabits.map((habit, index) => 
+    const updatedHabits = reorderedHabits.map((habit, index) =>
       new HabitEntity({ ...habit as Habit.Habit, listOrder: index + 1 })
     );
 
@@ -72,7 +83,7 @@ const Home: React.FC = () => {
         <TopToolbar
           onExport={handleExport}
           hasHabits={habits.length > 0}
-          onNewHabit={() => handleOpenHabitForm()}
+          onNewHabit={() => handleHabitForm(true)}
         />
       </IonHeader>
       <IonContent>
@@ -80,9 +91,14 @@ const Home: React.FC = () => {
           <EmptyState />
         ) : (
           <HabitList
-            habits={habits.sort((a, b) => (a.listOrder || 0) - (b.listOrder || 0))}
-            onEdit={handleOpenHabitForm}
-            onDelete={handleDelete}
+            onEdit={(habitId) => {
+              const habit = habits.find(h => h.id === habitId);
+              if (habit) handleHabitForm(true, habit);
+            }}
+            onDelete={(habitId) => {
+              const habit = habits.find(h => h.id === habitId);
+              if (habit) setHabitToDelete(habit);
+            }}
             openCalendarId={openCalendarId}
             onToggleCalendar={handleToggleCalendar}
             onReorder={handleReorder}
@@ -93,7 +109,8 @@ const Home: React.FC = () => {
           isOpen={isMenuOpen}
           title={editingHabit ? "Edit Habit" : "New Habit"}
           editedHabit={editingHabit}
-          onClose={() => setIsMenuOpen(false)} 
+          onClose={() => handleHabitForm(false)}
+          onSave={refreshHabits}
         />
 
         <IonAlert
@@ -102,22 +119,12 @@ const Home: React.FC = () => {
           header="Delete Habit"
           message={`Are you sure you want to delete "${habitToDelete?.name}"? This action cannot be undone.`}
           buttons={[
-            {
-              text: 'Cancel',
-              role: 'cancel',
-              handler: () => setHabitToDelete(null)
-            },
-            {
-              text: 'Delete',
-              role: 'destructive',
-              handler: handleDeleteHabit
-            }
+            { text: 'Cancel', role: 'cancel', handler: () => setHabitToDelete(null) },
+            { text: 'Delete', role: 'destructive', handler: handleDeleteHabit }
           ]}
         />
-
       </IonContent>
     </IonPage>
   );
 };
-
 export default Home;

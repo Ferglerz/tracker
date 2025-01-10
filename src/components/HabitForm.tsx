@@ -1,4 +1,3 @@
-// HabitForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
   IonModal,
@@ -17,70 +16,67 @@ import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
 import { getTodayString } from '@utils/Utilities';
 import { ColorPicker } from '@components/ColorPicker';
-import {HabitTypeRadioGroup} from '@components/HabitTypeRadioGroup';
-import {QuantityInputs} from '@components/QuantityInputs';
-
-const PRESET_COLORS = [
-  '#657c9a', // Muted Blue 
-  '#228B22', // Dark Green (4.39)
-  '#FA8072', // Salmon (2.50)
-  '#CC0000', // Red (5.89)
-  '#1B4B9E', // Dark Blue (8.25)
-  '#33cca1', // Sea Foam
-  '#F4781D', // Orange (2.78)
-  '#CC9933', // Ocre Yellow (2.57)
-  '#663399', // Purple (8.41)
-  '#8B4513'  // Brown (7.10)
-] as const;
+import { HabitTypeRadioGroup } from '@components/HabitTypeRadioGroup';
+import { QuantityInputs } from '@components/QuantityInputs';
+import { CONSTANTS } from '@utils/Constants';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   editedHabit?: HabitEntity;
   title: string;
+  onSave?: () => void;
 }
 
 const HabitForm: React.FC<Props> = ({
   isOpen,
   onClose,
   editedHabit,
-  title
+  title,
+  onSave
 }) => {
-  const [name, setName] = useState(editedHabit?.name || '');
-  const [type, setType] = useState<Habit.Type>(editedHabit?.type || 'checkbox');
-  const [unit, setUnit] = useState<string | undefined>(editedHabit?.unit);
-  const [goal, setGoal] = useState<number | undefined>(editedHabit?.goal);
-  const [color, setColor] = useState(editedHabit?.bgColor || PRESET_COLORS[0]);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<Habit.Type>('checkbox');
+  const [unit, setUnit] = useState<string | undefined>();
+  const [goal, setGoal] = useState<number>(1);
+  const [color, setColor] = useState<typeof CONSTANTS.PRESET_COLORS[number]>(CONSTANTS.PRESET_COLORS[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setName(editedHabit?.name || '');
-      setType(editedHabit?.type || 'checkbox');
-      setUnit(editedHabit?.unit || '');
-      setGoal(editedHabit?.goal);
-      setColor(editedHabit?.bgColor || PRESET_COLORS[0]);
+      // Reset form when opening
+      if (editedHabit) {
+        setName(editedHabit.name);
+        setType(editedHabit.type);
+        setUnit(editedHabit.unit);
+        setGoal(editedHabit.goal ?? 1);
+        setColor(editedHabit.bgColor as typeof CONSTANTS.PRESET_COLORS[number]);
+      } else {
+        setName('');
+        setType('checkbox');
+        setUnit(undefined);
+        setGoal(1);
+        setColor(CONSTANTS.PRESET_COLORS[0]);
+      }
     }
-  }, [isOpen, editedHabit]);
 
+  }, [isOpen, editedHabit]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setIsSaving(true);
+
     try {
       const today = getTodayString();
-
       const habitProps: Habit.Habit = {
         ...editedHabit as Habit.Habit ?? {},
         id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
-        goal: type === 'quantity' ? goal : undefined,
+        goal: type === 'quantity' ? goal : 1,
         bgColor: color,
         listOrder: editedHabit?.listOrder ?? 0,
         quantity: editedHabit?.history[today]?.quantity ?? 0,
-        isComplete: false,
         history: editedHabit?.history ?? {
           [today]: {
             quantity: 0,
@@ -90,8 +86,10 @@ const HabitForm: React.FC<Props> = ({
       };
 
       await HabitEntity.create(habitProps);
+      onSave?.();
       onClose();
     } catch (error) {
+      console.error('Failed to save habit:', error);
       alert('Failed to save habit');
     } finally {
       setIsSaving(false);
@@ -131,7 +129,7 @@ const HabitForm: React.FC<Props> = ({
       <IonContent className="ion-padding">
         <IonList>
           <IonItem>
-            <IonLabel position="stacked" ><h1>Name</h1></IonLabel>
+            <IonLabel position="stacked"><h1>Name</h1></IonLabel>
             <IonInput
               value={name}
               onIonChange={e => setName(e.detail.value || '')}
@@ -140,7 +138,10 @@ const HabitForm: React.FC<Props> = ({
             />
           </IonItem>
 
-          <HabitTypeRadioGroup value={type} onTypeChange={setType} />
+          <HabitTypeRadioGroup
+            value={type}
+            onTypeChange={setType}
+          />
 
           {type === 'quantity' && (
             <QuantityInputs
@@ -158,7 +159,7 @@ const HabitForm: React.FC<Props> = ({
               width: '100%'
             }}>
               <ColorPicker
-                colors={PRESET_COLORS}
+                colors={CONSTANTS.PRESET_COLORS}
                 selectedColor={color}
                 onColorSelect={setColor}
               />
@@ -169,5 +170,4 @@ const HabitForm: React.FC<Props> = ({
     </IonModal>
   );
 };
-
 export default React.memo(HabitForm);

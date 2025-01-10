@@ -15,20 +15,14 @@
   overflow: hidden;
 }
 
-.calendar-custom {
-  --ion-color-primary: #ffffff !important;
-  --ion-color-primary-contrast: #000000 !important;
+.calendar-day {
+  --background: #121212;
+  --color: #ffffff;
+  border-radius: 0px;
 }
-
 .calendar-custom::part(calendar-day) {
   color: var(--ion-text-color);
 }
-
-.calendar-custom::part(calendar-day-active) {
-  color: #000000 !important;
-  background-color: #ffffff !important;
-}
-
 
 /* Update existing styles */
 .habit-action-icon {
@@ -58,12 +52,59 @@ ion-item.habit::part(native) {
 
 .dateEditModal {
   width: 100%;
-  height: 400px;
+  background-color: var(--ion-item-background);
+  height: 150px;
   display: flex;
-  align-items: center;
   justify-content: center;
 }
 
 .auto-height-modal {
   --height: auto;
+}
+
+.habit-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  cursor: pointer;
+}
+
+.habit-item[data-type="checkbox"] {
+  cursor: pointer;
+}
+
+.habit-container {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+}
+
+.habit-color-bar {
+  width: 24px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.habit-reorder {
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  cursor: grab;
+}
+
+.habit-content {
+  flex: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: auto;
+}
+
+.habit-header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
 }

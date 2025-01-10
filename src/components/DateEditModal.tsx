@@ -67,7 +67,7 @@ const DateEditModal: React.FC<Props> = ({
   }, [date]);
 
   const inputLabel = useMemo(() => {
-    return `${habit.name} ${habit.unit ? `(${habit.unit})` : ''}`;
+    return `Quantity ${habit.unit ? `(${habit.unit})` : ''}`;
   }, [habit]);
 
   return (
@@ -85,8 +85,7 @@ const DateEditModal: React.FC<Props> = ({
           <IonTitle>{dateDisplay}</IonTitle>
         </IonToolbar>
       </IonHeader>
-
-      <IonContent className="ion-padding dateEditModal">
+      <div className="ion-padding ion-align-items-center dateEditModal">
         <IonItem>
           <IonLabel position="stacked">{inputLabel}</IonLabel>
           <IonInput
@@ -98,7 +97,7 @@ const DateEditModal: React.FC<Props> = ({
           />
         </IonItem>
         <IonItem>
-          <IonLabel position="stacked">Goal {habit.unit ? `(${habit.unit})` : ''}</IonLabel>
+          <IonLabel position="stacked">Goal</IonLabel>
           <IonInput
             type="number"
             value={goal}
@@ -107,7 +106,7 @@ const DateEditModal: React.FC<Props> = ({
             step="1"
           />
         </IonItem>
-      </IonContent>
+      </div>
 
       <IonFooter>
         <IonToolbar>
