@@ -19,7 +19,6 @@ export function useHabits(): UseHabitsResult {
 
   useEffect(() => {
 
-    console.log('Setting up subscription');
     // Only perform initial load once
     if (!initialLoadComplete.current) {
       initialLoadComplete.current = true;
@@ -33,6 +32,9 @@ export function useHabits(): UseHabitsResult {
         setHabits(newHabits.map(habit => new HabitEntity(habit)));
       }
     );
+
+
+    //alert('Setting up subscription');
 
 
     // Cleanup subscription on unmount

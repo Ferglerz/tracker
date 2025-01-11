@@ -107,9 +107,10 @@ export class HabitEntity {
     return habits;
   }
 
-  static async forceRefresh(): Promise<void> {
+  static async forceRefresh(): Promise<Habit.Habit[]> {
     const data = await HabitStorageWrapper.handleHabitData('load');
     habitsSubject.next(data.habits);
+    return data.habits;
   }
 
   static getHabits$() {
