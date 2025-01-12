@@ -29,7 +29,7 @@ export const getHistoryRange = (
       date: dateString,
       value: [
         historyValue?.quantity ?? 0,
-        historyValue?.goal ?? habit.goal // goal is now required
+        historyValue?.goal ?? habit.goal
       ]
     };
   });
@@ -42,16 +42,6 @@ interface StatusColors {
   partial: string;
   none: string;
 }
-
-const STATUS_COLORS: StatusColors = {
-  complete: '#2dd36f',
-  partial: '#ffc409',
-  none: 'transparent',
-} as const;
-
-export const getStatusColor = (status: StatusType): string => {
-  return STATUS_COLORS[status];
-};
 
 export const getHabitStatus = (
   value: Habit.HistoryEntry | undefined,
@@ -66,4 +56,20 @@ export const getHabitStatus = (
   }
 
   return value.quantity >= value.goal ? 'complete' : 'partial';
+};
+
+export const getGoalChange = (
+  currentDate: string,
+  history: Record<string, Habit.HistoryEntry>,
+  defaultGoal: number
+): number | null => {
+  const currentGoal = history[currentDate]?.goal ?? defaultGoal;
+  
+  const prevDate = new Date(currentDate);
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prevDateStr = prevDate.toISOString().split('T')[0];
+  
+  const prevGoal = history[prevDateStr]?.goal ?? defaultGoal;
+  
+  return currentGoal !== prevGoal ? currentGoal - prevGoal : null;
 };

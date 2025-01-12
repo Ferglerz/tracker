@@ -5,12 +5,9 @@ import { IonicStorageStrategy } from '@utils/IonicStorageStrategy';
 import { NativeStorageStrategy } from '@utils/NativeStorageStrategy';
 import { CONSTANTS } from '@utils/Constants';
 
-type HabitCallback = () => void;
-
 export class HabitStorage {
   private static instance: HabitStorage;
   private storage: StorageStrategy;
-  private habitChangeCallbacks: Map<string, Set<HabitCallback>>;
   private initPromise: Promise<void>;
 
   private constructor() {
@@ -19,13 +16,12 @@ export class HabitStorage {
       ? new NativeStorageStrategy(CONSTANTS.STORAGE.GROUP)
       : new IonicStorageStrategy();
 
-    this.habitChangeCallbacks = new Map();
     this.initPromise = this.initialize();
   }
 
   private async initialize(): Promise<void> {
     try {
-      await this.storage.load(CONSTANTS.STORAGE.KEY);
+      await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
     } catch (error) {
       console.error('Storage initialization failed:', error);
       throw error;
@@ -45,14 +41,10 @@ export class HabitStorage {
     }
   }
 
-  async save(data: Habit.Data, changedHabitId?: string): Promise<void> {
+  async save(data: Habit.Data): Promise<void> {
     try {
       await this.initPromise;
-      await this.storage.save(CONSTANTS.STORAGE.KEY, data);
-
-      if (changedHabitId) {
-        this.habitChangeCallbacks.get(changedHabitId)?.forEach(callback => callback());
-      }
+      await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
 
       await this.updateWidgets();
     } catch (error) {
@@ -61,14 +53,36 @@ export class HabitStorage {
     }
   }
 
+
   async load(): Promise<Habit.Data> {
     try {
       await this.initPromise;
-      const data = await this.storage.load(CONSTANTS.STORAGE.KEY);
+      const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
       return data || { habits: [] };
     } catch (error) {
       console.error('Storage load failed:', error);
       return { habits: [] };
+    }
+  }
+
+  async saveSettings(settings: any): Promise<void> {
+    try {
+      await this.initPromise;
+      await this.storage.save(CONSTANTS.STORAGE.SETTINGS_KEY, settings);
+    } catch (error) {
+      console.error('Settings save failed:', error);
+      throw error;
+    }
+  }
+
+  async loadSettings(): Promise<any> {
+    try {
+      await this.initPromise;
+      const settings = await this.storage.load(CONSTANTS.STORAGE.SETTINGS_KEY);
+      return settings || {};
+    } catch (error) {
+      console.error('Settings load failed:', error);
+      return {};
     }
   }
 
@@ -78,20 +92,20 @@ export class HabitStorage {
 
   async clear(): Promise<void> {
     try {
-      await this.storage.clear(CONSTANTS.STORAGE.KEY);
+      await this.storage.clear(CONSTANTS.STORAGE.HABITS_KEY);
       await this.updateWidgets();
     } catch (error) {
       console.error('Storage clear failed:', error);
       throw error;
     }
   }
+
 }
 
 export const HabitStorageWrapper = {
   async handleHabitData(
     action: 'load' | 'save',
     data?: Habit.Data,
-    changedHabitId?: string
   ): Promise<Habit.Data> {
     const storage = HabitStorage.getInstance();
 
@@ -102,15 +116,35 @@ export const HabitStorageWrapper = {
         if (!data) {
           throw new Error('No data provided for save operation');
         }
-        await storage.save(data, changedHabitId);
+        await storage.save(data);
         return data;
       default:
         throw new Error(`Invalid storage action: ${action}`);
     }
   },
 
+  async handleSettings(
+    action: 'load' | 'save',
+    settings?: any,
+  ): Promise<any> {
+    const storage = HabitStorage.getInstance();
+
+    switch (action) {
+      case 'load':
+        return storage.loadSettings();
+      case 'save':
+        if (!settings) {
+          throw new Error('No settings provided for save operation');
+        }
+        await storage.saveSettings(settings);
+        return settings;
+      default:
+        throw new Error(`Invalid settings action: ${action}`);
+    }
+  },
+
   refreshWidgets: () => HabitStorage.getInstance().refresh(),
-  removeWidgetData: () => HabitStorage.getInstance().clear()
+  removeWidgetData: () => HabitStorage.getInstance().clear(),
 };
 
-export const { handleHabitData, refreshWidgets, removeWidgetData } = HabitStorageWrapper;
+export const { handleHabitData, handleSettings, refreshWidgets, removeWidgetData } = HabitStorageWrapper;

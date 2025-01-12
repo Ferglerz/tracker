@@ -39,7 +39,7 @@ const App: React.FC = () => {
       
       if (isActive && mounted) {
         try {
-          await HabitEntity.forceRefresh(); // Use forceRefresh instead of loadAll
+          await HabitEntity.loadAll(); 
           console.log('Completed refresh after app state change');
         } catch (error) {
           console.error('Error refreshing after app state change:', error);
@@ -60,7 +60,7 @@ const App: React.FC = () => {
     <IonApp>
       <IonReactRouter>
         <div style={{ 
-          maxWidth: '600px', 
+          maxWidth: '450px', 
           margin: '0 auto', 
           height: '100%',
           width: '100%',

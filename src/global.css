@@ -1,7 +1,8 @@
-
 :root {
-  --neutral-button: #9ca3af;  /* Neutral grey for generic buttons */
-  --neutral-button-hover: #6b7280; /* Darker grey for hover state */
+  --neutral-button: #9ca3af;
+  /* Neutral grey for generic buttons */
+  --neutral-button-hover: #6b7280;
+  /* Darker grey for hover state */
 }
 
 .app-container {
@@ -10,21 +11,44 @@
   height: 100%;
 }
 
+.top-toolbar {
+  height: auto;
+}
+
+.app-title {
+  position: absolute;
+  height: 100%;
+  overflow: visible;
+  padding: 0;
+  z-index: 99;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+}
+
+.cursive {
+  font-family: 'Dancing Script', cursive;
+  font-size: 30px;
+  margin-left: 3px;
+}
+
 .calendar-container {
   transition: all 0.3s ease-in-out;
   overflow: hidden;
+  background: --ion-item-background;
 }
 
 .calendar-day {
-  --background: #121212;
-  --color: #ffffff;
-  border-radius: 0px;
+  background: #121212;
+  color: #ffffff;
+  border-radius: 0;
 }
+
 .calendar-custom::part(calendar-day) {
   color: var(--ion-text-color);
 }
 
-/* Update existing styles */
 .habit-action-icon {
   font-size: 24px;
   min-height: 44px;
@@ -36,13 +60,12 @@
   color: var(--neutral-button-hover);
 }
 
-/* Center align the toolbar title */
 .center-title {
   text-align: center;
 }
 
 ion-item.habit::part(native) {
-  --border-color: rgba(0,0,0,0);
+  --border-color: transparent;
 }
 
 .habitDivider {
@@ -68,13 +91,10 @@ ion-item.habit::part(native) {
   cursor: pointer;
 }
 
-.habit-item[data-type="checkbox"] {
-  cursor: pointer;
-}
-
 .habit-container {
   display: flex;
   width: 100%;
+  padding: 16px 0;
   flex-direction: row;
 }
 
@@ -85,10 +105,7 @@ ion-item.habit::part(native) {
 }
 
 .habit-reorder {
-  width: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 10px;
   opacity: 0.3;
   cursor: grab;
 }
@@ -98,7 +115,6 @@ ion-item.habit::part(native) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px 16px;
   margin: auto;
 }
 
@@ -107,4 +123,21 @@ ion-item.habit::part(native) {
   width: 100%;
   align-items: center;
   justify-content: space-between;
+}
+
+.habit-content .history-grid {
+  transition: opacity 0.3s ease-in-out;
+  opacity: 1;
+}
+
+.habit-content .history-grid[style*="display: none"] {
+  opacity: 0;
+}
+
+.habit-content {
+  transition: height 0.3s ease-in-out;
+}
+
+.ion-icon[slot="icon-only"] {
+  transition: opacity 0.2s ease-in-out;
 }

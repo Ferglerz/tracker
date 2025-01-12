@@ -18,8 +18,14 @@ struct ToggleHabitIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let habits = try IonicStorageManager.shared.loadHabits()
         if let habit = habits.first(where: { $0.id == habitId }) {
-            let newQuantity = habit.quantity > 0 ? 0 : 1
-            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: newQuantity)
+            let today = Date()
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let todayString = dateFormatter.string(from: today)
+            
+            let currentQuantity = habit.history[todayString]?.quantity ?? 0
+            let newQuantity = currentQuantity > 0 ? 0 : 1
+            try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: newQuantity, date: todayString)
         }
         if #available(iOS 14.0, *) {
             WidgetCenter.shared.reloadAllTimelines()
@@ -121,9 +127,33 @@ struct HabitRow: View {
     let widgetFamily: WidgetFamily
     
     private var habitColor: Color {
-        Color(hex: habit.bgColor ) ?? .blue
+        Color(hex: habit.bgColor) ?? .blue
     }
     
+    private var todayValue: Int {
+        let today = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayString = dateFormatter.string(from: today)
+        return habit.history[todayString]?.quantity ?? 0
+    }
+    
+    private var todayGoal: Int {
+        let today = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let todayString = dateFormatter.string(from: today)
+        return habit.history[todayString]?.goal ?? habit.goal ?? 0
+    }
+    
+    private var todayDisplay: String {
+        if habit.type == .quantity {
+            let goalText = todayGoal > 0 ? "/\(todayGoal)" : ""
+            return "\(todayValue)\(goalText)"
+        }
+        return ""
+    }
+
     var body: some View {
         if widgetFamily == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 2) {
@@ -134,7 +164,7 @@ struct HabitRow: View {
                 
                 HStack {
                     if habit.type == .quantity {
-                        Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "")")
+                        Text(todayDisplay)
                             .font(.system(size: 12))
                             .foregroundColor(.primary)
                         
@@ -157,7 +187,7 @@ struct HabitRow: View {
                     } else {
                         Spacer()
                         Button(intent: ToggleHabitIntent(habitId: habit.id)) {
-                            Image(systemName: habit.quantity > 0 ? "checkmark.square.fill" : "square")
+                            Image(systemName: todayValue > 0 ? "checkmark.square.fill" : "square")
                                 .font(.system(size: 24))
                                 .foregroundColor(habitColor)
                         }
@@ -174,7 +204,7 @@ struct HabitRow: View {
                         .fontWeight(.semibold)
                         .lineLimit(1)
                     if habit.type == .quantity {
-                        Text("\(habit.quantity)\(habit.goal.map { "/\($0)" } ?? "") \(habit.unit ?? "")")
+                        Text("\(todayDisplay) \(habit.unit ?? "")")
                             .font(.system(size: widgetFamily == .systemMedium ? 14 : 12))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -200,7 +230,7 @@ struct HabitRow: View {
                     }
                 } else {
                     Button(intent: ToggleHabitIntent(habitId: habit.id)) {
-                        Image(systemName: habit.quantity > 0 ? "checkmark.square.fill" : "square")
+                        Image(systemName: todayValue > 0 ? "checkmark.square.fill" : "square")
                             .font(.system(size: widgetFamily == .systemMedium ? 20 : 16))
                             .foregroundColor(habitColor)
                     }

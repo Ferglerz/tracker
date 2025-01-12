@@ -9,6 +9,9 @@ import {
 import { arrowBack, create } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
 import DateEditModal from '@components/DateEditModal';
+import { getGoalChange } from '@utils/Utilities';
+// import { GoalChangeIndicator } from '@components/GoalChangeIndicator'; // Commented out the import
+import { UpdateOptions } from '@utils/HabitEntity';
 
 interface Props {
   habit: HabitEntity;
@@ -17,10 +20,36 @@ interface Props {
   onDateSelected?: (date: string) => void;
 }
 
+// Goal Change Overlay Component
+const GoalChangeOverlay: React.FC<{
+  habit: HabitEntity;
+  date: string;
+}> = ({ habit, date }) => {
+  const goalChange = getGoalChange(date, habit.history, habit.goal ?? 0);
+  
+  if (goalChange === null) return null;
+  
+  return (
+    <div style={{ 
+      position: 'absolute',
+      bottom: '2px',
+      left: '2px',
+      pointerEvents: 'none',
+      zIndex: 1
+    }}>
+      {/* <GoalChangeIndicator change={goalChange} /> */} {/* Commented out the GoalChangeIndicator */}
+      <div style={{ 
+        backgroundColor: 'red', 
+        width: '20px', 
+        height: '20px' 
+      }} /> {/* Added a div with red background */}
+    </div>
+  );
+};
+
 const HabitCalendar: React.FC<Props> = ({
   habit,
   onClose,
-  onValueChange,
   onDateSelected
 }) => {
   const getTodayString = () => {
@@ -45,11 +74,16 @@ const HabitCalendar: React.FC<Props> = ({
       const newValue = dateValue > 0 ? 0 : 1;
       await habit.increment(newValue - dateValue, date);
     }
-}, [habit, onDateSelected]);
+  }, [habit, onDateSelected]);
 
   const handleSaveDate = useCallback(async (quantity: number, goal: number) => {
-    const newValue = { quantity: quantity || 0, goal: goal || 0 }
-    await habit.update(newValue, selectedDate);
+    const newValue: UpdateOptions = {
+      dateString: selectedDate, 
+      history: {
+        [selectedDate]: { quantity, goal } 
+      }
+    };
+    await habit.update(newValue); 
     setShowEditModal(false);
   }, [habit, selectedDate]);
 
@@ -61,9 +95,9 @@ const HabitCalendar: React.FC<Props> = ({
       if (habit.type === 'checkbox') {
         return value.quantity > 0
           ? {
-            textColor: '#000000',
-            backgroundColor: habit.bgColor,
-          }
+              textColor: '#000000',
+              backgroundColor: habit.bgColor,
+            }
           : undefined;
       } else {
         const { quantity, goal } = value;
@@ -117,22 +151,39 @@ const HabitCalendar: React.FC<Props> = ({
         flex: 1,
         display: 'flex',
         justifyContent: 'center',
+        position: 'relative'
       }}>
         <IonCard className="ion-no-margin">
           <IonCardContent className="ion-no-padding">
-            <IonDatetime
-              presentation="date"
-              preferWheel={false}
-              value={selectedDate}
-              onIonChange={(e) => {
-                if (e.detail.value) {
-                  const date = (e.detail.value as string).split('T')[0];
-                  handleDateClick(date);
-                }
-              }}
-              highlightedDates={getHighlightedDates}
-              className="calendar-custom"
-            />
+            <div style={{ position: 'relative' }}>
+              <IonDatetime
+                presentation="date"
+                preferWheel={false}
+                value={selectedDate}
+                onIonChange={(e) => {
+                  if (e.detail.value) {
+                    const date = (e.detail.value as string).split('T')[0];
+                    handleDateClick(date);
+                  }
+                }}
+                highlightedDates={getHighlightedDates}
+                className="calendar-custom"
+              />
+              <div className="calendar-overlays" >
+                {Array.from({ length: 31 }, (_, i) => {
+                  const currentDate = new Date(selectedDate);
+                  currentDate.setDate(i + 1);
+                  const dateStr = currentDate.toISOString().split('T')[0];
+                  return (
+                    <GoalChangeOverlay
+                      key={dateStr}
+                      habit={habit}
+                      date={dateStr}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </IonCardContent>
         </IonCard>
       </div>

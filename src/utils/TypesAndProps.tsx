@@ -56,6 +56,8 @@ export interface HistoryGridProps {
   gap?: number;
   rowPadding?: number;
   cellsPerRow?: number;
+  history: Record<string, Habit.HistoryEntry>;
+  defaultGoal: number;
 }
 
 export interface CalendarProps {
@@ -71,15 +73,6 @@ export interface CalendarDayProps {
   isSelected: boolean;
   onValueChange: (newValue: number) => void;
   onDateSelected: () => void;
-}
-
-export interface HabitModalProps {
-  isOpen: boolean;
-  onDidDismiss: () => void;
-  onSubmit: (name: string, type: Habit.Type, goal: number, unit: string | undefined, color: string, quantity: number, history: Record<string, Habit.HistoryEntry>, widgets: Habit.Widgets | undefined) => void;
-  onDelete: () => void;
-  initialHabit?: Habit.Habit;
-  showDeleteButton: boolean;
 }
 
 export interface Props {

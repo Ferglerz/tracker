@@ -1,49 +1,52 @@
-
-
+// useHabits.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
+import { handleSettings } from '@utils/Storage';
 
 interface UseHabitsResult {
   habits: HabitEntity[];
+  settings: Record<string, any>;
   refreshHabits: () => Promise<void>;
 }
 
 export function useHabits(): UseHabitsResult {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
+  const [settings, setSettings] = useState<Record<string, any>>({});
   const initialLoadComplete = useRef(false);
+  const subscriptionRef = useRef<any>(null);
+
 
   const refreshHabits = useCallback(async () => {
-    await HabitEntity.loadAll();
+    try {
+      await HabitEntity.loadAll();
+    } catch (error) {
+      console.error('Failed to refresh habits:', error);
+    }
   }, []);
 
   useEffect(() => {
-
-    // Only perform initial load once
-    if (!initialLoadComplete.current) {
-      initialLoadComplete.current = true;
-      HabitEntity.loadAll();
+    if (!subscriptionRef.current) {
+      subscriptionRef.current = HabitEntity.getHabits$().subscribe(
+        (newHabits: Habit.Habit[]) => {
+          const newEntities = newHabits.map(habit => new HabitEntity(habit));
+          setHabits(newEntities);
+        }
+      );
     }
 
-    // Set up subscription
-    
-    const subscription = HabitEntity.getHabits$().subscribe(
-      (newHabits: Habit.Habit[]) => {
-        setHabits(newHabits.map(habit => new HabitEntity(habit)));
-      }
-    );
+    if (!initialLoadComplete.current) {
+      initialLoadComplete.current = true;
+      refreshHabits();
+    }
 
-
-    //alert('Setting up subscription');
-
-
-    // Cleanup subscription on unmount
     return () => {
-
-      console.log('Cleaning up subscription');
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     };
-  }, []); // Empty dependency array since we don't want this to re-run
+  }, [refreshHabits]);
 
-  return { habits, refreshHabits };
+  return { habits, settings, refreshHabits };
 }

@@ -1,16 +1,9 @@
 import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
 import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
-
-// --- Constants ---
-const DEFAULT_GRAY = 'rgba(128, 128, 128, 0.1)';
-const MAX_ROW_OPACITY = 0.7;
-const ROW_OPACITY_DECREMENT = 0.15;
-const DEFAULT_BASE_SIZE = 8;
-const DEFAULT_GAP = 1;
-const DEFAULT_CELLS_PER_ROW = 20;
-const DEFAULT_ROWS_COUNT = 3;
-const DEFAULT_CORNER_RADIUS = 5;
+import { GoalChangeIndicator } from './GoalChangeIndicator';
+import { getGoalChange } from '@utils/Utilities';
+import { CONSTANTS } from '@utils/Constants'; // Import CONSTANTS
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
@@ -56,11 +49,11 @@ const getFillColor = (
 ): string => {
   const [quantity, goal] = value;
   if (type === 'checkbox') {
-    return quantity > 0 ? color : DEFAULT_GRAY;
+    return quantity > 0 ? color : CONSTANTS.HISTORY_GRID.DEFAULT_GRAY;
   } else {
     const hasQuantity = quantity > 0;
     const colorIntensity = goal && hasQuantity ? Math.min(quantity / goal, 1) : 1;
-    return hasQuantity ? adjustColorOpacity(color, colorIntensity) : DEFAULT_GRAY;
+    return hasQuantity ? adjustColorOpacity(color, colorIntensity) : CONSTANTS.HISTORY_GRID.DEFAULT_GRAY;
   }
 };
 
@@ -71,8 +64,21 @@ const DaySquare: React.FC<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-}> = ({ day, index, squareSize, rowOpacity, type, color }) => {
+  history: HistoryGridProps['data'];
+  defaultGoal: number;
+}> = ({ day, index, squareSize, rowOpacity, type, color, history, defaultGoal }) => {
   const fill = getFillColor(day.value, type, color);
+
+  // Transform history to the correct format
+  const historyObject: Record<string, Habit.HistoryEntry> = {}; 
+  history.forEach(entry => {
+    historyObject[entry.date] = { 
+      goal: entry.value[1],
+      quantity: entry.value[0],
+    };
+  });
+
+  const goalChange = getGoalChange(day.date, historyObject, defaultGoal);
 
   const containerStyle = {
     width: `${squareSize}px`,
@@ -98,6 +104,19 @@ const DaySquare: React.FC<{
           height={squareSize}
         />
       </svg>
+      {goalChange !== null && (
+        <div style={{
+          position: 'absolute',
+          bottom: '1px',
+          left: '1px'
+        }}>
+          <GoalChangeIndicator
+            change={goalChange}
+            showBadge={false}
+            size={6}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -109,7 +128,8 @@ const GridRow: React.FC<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-}> = ({ days, gap, squareSize, rowOpacity, type, color }) => (
+  history: HistoryGridProps['data'];
+}> = ({ days, gap, squareSize, rowOpacity, type, color, history }) => (
   <div style={{ display: 'flex', gap: `${gap}px` }}>
     {days.map((day, index) => (
       <DaySquare
@@ -119,7 +139,9 @@ const GridRow: React.FC<{
         squareSize={squareSize}
         rowOpacity={rowOpacity}
         type={type}
-        color={color}
+        color={color} 
+        history={history}
+        defaultGoal={0} 
       />
     ))}
   </div>
@@ -129,13 +151,13 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   data,
   color,
   type,
-  baseSize = DEFAULT_BASE_SIZE,
-  gap = DEFAULT_GAP,
-  cellsPerRow = DEFAULT_CELLS_PER_ROW,
+  baseSize = CONSTANTS.UI.DEFAULT_BASE_SIZE,
+  gap = CONSTANTS.UI.DEFAULT_GAP,
+  cellsPerRow = CONSTANTS.UI.CELLS_PER_ROW,
 }) => {
   const squareSize = baseSize - gap;
-  const cornerRadius = DEFAULT_CORNER_RADIUS;
-  const rowsCount = DEFAULT_ROWS_COUNT;
+  const cornerRadius = CONSTANTS.UI.DEFAULT_CORNER_RADIUS;
+  const rowsCount = CONSTANTS.HISTORY_GRID.DEFAULT_ROWS_COUNT;
   const gridWidth = cellsPerRow * squareSize + (cellsPerRow - 1) * gap;
 
   const gridContainerStyle = {
@@ -152,7 +174,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
 
       {[...Array(rowsCount)].map((_, rowIndex) => {
         const rowStart = rowIndex * cellsPerRow;
-        const rowOpacity = MAX_ROW_OPACITY - (rowsCount - 1 - rowIndex) * ROW_OPACITY_DECREMENT;
+        const rowOpacity = CONSTANTS.UI.MAX_ROW_OPACITY - (rowsCount - 1 - rowIndex) * CONSTANTS.UI.ROW_OPACITY_DECREMENT;
 
         return (
           <GridRow
@@ -162,7 +184,8 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
             squareSize={squareSize}
             rowOpacity={rowOpacity}
             type={type}
-            color={color}
+            color={color} 
+            history={data}
           />
         );
       })}

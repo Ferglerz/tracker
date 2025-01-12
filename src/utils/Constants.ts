@@ -1,10 +1,12 @@
+// constants.ts
 export const CONSTANTS = {
   STORAGE: {
-    KEY: 'habitData',
+    HABITS_KEY: 'habitData',
+    SETTINGS_KEY: 'settings',
     GROUP: 'group.io.ionic.tracker'
   },
   UI: {
-    CELLS_PER_ROW: 14,
+    CELLS_PER_ROW: 12,
     LONG_PRESS_DELAY: 350,
     DEFAULT_COLOR: '#657c9a',
     DEFAULT_CORNER_RADIUS: 5,
@@ -34,7 +36,11 @@ export const CONSTANTS = {
     { title: 'Medium Widget 2', spaces: 6, type: 'medium2' },
     { title: 'Large Widget 1', spaces: 8, type: 'large1' },
     { title: 'Large Widget 2', spaces: 8, type: 'large2' }
-  ] as const
+  ] as const,
+  HISTORY_GRID: { // New category for HistoryGrid constants
+    DEFAULT_GRAY: 'rgba(128, 128, 128, 0.1)',
+    DEFAULT_ROWS_COUNT: 3
+  }
 } as const;
 
 export type PresetColor = typeof CONSTANTS.PRESET_COLORS[number];

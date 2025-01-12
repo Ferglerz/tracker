@@ -60,56 +60,38 @@ class IonicStorageManager {
 
     func updateHabitValue(habitId: String, value: Int, date: String? = nil) throws {
         guard let userDefaults = userDefaults else { return }
-
         var currentData = try loadHabits()
+        guard let index = currentData.firstIndex(where: { $0.id == habitId }) else { return }
 
-        if let index = currentData.firstIndex(where: { $0.id == habitId }) {
-            var updatedHabit = currentData[index]
-            let dateKey = date ?? ISO8601DateFormatter().string(from: Date())
-            let currentEntry = updatedHabit.history[dateKey] ?? HistoryEntry(
-                quantity: 0,
-                goal: updatedHabit.goal ?? 0
-            )
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateKey = date ?? dateFormatter.string(from: Date())
 
-            let newEntry = HistoryEntry(
-                quantity: value,
-                goal: currentEntry.goal
-            )
-            
-            updatedHabit.history[dateKey] = newEntry
-            updatedHabit.quantity = value
+        var updatedHabit = currentData[index]
+        let currentEntry = updatedHabit.history[dateKey] ?? HistoryEntry(quantity: 0, goal: updatedHabit.goal ?? 0)
+        
+        updatedHabit.history[dateKey] = HistoryEntry(quantity: value, goal: currentEntry.goal)
+        updatedHabit.quantity = value
+        currentData[index] = updatedHabit
 
-            currentData[index] = updatedHabit
-
-            let habitsContainer = HabitsData(habits: currentData)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            
-            do {
-                let jsonData = try encoder.encode(habitsContainer)
-                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                    userDefaults.set(jsonString, forKey: storageKey)
-                    userDefaults.synchronize()
-                    
-                    DispatchQueue.main.async {
-                        if #available(iOS 14.0, *) {
-                            WidgetCenter.shared.reloadAllTimelines()
-                        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        
+        do {
+            if let jsonString = String(data: try encoder.encode(HabitsData(habits: currentData)), encoding: .utf8) {
+                userDefaults.set(jsonString, forKey: storageKey)
+                userDefaults.synchronize()
+                
+                DispatchQueue.main.async {
+                    if #available(iOS 14.0, *) {
+                        WidgetCenter.shared.reloadAllTimelines()
                     }
                 }
-            } catch {
-                print("Error encoding habits: \(error)")
-                throw error
             }
+        } catch {
+            print("Error encoding habits: \(error)")
+            throw error
         }
     }
-
-    func clearAllData() {
-        userDefaults?.removeObject(forKey: storageKey)
-        userDefaults?.synchronize()
-        
-        if #available(iOS 14.0, *) {
-            WidgetCenter.shared.reloadAllTimelines()
-        }
-    }
+    
 }

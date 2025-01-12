@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useRef, useState, useEffect } from 'react';
+import React, { forwardRef, useCallback, useRef, useState, useEffect, useContext } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -18,6 +18,7 @@ import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
 import { HabitItemState } from '@utils/TypesAndProps';
 import { useHabits } from '@utils/useHabits';
+
 
 interface Props {
   habit: HabitEntity;
@@ -62,7 +63,7 @@ export const HabitListItem: React.FC<Props> = ({
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  
   // Get habits from central state
   const { habits } = useHabits();
   const habitState = habits.find(h => h.id === habit.id);
@@ -94,14 +95,12 @@ export const HabitListItem: React.FC<Props> = ({
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // First check if another calendar is open and close it
+
     if (openCalendarId && openCalendarId !== habit?.id) {
       onToggleCalendar(openCalendarId);
       return;
     }
-    
-    // Then handle checkbox toggle if it's a checkbox habit
+
     if (habit?.type === 'checkbox') {
       handleValueChange(state.quantity > 0 ? 0 : 1);
     }
@@ -130,9 +129,9 @@ export const HabitListItem: React.FC<Props> = ({
     onEdit();
   }, [onEdit]);
 
-  const handleToggleCalendar = useCallback(() => {    
+  const handleToggleCalendar = useCallback(() => {
     if (!habit) return;
-    
+
     if (openCalendarId === habit.id) {
       const today = getTodayString();
       const todayValue = habit.history[today];
@@ -142,14 +141,14 @@ export const HabitListItem: React.FC<Props> = ({
         goal: todayValue?.goal ?? habit.goal ?? 0
       });
     }
-    
+
     slidingRef.current?.close();
     onToggleCalendar(habit.id);
   }, [habit, onToggleCalendar, openCalendarId]);
 
-  const handleDateSelected = useCallback((date: string) => {    
+  const handleDateSelected = useCallback((date: string) => {
     if (!habit) return;
-    
+
     setState(prevState => ({
       ...prevState,
       selectedDate: date,
@@ -180,18 +179,18 @@ export const HabitListItem: React.FC<Props> = ({
           onTouchStart={handleLongPress}
           onMouseDown={handleLongPress}
         >
-          <div 
-            className="habit-color-bar" 
-            style={{ backgroundColor: habit.bgColor }} 
+          <div
+            className="habit-color-bar"
+            style={{ backgroundColor: habit.bgColor }}
           />
-          <div className="habit-container ion-align-items-center">
-            <IonReorder className="habit-reorder ion-margin">
-              <IonIcon icon={reorderThree} />
+          <div className="habit-container ion-align-items-center ion-no-margin">
+            <IonReorder className="habit-reorder">
+              <IonIcon icon={reorderThree} className="margin-auto" />
             </IonReorder>
 
-            <div className="habit-content">
+            <div className="habit-content ion-no-padding">
               <div className="habit-header">
-                <HabitDetails 
+                <HabitDetails
                   habit={habit}
                   quantity={state.quantity}
                   goal={state.goal}
@@ -210,6 +209,8 @@ export const HabitListItem: React.FC<Props> = ({
                 gap={3}
                 cellsPerRow={CONSTANTS.UI.CELLS_PER_ROW}
                 data={getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3)}
+                history={habit.history}
+                defaultGoal={habit.goal ?? 0}
               />
             </div>
           </div>
