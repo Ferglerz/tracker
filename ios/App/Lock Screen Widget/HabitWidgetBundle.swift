@@ -5,6 +5,5 @@ import SwiftUI
 struct HabitWidgetsBundle: WidgetBundle {
     var body: some Widget {
         HabitWidget()
-        HabitWidgetsLiveActivity()
     }
 }

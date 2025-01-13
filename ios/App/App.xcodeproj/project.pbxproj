@@ -9,15 +9,19 @@
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		434EF68D2D0A225A0002ED92 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 434EF68C2D0A22510002ED92 /* libsqlite3.tbd */; };
-		434EF68F2D0A22C70002ED92 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */; };
-		434EF6902D0A22D90002ED92 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */; };
 		43A4B16D2D03E9A8005B3C72 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */; };
 		43A4B16F2D03E9A8005B3C72 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */; };
-		43A4B1722D03E9A8005B3C72 /* HabitWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */; };
+		43A4B1722D03E9A8005B3C72 /* HabitWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1712D03E9A8005B3C72 /* HabitWidgetBundle.swift */; };
 		43A4B1742D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */; };
-		43A4B1762D03E9A8005B3C72 /* HabitWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */; };
 		43A4B1782D03E9AA005B3C72 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43A4B1772D03E9AA005B3C72 /* Assets.xcassets */; };
 		43A4B17C2D03E9AA005B3C72 /* Lock Screen WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 43A4B16B2D03E9A8005B3C72 /* Lock Screen WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		43CB942D2D34D79500D99DC6 /* IonicStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB942B2D34D79500D99DC6 /* IonicStorageManager.swift */; };
+		43CB94302D34D79E00D99DC6 /* HabitWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB942E2D34D79E00D99DC6 /* HabitWidgets.swift */; };
+		43CB94322D34DBA800D99DC6 /* WidgetTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB94312D34DBA800D99DC6 /* WidgetTypes.swift */; };
+		43CB94342D34DBF500D99DC6 /* HabitRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB94332D34DBF500D99DC6 /* HabitRow.swift */; };
+		43CB94362D34DC4800D99DC6 /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB94352D34DC4800D99DC6 /* Helpers.swift */; };
+		43CB94382D34DC7600D99DC6 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB94372D34DC7600D99DC6 /* Intents.swift */; };
+		43CB943A2D34F9A900D99DC6 /* WidgetGridLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB94392D34F9A800D99DC6 /* WidgetGridLayout.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -54,17 +58,22 @@
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		434EF68C2D0A22510002ED92 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
-		434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IonicStorageManager.swift; sourceTree = "<group>"; };
 		435BBE992D05EAC60050C157 /* Lock Screen WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Lock Screen WidgetExtension.entitlements"; sourceTree = "<group>"; };
 		435BBE9A2D05EAE00050C157 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		43A4B16B2D03E9A8005B3C72 /* Lock Screen WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Lock Screen WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		43A4B16C2D03E9A8005B3C72 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		43A4B16E2D03E9A8005B3C72 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetsBundle.swift; sourceTree = "<group>"; };
+		43A4B1712D03E9A8005B3C72 /* HabitWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetBundle.swift; sourceTree = "<group>"; };
 		43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgetsLiveActivity.swift; sourceTree = "<group>"; };
-		43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitWidgets.swift; sourceTree = "<group>"; };
 		43A4B1772D03E9AA005B3C72 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		43A4B1792D03E9AA005B3C72 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		43CB942B2D34D79500D99DC6 /* IonicStorageManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = IonicStorageManager.swift; path = ../../../../../.Trash/IonicStorageManager.swift; sourceTree = "<group>"; };
+		43CB942E2D34D79E00D99DC6 /* HabitWidgets.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = HabitWidgets.swift; path = ../../../../../Desktop/HabitWidgets.swift; sourceTree = "<group>"; };
+		43CB94312D34DBA800D99DC6 /* WidgetTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTypes.swift; sourceTree = "<group>"; };
+		43CB94332D34DBF500D99DC6 /* HabitRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitRow.swift; sourceTree = "<group>"; };
+		43CB94352D34DC4800D99DC6 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
+		43CB94372D34DC7600D99DC6 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		43CB94392D34F9A800D99DC6 /* WidgetGridLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetGridLayout.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -114,9 +123,14 @@
 		43A4B1702D03E9A8005B3C72 /* Lock Screen Widget */ = {
 			isa = PBXGroup;
 			children = (
-				434EF68E2D0A22C70002ED92 /* IonicStorageManager.swift */,
-				43A4B1752D03E9A8005B3C72 /* HabitWidgets.swift */,
-				43A4B1712D03E9A8005B3C72 /* HabitWidgetsBundle.swift */,
+				43CB942B2D34D79500D99DC6 /* IonicStorageManager.swift */,
+				43CB94332D34DBF500D99DC6 /* HabitRow.swift */,
+				43CB942E2D34D79E00D99DC6 /* HabitWidgets.swift */,
+				43CB94392D34F9A800D99DC6 /* WidgetGridLayout.swift */,
+				43CB94372D34DC7600D99DC6 /* Intents.swift */,
+				43CB94352D34DC4800D99DC6 /* Helpers.swift */,
+				43CB94312D34DBA800D99DC6 /* WidgetTypes.swift */,
+				43A4B1712D03E9A8005B3C72 /* HabitWidgetBundle.swift */,
 				43A4B1732D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift */,
 				43A4B1772D03E9AA005B3C72 /* Assets.xcassets */,
 				43A4B1792D03E9AA005B3C72 /* Info.plist */,
@@ -317,9 +331,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				43A4B1762D03E9A8005B3C72 /* HabitWidgets.swift in Sources */,
-				43A4B1722D03E9A8005B3C72 /* HabitWidgetsBundle.swift in Sources */,
-				434EF68F2D0A22C70002ED92 /* IonicStorageManager.swift in Sources */,
+				43CB94302D34D79E00D99DC6 /* HabitWidgets.swift in Sources */,
+				43CB94362D34DC4800D99DC6 /* Helpers.swift in Sources */,
+				43CB943A2D34F9A900D99DC6 /* WidgetGridLayout.swift in Sources */,
+				43A4B1722D03E9A8005B3C72 /* HabitWidgetBundle.swift in Sources */,
+				43CB94322D34DBA800D99DC6 /* WidgetTypes.swift in Sources */,
+				43CB94342D34DBF500D99DC6 /* HabitRow.swift in Sources */,
+				43CB94382D34DC7600D99DC6 /* Intents.swift in Sources */,
+				43CB942D2D34D79500D99DC6 /* IonicStorageManager.swift in Sources */,
 				43A4B1742D03E9A8005B3C72 /* HabitWidgetsLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -328,7 +347,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				434EF6902D0A22D90002ED92 /* IonicStorageManager.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

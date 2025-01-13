@@ -202,7 +202,3 @@ ion-segment-button.ios::part(native) {
 .segment-button-checked.ios::part(native) {
   color: #fff; /* Consider making this customizable as well */
 }
-
-ion-checkbox::part(container) {
-  background: red;
-}

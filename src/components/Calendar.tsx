@@ -6,6 +6,7 @@ import {
   IonCardContent,
   IonDatetime,
   IonBadge,
+  IonHeader,
 } from '@ionic/react';
 import { arrowBack, create } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
@@ -116,47 +117,38 @@ const HabitCalendar: React.FC<Props> = ({
 
   return (
     <div className="calendar-container">
-      <IonButton
-        fill="clear"
-        onClick={() => {
-          resetToToday();
-          onClose();
-        }}
-        style={{
-          background: habit.bgColor,
-          position: 'absolute',
-          opacity: 0.9,
-          bottom: '10px',
-          right: '10px',
-          color: '#FFFFFF',
-          height: '36px',
-          borderRadius: '5px',
-        }}
-      >
-        Done
-      </IonButton>
-      {
-        habit.type === 'quantity' && (
-
-          <IonButton
-            fill="clear"
-            onClick={() => setShowEditModal(true)}
-            style={{
-              background: habit.bgColor,
-              position: 'absolute',
-              opacity: 0.9,
-              bottom: '10px',
-              left: '10px',
-              color: '#FFFFFF',
-              height: '36px',
-              borderRadius: '5px',
-            }}
-          >
-            Edit quantity and goal
-          </IonButton>
-        )
-      }
-      <IonDatetime
+      <IonHeader style={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
+        <IonButton
+          fill="clear"
+          onClick={() => setShowEditModal(true)}
+          style={{
+            background: habit.bgColor,
+            opacity: 0.9,
+            color: '#FFFFFF',
+            height: '36px',
+            borderRadius: '5px',
+            display: habit.type === 'quantity' ? 'block' : 'none'
+          }}
+        >
+          Edit quantity and goal
+        </IonButton>
+        <IonButton
+          fill="clear"
+          onClick={() => {
+            resetToToday();
+            onClose();
+          }}
+          style={{
+            background: habit.bgColor,
+            opacity: 0.9,
+            color: '#FFFFFF',
+            height: '36px',
+            borderRadius: '5px',
+          }}
+        >
+          Done
+        </IonButton>
+      </IonHeader>      <IonDatetime
         presentation="date"
         size="cover"
         preferWheel={false}

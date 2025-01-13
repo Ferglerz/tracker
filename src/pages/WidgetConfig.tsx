@@ -22,6 +22,7 @@ import { Squircle } from '@components/Squircle';
 import { HabitEntity } from '@utils/HabitEntity';
 import { useHabits } from '@utils/useHabits';
 import * as icons from 'ionicons/icons';
+import { CONSTANTS } from '@utils/Constants';
 
 interface WidgetSpace {
     id: string;
@@ -36,17 +37,6 @@ interface WidgetSection {
     spaces: number;
     type: string;
 }
-
-const WIDGET_SECTIONS: WidgetSection[] = [
-    { title: 'Lock Screen 1', spaces: 1, type: 'lock1' },
-    { title: 'Lock Screen 2', spaces: 1, type: 'lock2' },
-    { title: 'Small Widget 1', spaces: 3, type: 'small1' },
-    { title: 'Small Widget 2', spaces: 3, type: 'small2' },
-    { title: 'Medium Widget 1', spaces: 6, type: 'medium1' },
-    { title: 'Medium Widget 2', spaces: 6, type: 'medium2' },
-    { title: 'Large Widget 1', spaces: 8, type: 'large1' },
-    { title: 'Large Widget 2', spaces: 8, type: 'large2' },
-];
 
 const createEmptySpaces = (section: WidgetSection): WidgetSpace[] => {
     return Array.from({ length: section.spaces }, (_, index) => ({
@@ -284,7 +274,7 @@ const WidgetConfig: React.FC = () => {
     const [widgetSpaces, setWidgetSpaces] = useState<WidgetSpace[]>([]);
 
     useEffect(() => {
-        const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
+        const spaces = CONSTANTS.WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
 
         const habitAssignments: { [key: string]: string } = {};
         habits.forEach(habit => {
@@ -376,7 +366,7 @@ const WidgetConfig: React.FC = () => {
     const renderTabContent = (filterPrefix: string) => (
         <>
             <HabitsContainer habits={habits} onDrop={handleDrop} />
-            {WIDGET_SECTIONS
+            {CONSTANTS.WIDGET_SECTIONS
                 .filter(section => section.type.startsWith(filterPrefix))
                 .map((section) => (
                     <WidgetSection
@@ -423,12 +413,6 @@ const WidgetConfig: React.FC = () => {
                         </div>
                     </IonTab>
 
-                    <IonTab tab="large">
-                        <div className="ion-padding">
-                            {renderTabContent('large')}
-                        </div>
-                    </IonTab>
-
                     <IonTabBar slot="bottom">
                         <IonTabButton tab="lock">
                             <IonIcon icon={lockClosed} />
@@ -441,10 +425,6 @@ const WidgetConfig: React.FC = () => {
                         <IonTabButton tab="medium">
                             <IonIcon icon={square} />
                             <IonLabel>Medium</IonLabel>
-                        </IonTabButton>
-                        <IonTabButton tab="large">
-                            <IonIcon icon={square} />
-                            <IonLabel>Large</IonLabel>
                         </IonTabButton>
                     </IonTabBar>
                 </IonTabs>

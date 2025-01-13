@@ -1,7 +1,7 @@
 import { getTransform, useAnimatedPress } from "@utils/Utilities";
 
 export const AnimatedIncrements: React.FC<{
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   type: 'increment' | 'decrement';
   color: string;
 }> = ({ onClick, type, color }) => {
@@ -9,7 +9,7 @@ export const AnimatedIncrements: React.FC<{
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    handlePress(onClick);
+    handlePress(() => onClick(e));
   };
 
   return (

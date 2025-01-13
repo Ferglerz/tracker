@@ -124,12 +124,12 @@ export const HabitItem: React.FC<Props> = ({
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+  
     if (openCalendarId && openCalendarId !== habit?.id) {
       onToggleCalendar(openCalendarId);
       return;
     }
-
+  
     if (habit?.type === 'checkbox') {
       handleValueChange(state.quantity > 0 ? 0 : 1, state.selectedDate);
     }

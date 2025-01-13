@@ -77,17 +77,32 @@ export class HabitEntity {
     const today = getTodayString();
     dateString = dateString || today;
   
-    const currentHistoryEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
-    const newHistoryQuantity = Math.max(0, currentHistoryEntry.quantity + amount);
+    // Load fresh data to avoid stale state
+    const data = await HabitStorageWrapper.handleHabitData('load');
+    const freshHabit = data.habits.find(h => h.id === this.id);
+    if (!freshHabit) throw new Error('Habit not found');
   
-    // Update both quantity (default) and history
-    const newQuantity = Math.max(0, this.quantity + amount); 
+    // Get the current history entry from fresh data
+    const currentHistoryEntry = freshHabit.history[dateString] || { 
+      quantity: 0, 
+      goal: freshHabit.goal || 0 
+    };
+    
+    const newHistoryQuantity = Math.max(0, currentHistoryEntry.quantity + amount);
+    
+    // Update both quantity (for today) and history
+    const newQuantity = dateString === today ? 
+      Math.max(0, (freshHabit.quantity || 0) + amount) : 
+      freshHabit.quantity || 0;
   
     await this.update({
       dateString: dateString,
-      quantity: newQuantity, // Update the default quantity
+      quantity: newQuantity,
       history: {
-        [dateString]: { quantity: newHistoryQuantity, goal: this.goal || 0 },
+        [dateString]: { 
+          quantity: newHistoryQuantity, 
+          goal: freshHabit.goal || 0 
+        },
       },
     });
   }

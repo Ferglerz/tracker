@@ -1,3 +1,5 @@
+import { IconCategory } from "./TypesAndProps";
+
 // constants.ts
 export const CONSTANTS = {
   STORAGE: {
@@ -33,28 +35,13 @@ export const CONSTANTS = {
     { title: 'Small Widget 1', spaces: 3, type: 'small1' },
     { title: 'Small Widget 2', spaces: 3, type: 'small2' },
     { title: 'Medium Widget 1', spaces: 6, type: 'medium1' },
-    { title: 'Medium Widget 2', spaces: 6, type: 'medium2' },
-    { title: 'Large Widget 1', spaces: 8, type: 'large1' },
-    { title: 'Large Widget 2', spaces: 8, type: 'large2' }
+    { title: 'Medium Widget 2', spaces: 6, type: 'medium2' }
   ] as const,
   HISTORY_GRID: { // New category for HistoryGrid constants
     DEFAULT_GRAY: 'rgba(128, 128, 128, 0.1)',
     DEFAULT_ROWS_COUNT: 3
   }
 } as const;
-
-// Add to Constants.ts
-
-export interface IconCategoryItem {
-  name: string;
-  icon: string;
-  description: string;
-}
-
-export interface IconCategory {
-  name: string;
-  icons: IconCategoryItem[];
-}
 
 export const ICON_CATEGORIES: IconCategory[] = [
   {
@@ -174,7 +161,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
       { name: "Eye", icon: "eye", description: "Screen time breaks" },
       { name: "Ear", icon: "ear", description: "Meditation/mindfulness" }
     ]
-  }    
+  }
 ];
 
 export type PresetColor = typeof CONSTANTS.PRESET_COLORS[number];

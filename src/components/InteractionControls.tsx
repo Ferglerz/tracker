@@ -3,6 +3,7 @@ import { InteractionControlsProps } from "@utils/TypesAndProps";
 import { AnimatedIncrements } from "@components/AnimatedIncrements";
 import { getTransform, useAnimatedPress } from "@utils/Utilities";
 
+// InteractionControls.tsx
 export const InteractionControls = ({
   habit,
   handleValueChange,
@@ -21,9 +22,8 @@ export const InteractionControls = ({
         padding: '0px',
       }}
       onClick={(e) => {
-        if (habit.type === 'checkbox') {
-          e.stopPropagation();
-        }
+        // Always prevent event propagation
+        e.stopPropagation();
       }}
     >
       {habit.type === 'checkbox' ? (
@@ -53,12 +53,18 @@ export const InteractionControls = ({
       ) : (
         <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <AnimatedIncrements
-            onClick={() => handleValueChange(Math.max(0, quantity - 1), selectedDate, habit)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleValueChange(Math.max(0, quantity - 1), selectedDate, habit);
+            }}
             color={habit.bgColor}
             type="decrement"
           />
           <AnimatedIncrements
-            onClick={() => handleValueChange(quantity + 1, selectedDate, habit)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleValueChange(quantity + 1, selectedDate, habit);
+            }}
             color={habit.bgColor}
             type="increment"
           />

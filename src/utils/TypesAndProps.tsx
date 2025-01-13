@@ -93,3 +93,14 @@ export interface StorageStrategy {
   load(key: string): Promise<Habit.Data | null>;
   clear(key: string): Promise<void>;
 }
+
+export interface IconCategoryItem {
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface IconCategory {
+  name: string;
+  icons: IconCategoryItem[];
+}
