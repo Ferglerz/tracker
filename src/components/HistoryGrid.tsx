@@ -137,6 +137,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   baseSize = CONSTANTS.UI.DEFAULT_BASE_SIZE,
   gap = CONSTANTS.UI.DEFAULT_GAP,
   cellsPerRow = CONSTANTS.UI.CELLS_PER_ROW,
+  hideGrid = false,
 }) => {
   const squareSize = baseSize - gap;
   const cornerRadius = CONSTANTS.UI.DEFAULT_CORNER_RADIUS;
@@ -152,7 +153,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   };
 
   return (
-    <div className="history-grid" style={gridContainerStyle}>
+    <div className={`history-grid ${hideGrid ? 'hide-grid-elements' : ''}`} style={gridContainerStyle}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
 
       {[...Array(rowsCount)].map((_, rowIndex) => {

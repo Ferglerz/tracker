@@ -61,6 +61,7 @@ export interface HistoryGridProps {
   cellsPerRow?: number;
   history: Record<string, Habit.HistoryEntry>;
   defaultGoal: number;
+  hideGrid?: boolean; 
 }
 
 export interface CalendarProps {

@@ -28,6 +28,19 @@ export const InteractionControls = ({
     >
       {habit.type === 'checkbox' ? (
         <IonCheckbox
+        style={{
+          '--size': '24px',
+          '--checkbox-background-checked': habit.bgColor,
+          '--checkbox-background-hover': habit.bgColor,
+          '--border-radius': '50%',
+          '--border-color': habit.bgColor,
+          '--border-color-checked': habit.bgColor,
+          //'--checkmark-color': 'var(--ion-text-color)',
+          '--checkmark-width': '3',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease-in-out',
+          transform: getTransform(isPressed, 'scale'),
+        }}
           checked={quantity > 0}
           alignment="center"
           onIonChange={async (e) => {
@@ -35,19 +48,6 @@ export const InteractionControls = ({
             handlePress(async () => {
               await handleValueChange(e.detail.checked ? 1 : 0, selectedDate, habit);
             });
-          }}
-          style={{
-            '--size': '24px',
-            '--checkbox-background-checked': habit.bgColor,
-            '--checkbox-background-hover': habit.bgColor,
-            '--border-radius': '50%',
-            '--border-color': habit.bgColor,
-            '--border-color-checked': habit.bgColor,
-            '--checkmark-color': 'var(--ion-text-color)',
-            '--checkmark-width': '3',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out',
-            transform: getTransform(isPressed, 'scale'),
           }}
         />
       ) : (

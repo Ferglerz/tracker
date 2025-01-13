@@ -113,20 +113,12 @@ const HabitForm: React.FC<Props> = ({
     }
   };
 
-  interface CustomCSSProperties extends React.CSSProperties {
-    '--indicator-color'?: string;
-    '--indicator-color-checked'?: string;
-    '--color-checked'?: string;
-    '--color'?: string; // For default text color (MD)
-  }
-  
-  // Use the extended interface
-  const segmentButtonStyles: CustomCSSProperties = {
+  const segmentButtonStyles = {
     '--indicator-color': color,
     '--indicator-color-checked': color,
     '--color-checked': color,
     '--color': 'black',
-  };
+  } as React.CSSProperties;
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>

@@ -19,11 +19,10 @@
 .app-title {
   position: absolute;
   height: 100%;
+  width: 100%;
   overflow: visible;
   padding: 0;
   z-index: 99;
-  left: 50%;
-  transform: translateX(-50%);
   font-family: Arial, sans-serif;
   font-size: 20px;
 }

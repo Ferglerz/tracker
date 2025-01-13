@@ -27,7 +27,7 @@ const Home: React.FC = () => {
   const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>();
   const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
-  const [initialHistoryGridSetting, setInitialHistoryGridSetting] = useState(true); // Default to true
+  const [initialHistoryGridSetting, setInitialHistoryGridSetting] = useState<boolean>(true); // Default to true
 
   useEffect(() => {
     const loadSettings = async () => {

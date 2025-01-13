@@ -20,6 +20,7 @@ import { CONSTANTS } from '@utils/Constants';
 import { HabitItemState } from '@utils/TypesAndProps';
 import { useHabits } from '@utils/useHabits';
 import * as icons from 'ionicons/icons';
+import { handleSettings } from '@utils/Storage';
 
 
 interface Props {
@@ -98,6 +99,18 @@ export const HabitItem: React.FC<Props> = ({
     };
   });
 
+
+  const [hideGrid, setHideGrid] = useState(false);
+
+  // Add this effect
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await handleSettings('load');
+      setHideGrid(!settings.historyGrid);
+    };
+    loadSettings();
+  }, []);
+
   useEffect(() => {
     if (habit) {
       setState(prevState => ({
@@ -124,24 +137,14 @@ export const HabitItem: React.FC<Props> = ({
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-  
-    if (openCalendarId && openCalendarId !== habit?.id) {
-      onToggleCalendar(openCalendarId);
-      return;
-    }
-  
+
     if (habit?.type === 'checkbox') {
       handleValueChange(state.quantity > 0 ? 0 : 1, state.selectedDate);
     }
-  }, [habit, state.quantity, handleValueChange, openCalendarId, onToggleCalendar]);
+  }, [habit, state.quantity, handleValueChange]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('ion-reorder')) return;
-
-    // Close calendar if open when starting drag/long press
-    if (isCalendarOpen) {
-      onToggleCalendar(habit.id);
-    }
 
     longPressActive.current = true;
     timer.current = setTimeout(() => {
@@ -149,7 +152,7 @@ export const HabitItem: React.FC<Props> = ({
         slidingRef.current?.open('end');
       }
     }, CONSTANTS.UI.LONG_PRESS_DELAY);
-  }, [isCalendarOpen, onToggleCalendar, habit.id]);
+  }, [isCalendarOpen, habit.id]);
 
   const cancelLongPress = useCallback(() => {
     if (timer.current) {
@@ -261,6 +264,7 @@ export const HabitItem: React.FC<Props> = ({
                 data={getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3)}
                 history={habit.history}
                 defaultGoal={habit.goal ?? 0}
+                hideGrid={hideGrid} 
               />
             </div>
           </div>
