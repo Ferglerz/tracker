@@ -1,6 +1,7 @@
 import { IonCheckbox } from "@ionic/react";
 import { InteractionControlsProps } from "@utils/TypesAndProps";
 import { AnimatedIncrements } from "@components/AnimatedIncrements";
+import { getTransform, useAnimatedPress } from "@utils/Utilities";
 
 export const InteractionControls = ({
   habit,
@@ -8,6 +9,7 @@ export const InteractionControls = ({
   selectedDate,
 }: InteractionControlsProps) => {
   const quantity = habit.history[selectedDate]?.quantity || 0;
+  const { isPressed, handlePress } = useAnimatedPress();
 
   return (
     <div
@@ -30,13 +32,22 @@ export const InteractionControls = ({
           alignment="center"
           onIonChange={async (e) => {
             e.stopPropagation();
-            await handleValueChange(e.detail.checked ? 1 : 0, selectedDate, habit);
+            handlePress(async () => {
+              await handleValueChange(e.detail.checked ? 1 : 0, selectedDate, habit);
+            });
           }}
           style={{
+            '--size': '24px',
             '--checkbox-background-checked': habit.bgColor,
             '--checkbox-background-hover': habit.bgColor,
-            '--checkbox-border-color': habit.bgColor,
+            '--border-radius': '50%',
+            '--border-color': habit.bgColor,
+            '--border-color-checked': habit.bgColor,
+            '--checkmark-color': 'var(--ion-text-color)',
+            '--checkmark-width': '3',
             cursor: 'pointer',
+            transition: 'all 0.2s ease-in-out',
+            transform: getTransform(isPressed, 'scale'),
           }}
         />
       ) : (
