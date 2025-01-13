@@ -130,7 +130,7 @@ ion-item.habit::part(native) {
 .habit-container {
   display: flex;
   width: 100%;
-  padding: 16px 0;
+  padding: 12px 0;
   flex-direction: row;
 }
 
@@ -172,6 +172,10 @@ ion-item.habit::part(native) {
 /* Existing style */
 .history-grid {
   margin-top: 12px;
+}
+
+.history-grid.hide-grid-elements {
+  margin-top: 0px;
 }
 
 /* New style to hide elements when the class is applied */

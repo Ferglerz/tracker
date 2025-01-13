@@ -15,6 +15,7 @@ export namespace Habit {
     unit?: string;
     goal: number;
     bgColor: string;
+    icon?: string;
     quantity: number;
     history: {
       [date: string]: HistoryEntry;

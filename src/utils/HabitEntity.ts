@@ -22,6 +22,7 @@ export class HabitEntity {
   get type() { return this.props.type; }
   get unit() { return this.props.unit; }
   get goal() { return this.props.goal; }
+  get icon() { return this.props.icon; }
   get bgColor() { return this.props.bgColor; }
   get quantity() { return this.props.quantity; }
   get history() { return this.props.history; }

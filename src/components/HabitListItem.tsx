@@ -18,6 +18,7 @@ import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
 import { HabitItemState } from '@utils/TypesAndProps';
 import { useHabits } from '@utils/useHabits';
+import * as icons from 'ionicons/icons';
 
 
 interface Props {
@@ -35,22 +36,41 @@ const HabitDetails: React.FC<{
   quantity: number;
   goal: number;
 }> = ({ habit, quantity, goal }) => (
-  <div className="habit-details">
+  <div
+  className="ion-no-padding ion-no-margin ion-align-items-baseline"
+  style={{ display: 'flex', justifyContent: 'flex-start' }}
+>
+  {habit.icon && (
+    <IonIcon
+      size="large"
+      icon={(icons as any)[habit.icon]}
+      style={{
+        fontSize: '24px',
+        marginRight: '12px',
+        color: habit.bgColor,
+        alignSelf: 'flex-end',
+      }}
+    />
+  )}
+  <div className="habit-name-quantity">
     <div className="habit-name">
       {habit.name}
-      {habit.type === 'quantity' && goal > 0 && quantity >= goal && (
-        <IonBadge className="ion-margin-start" color="success">Complete!</IonBadge>
-      )}
+      {habit.type === 'quantity' &&
+        goal > 0 &&
+        quantity >= goal && (
+          <IonBadge className="ion-margin-start" color="success">
+            Complete!
+          </IonBadge>
+        )}
     </div>
     {habit.type === 'quantity' && (
       <div className="habit-quantity">
-        {quantity}
-        {goal ? ` / ${goal} ` : ''}
-        {habit.unit}
+        {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
       </div>
     )}
   </div>
-);
+</div>
+  );
 
 export const HabitListItem: React.FC<Props> = ({
   habit,
@@ -116,19 +136,19 @@ export const HabitListItem: React.FC<Props> = ({
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('ion-reorder')) return;
-    
+
     // Close calendar if open when starting drag/long press
     if (isCalendarOpen) {
-        onToggleCalendar(habit.id);
+      onToggleCalendar(habit.id);
     }
-    
+
     longPressActive.current = true;
     timer.current = setTimeout(() => {
-        if (longPressActive.current) {
-            slidingRef.current?.open('end');
-        }
+      if (longPressActive.current) {
+        slidingRef.current?.open('end');
+      }
     }, CONSTANTS.UI.LONG_PRESS_DELAY);
-}, [isCalendarOpen, onToggleCalendar, habit.id]);
+  }, [isCalendarOpen, onToggleCalendar, habit.id]);
 
   const cancelLongPress = useCallback(() => {
     if (timer.current) {

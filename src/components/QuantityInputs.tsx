@@ -10,8 +10,8 @@ interface Props {
 }
 
 export const QuantityInputs: React.FC<Props> = ({ unit, goal, onUnitChange, onGoalChange }) => (
-  <>
-    <IonItem>
+  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+    <IonItem style={{ flex: 1 }}>
       <IonLabel position="stacked">Unit</IonLabel>
       <IonInput
         value={unit ?? ''}
@@ -21,7 +21,7 @@ export const QuantityInputs: React.FC<Props> = ({ unit, goal, onUnitChange, onGo
         placeholder="Enter unit (e.g., cups, minutes)"
       />
     </IonItem>
-    <IonItem>
+    <IonItem style={{ flex: 1 }}>
       <IonLabel position="stacked">Goal (optional)</IonLabel>
       <IonInput
         type="number"
@@ -33,5 +33,5 @@ export const QuantityInputs: React.FC<Props> = ({ unit, goal, onUnitChange, onGo
         }}
       />
     </IonItem>
-  </>
+  </div>
 );
