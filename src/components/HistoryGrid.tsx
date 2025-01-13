@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
 import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
-import { GoalChangeIndicator } from './GoalChangeIndicator';
-import { getGoalChange } from '@utils/Utilities';
-import { CONSTANTS } from '@utils/Constants'; // Import CONSTANTS
+import { CONSTANTS } from '@utils/Constants';
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
@@ -66,7 +64,7 @@ const DaySquare: React.FC<{
   color: string;
   history: HistoryGridProps['data'];
   defaultGoal: number;
-}> = ({ day, index, squareSize, rowOpacity, type, color, history, defaultGoal }) => {
+}> = ({ day, index, squareSize, rowOpacity, type, color, history }) => {
   const fill = getFillColor(day.value, type, color);
 
   // Transform history to the correct format
@@ -77,8 +75,6 @@ const DaySquare: React.FC<{
       quantity: entry.value[0],
     };
   });
-
-  const goalChange = getGoalChange(day.date, historyObject, defaultGoal);
 
   const containerStyle = {
     width: `${squareSize}px`,
@@ -104,19 +100,6 @@ const DaySquare: React.FC<{
           height={squareSize}
         />
       </svg>
-      {goalChange !== null && (
-        <div style={{
-          position: 'absolute',
-          bottom: '1px',
-          left: '1px'
-        }}>
-          <GoalChangeIndicator
-            change={goalChange}
-            showBadge={false}
-            size={6}
-          />
-        </div>
-      )}
     </div>
   );
 };
@@ -169,7 +152,7 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   };
 
   return (
-    <div style={gridContainerStyle}>
+    <div className="history-grid" style={gridContainerStyle}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
 
       {[...Array(rowsCount)].map((_, rowIndex) => {

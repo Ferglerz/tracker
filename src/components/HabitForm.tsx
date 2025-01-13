@@ -16,7 +16,7 @@ import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
 import { getTodayString } from '@utils/Utilities';
 import { ColorPicker } from '@components/ColorPicker';
-import { HabitTypeRadioGroup } from '@components/HabitTypeRadioGroup';
+import { HabitTypeSelection } from '@components/HabitTypeSelection';
 import { QuantityInputs } from '@components/QuantityInputs';
 import { CONSTANTS } from '@utils/Constants';
 
@@ -28,18 +28,28 @@ interface Props {
   onSave?: () => void;
 }
 
+// Interface for segment button styles (for type safety)
+interface SegmentButtonStyles {
+  '--indicator-color'?: string;
+  '--indicator-color-checked'?: string;
+  '--color-checked'?: string;
+  '--color'?: string; // For default text color (MD)
+}
+
 const HabitForm: React.FC<Props> = ({
   isOpen,
   onClose,
   editedHabit,
   title,
-  onSave
+  onSave,
 }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<Habit.Type>('checkbox');
   const [unit, setUnit] = useState<string | undefined>();
   const [goal, setGoal] = useState<number>(1);
-  const [color, setColor] = useState<typeof CONSTANTS.PRESET_COLORS[number]>(CONSTANTS.PRESET_COLORS[0]);
+  const [color, setColor] = useState<
+    typeof CONSTANTS.PRESET_COLORS[number]
+  >(CONSTANTS.PRESET_COLORS[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -59,8 +69,8 @@ const HabitForm: React.FC<Props> = ({
         setColor(CONSTANTS.PRESET_COLORS[0]);
       }
     }
-
   }, [isOpen, editedHabit]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -68,8 +78,10 @@ const HabitForm: React.FC<Props> = ({
     try {
       const today = getTodayString();
       const habitProps: Habit.Habit = {
-        ...editedHabit as Habit.Habit ?? {},
-        id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...(editedHabit as Habit.Habit) ?? {},
+        id:
+          editedHabit?.id ||
+          `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
@@ -80,9 +92,9 @@ const HabitForm: React.FC<Props> = ({
         history: editedHabit?.history ?? {
           [today]: {
             quantity: 0,
-            goal: type === 'quantity' ? (goal ?? 0) : 0
-          }
-        }
+            goal: type === 'quantity' ? goal ?? 0 : 0,
+          },
+        },
       };
 
       await HabitEntity.create(habitProps);
@@ -96,6 +108,21 @@ const HabitForm: React.FC<Props> = ({
     }
   };
 
+  interface CustomCSSProperties extends React.CSSProperties {
+    '--indicator-color'?: string;
+    '--indicator-color-checked'?: string;
+    '--color-checked'?: string;
+    '--color'?: string; // For default text color (MD)
+  }
+  
+  // Use the extended interface
+  const segmentButtonStyles: CustomCSSProperties = {
+    '--indicator-color': color,
+    '--indicator-color-checked': color,
+    '--color-checked': color,
+    '--color': 'black',
+  };
+
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
       <IonHeader>
@@ -105,7 +132,7 @@ const HabitForm: React.FC<Props> = ({
             <IonButton
               onClick={onClose}
               style={{
-                '--color': 'var(--neutral-button)'
+                '--color': 'var(--neutral-button)',
               }}
             >
               Cancel
@@ -117,7 +144,7 @@ const HabitForm: React.FC<Props> = ({
               onClick={handleSubmit}
               disabled={isSaving || !name.trim()}
               style={{
-                '--color': color
+                '--color': color,
               }}
             >
               {isSaving ? 'Saving...' : 'Save'}
@@ -129,18 +156,21 @@ const HabitForm: React.FC<Props> = ({
       <IonContent className="ion-padding">
         <IonList>
           <IonItem>
-            <IonLabel position="stacked"><h1>Name</h1></IonLabel>
+            <IonLabel position="stacked">
+              <h1>Name</h1>
+            </IonLabel>
             <IonInput
               value={name}
-              onIonChange={e => setName(e.detail.value || '')}
+              onIonChange={(e) => setName(e.detail.value || '')}
               placeholder="Enter habit name"
               required
             />
           </IonItem>
 
-          <HabitTypeRadioGroup
+          <HabitTypeSelection
             value={type}
             onTypeChange={setType}
+            segmentButtonStyle={segmentButtonStyles}
           />
 
           {type === 'quantity' && (
@@ -153,11 +183,13 @@ const HabitForm: React.FC<Props> = ({
           )}
 
           <IonItem>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              width: '100%'
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%',
+              }}
+            >
               <ColorPicker
                 colors={CONSTANTS.PRESET_COLORS}
                 selectedColor={color}

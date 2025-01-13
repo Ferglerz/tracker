@@ -1,3 +1,5 @@
+import { HabitEntity } from "./HabitEntity";
+
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
@@ -43,9 +45,9 @@ export interface HabitItemState {
 }
 
 export interface InteractionControlsProps {
-  habit: Habit.Habit;
-  habitItemState: HabitItemState;
-  handleValueChange: (newValue: number) => void;
+  habit: HabitEntity;
+  handleValueChange: (value: number, date: string, habit: HabitEntity) => void;
+  selectedDate: string;
 }
 
 export interface HistoryGridProps {

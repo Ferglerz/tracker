@@ -2,27 +2,34 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+// Helper function for consistent date string formatting
+private func getCurrentDateString() -> String {
+    let calendar = Calendar.current
+    let now = Date()
+    let components = calendar.dateComponents([.year, .month, .day], from: now)
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyy-MM-dd"
+    dateFormatter.timeZone = calendar.timeZone
+    return dateFormatter.string(from: calendar.date(from: components)!)
+}
+
 // MARK: - Intents
 struct ToggleHabitIntent: AppIntent {
     static var title: LocalizedStringResource = "Toggle Habit"
     
     @Parameter(title: "Habit ID")
     var habitId: String
-
+    
     init() { }
     
     init(habitId: String) {
         self.habitId = habitId
     }
-
+    
     func perform() async throws -> some IntentResult {
         let habits = try IonicStorageManager.shared.loadHabits()
         if let habit = habits.first(where: { $0.id == habitId }) {
-            let today = Date()
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            let todayString = dateFormatter.string(from: today)
-            
+            let todayString = getCurrentDateString()
             let currentQuantity = habit.history[todayString]?.quantity ?? 0
             let newQuantity = currentQuantity > 0 ? 0 : 1
             try IonicStorageManager.shared.updateHabitValue(habitId: habitId, value: newQuantity, date: todayString)
@@ -273,8 +280,8 @@ struct HabitWidget: Widget {
                         .background()
                 }
         }
-        .configurationDisplayName("Habit Tracker")
-            .description("Track your daily habits")
+        .configurationDisplayName("Simple Habits")
+            .description("Track your daily habits right from the lock screen")
             .supportedFamilies([.accessoryRectangular, .systemMedium])
     }
 }

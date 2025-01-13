@@ -1,36 +1,36 @@
 import { IonCheckbox } from "@ionic/react";
-import { HabitEntity } from "@utils/HabitEntity";
-import { HabitItemState } from "@utils/TypesAndProps";
-import { AnimatedIncrements } from "./AnimatedIncrements";
+import { InteractionControlsProps } from "@utils/TypesAndProps";
+import { AnimatedIncrements } from "@components/AnimatedIncrements";
 
 export const InteractionControls = ({
-    habit,
-    habitItemState,
-    handleValueChange
-  }: {
-    habit: HabitEntity;
-    habitItemState: HabitItemState;
-    handleValueChange: (value: number) => Promise<void>;
-  }) => (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderLeft: '1px solid var(--ion-border-color)',
-      padding: '0px',
-    }}
+  habit,
+  handleValueChange,
+  selectedDate,
+}: InteractionControlsProps) => {
+  const quantity = habit.history[selectedDate]?.quantity || 0;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderLeft: '1px solid var(--ion-border-color)',
+        padding: '0px',
+      }}
       onClick={(e) => {
         if (habit.type === 'checkbox') {
           e.stopPropagation();
         }
-      }}>
+      }}
+    >
       {habit.type === 'checkbox' ? (
         <IonCheckbox
-          checked={habitItemState.quantity > 0}
-          alignment='center'
+          checked={quantity > 0}
+          alignment="center"
           onIonChange={async (e) => {
             e.stopPropagation();
-            await handleValueChange(e.detail.checked ? 1 : 0);
+            await handleValueChange(e.detail.checked ? 1 : 0, selectedDate, habit);
           }}
           style={{
             '--checkbox-background-checked': habit.bgColor,
@@ -42,12 +42,12 @@ export const InteractionControls = ({
       ) : (
         <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <AnimatedIncrements
-            onClick={() => handleValueChange(Math.max(0, habitItemState.quantity - 1))}
+            onClick={() => handleValueChange(Math.max(0, quantity - 1), selectedDate, habit)}
             color={habit.bgColor}
             type="decrement"
           />
           <AnimatedIncrements
-            onClick={() => handleValueChange(habitItemState.quantity + 1)}
+            onClick={() => handleValueChange(quantity + 1, selectedDate, habit)}
             color={habit.bgColor}
             type="increment"
           />
@@ -55,3 +55,4 @@ export const InteractionControls = ({
       )}
     </div>
   );
+};

@@ -58,18 +58,13 @@ export const getHabitStatus = (
   return value.quantity >= value.goal ? 'complete' : 'partial';
 };
 
-export const getGoalChange = (
-  currentDate: string,
-  history: Record<string, Habit.HistoryEntry>,
-  defaultGoal: number
-): number | null => {
-  const currentGoal = history[currentDate]?.goal ?? defaultGoal;
-  
-  const prevDate = new Date(currentDate);
-  prevDate.setDate(prevDate.getDate() - 1);
-  const prevDateStr = prevDate.toISOString().split('T')[0];
-  
-  const prevGoal = history[prevDateStr]?.goal ?? defaultGoal;
-  
-  return currentGoal !== prevGoal ? currentGoal - prevGoal : null;
+export const applyGridVisibility = (shouldShow: boolean) => {
+  const gridContainers = document.querySelectorAll('.history-grid');
+  gridContainers.forEach((gridContainer) => {
+    if (shouldShow) {
+      gridContainer.classList.remove('hide-grid-elements');
+    } else {
+      gridContainer.classList.add('hide-grid-elements');
+    }
+  });
 };

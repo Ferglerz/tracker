@@ -5,56 +5,32 @@ import {
   IonCard,
   IonCardContent,
   IonDatetime,
+  IonBadge,
 } from '@ionic/react';
 import { arrowBack, create } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
 import DateEditModal from '@components/DateEditModal';
-import { getGoalChange } from '@utils/Utilities';
-// import { GoalChangeIndicator } from '@components/GoalChangeIndicator'; // Commented out the import
 import { UpdateOptions } from '@utils/HabitEntity';
 
 interface Props {
   habit: HabitEntity;
   onClose: () => void;
-  onValueChange: (value: number) => Promise<void>;
+  onValueChange: (value: number, date: string) => Promise<void>;
   onDateSelected?: (date: string) => void;
 }
-
-// Goal Change Overlay Component
-const GoalChangeOverlay: React.FC<{
-  habit: HabitEntity;
-  date: string;
-}> = ({ habit, date }) => {
-  const goalChange = getGoalChange(date, habit.history, habit.goal ?? 0);
-  
-  if (goalChange === null) return null;
-  
-  return (
-    <div style={{ 
-      position: 'absolute',
-      bottom: '2px',
-      left: '2px',
-      pointerEvents: 'none',
-      zIndex: 1
-    }}>
-      {/* <GoalChangeIndicator change={goalChange} /> */} {/* Commented out the GoalChangeIndicator */}
-      <div style={{ 
-        backgroundColor: 'red', 
-        width: '20px', 
-        height: '20px' 
-      }} /> {/* Added a div with red background */}
-    </div>
-  );
-};
 
 const HabitCalendar: React.FC<Props> = ({
   habit,
   onClose,
-  onDateSelected
+  onValueChange,
+  onDateSelected,
 }) => {
   const getTodayString = () => {
     const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+      2,
+      '0'
+    )}-${String(today.getDate()).padStart(2, '0')}`;
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
@@ -65,161 +41,146 @@ const HabitCalendar: React.FC<Props> = ({
     setSelectedDate(today);
   }, []);
 
-  const handleDateClick = useCallback(async (date: string) => {
-    setSelectedDate(date);
-    onDateSelected?.(date);
-    
-    if (habit.type === 'checkbox') {
-      const dateValue = habit.history[date]?.quantity ?? 0;
-      const newValue = dateValue > 0 ? 0 : 1;
-      await habit.increment(newValue - dateValue, date);
-    }
-  }, [habit, onDateSelected]);
-
-  const handleSaveDate = useCallback(async (quantity: number, goal: number) => {
-    const newValue: UpdateOptions = {
-      dateString: selectedDate, 
-      history: {
-        [selectedDate]: { quantity, goal } 
-      }
-    };
-    await habit.update(newValue); 
-    setShowEditModal(false);
-  }, [habit, selectedDate]);
-
-  const getHighlightedDates = useCallback((date: string) => {
-    try {
-      const value = habit.history[date];
-      if (!value) return undefined;
+  const handleDateClick = useCallback(
+    async (date: string) => {
+      setSelectedDate(date);
+      onDateSelected?.(date);
 
       if (habit.type === 'checkbox') {
-        return value.quantity > 0
-          ? {
+        const dateValue = habit.history[date]?.quantity ?? 0;
+        const newValue = dateValue > 0 ? 0 : 1;
+        onValueChange(newValue, date);
+      } else {
+        // For quantity type, directly use onValueChange without increment
+        const currentQuantity = habit.history[date]?.quantity || 0;
+        onValueChange(currentQuantity, date);
+      }
+    },
+    [habit, onDateSelected, onValueChange]
+  );
+
+  const handleSaveDate = useCallback(
+    async (quantity: number, goal: number) => {
+      const newValue: UpdateOptions = {
+        dateString: selectedDate,
+        history: {
+          [selectedDate]: { quantity, goal },
+        },
+      };
+      await habit.update(newValue);
+      setShowEditModal(false);
+    },
+    [habit, selectedDate]
+  );
+
+  const getHighlightedDates = useCallback(
+    (date: string) => {
+      try {
+        const value = habit.history[date];
+        if (!value) return undefined;
+
+        if (habit.type === 'checkbox') {
+          return value.quantity > 0
+            ? {
               textColor: '#000000',
               backgroundColor: habit.bgColor,
             }
-          : undefined;
-      } else {
-        const { quantity, goal } = value;
-        const isComplete = goal > 0 ? quantity >= goal : quantity > 0;
+            : undefined;
+        } else {
+          const { quantity, goal } = value;
+          const isComplete = goal > 0 ? quantity >= goal : quantity > 0;
 
-        if (isComplete) {
-          return {
-            textColor: '#000000',
-            backgroundColor: habit.bgColor,
-          };
-        } else if (quantity > 0) {
-          const rgbaColor = habit.bgColor.startsWith('#')
-            ? `${habit.bgColor}80`
-            : `rgba(${habit.bgColor.replace('rgb(', '').replace(')', '')}, 0.5)`;
+          if (isComplete) {
+            return {
+              textColor: '#000000',
+              backgroundColor: habit.bgColor,
+            };
+          } else if (quantity > 0) {
+            const rgbaColor = habit.bgColor.startsWith('#')
+              ? `${habit.bgColor}80`
+              : `rgba(${habit.bgColor.replace('rgb(', '').replace(')', '')}, 0.5)`;
 
-          return {
-            textColor: '#000000',
-            backgroundColor: rgbaColor,
-          };
+            return {
+              textColor: '#000000',
+              backgroundColor: rgbaColor,
+            };
+          }
         }
+      } catch (error) {
+        console.error('Error in getHighlightedDates:', error);
+        return undefined;
       }
-    } catch (error) {
-      console.error('Error in getHighlightedDates:', error);
-      return undefined;
-    }
-  }, [habit]);
+    },
+    [habit]
+  );
 
   return (
-    <div className="calendar-container" style={{
-      display: 'flex',
-      backgroundColor: 'background',
-    }}>
-      <div className="ion-padding ion-justify-content-center">
-        <IonButton
-          fill="clear"
-          onClick={() => {
-            resetToToday();
-            onClose();
-          }}
-          className="ion-no-margin"
-          style={{
-            '--color': habit.bgColor,
-            height: '36px',
-          }}
-        >
-          <IonIcon slot="icon-only" icon={arrowBack} />
-        </IonButton>
-      </div>
+    <div className="calendar-container">
+      <IonButton
+        fill="clear"
+        onClick={() => {
+          resetToToday();
+          onClose();
+        }}
+        style={{
+          background: habit.bgColor,
+          position: 'absolute',
+          opacity: 0.9,
+          bottom: '10px',
+          right: '10px',
+          color: '#FFFFFF',
+          height: '36px',
+          borderRadius: '5px',
+        }}
+      >
+        Done
+      </IonButton>
+      {
+        habit.type === 'quantity' && (
 
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        justifyContent: 'center',
-        position: 'relative'
-      }}>
-        <IonCard className="ion-no-margin">
-          <IonCardContent className="ion-no-padding">
-            <div style={{ position: 'relative' }}>
-              <IonDatetime
-                presentation="date"
-                preferWheel={false}
-                value={selectedDate}
-                onIonChange={(e) => {
-                  if (e.detail.value) {
-                    const date = (e.detail.value as string).split('T')[0];
-                    handleDateClick(date);
-                  }
-                }}
-                highlightedDates={getHighlightedDates}
-                className="calendar-custom"
-              />
-              <div className="calendar-overlays" >
-                {Array.from({ length: 31 }, (_, i) => {
-                  const currentDate = new Date(selectedDate);
-                  currentDate.setDate(i + 1);
-                  const dateStr = currentDate.toISOString().split('T')[0];
-                  return (
-                    <GoalChangeOverlay
-                      key={dateStr}
-                      habit={habit}
-                      date={dateStr}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </IonCardContent>
-        </IonCard>
-      </div>
-
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: '16px',
-        width: '60px',
-      }}>
-        {habit.type === 'quantity' && (
           <IonButton
             fill="clear"
             onClick={() => setShowEditModal(true)}
             style={{
-              '--color': habit.bgColor,
-              margin: 0,
+              background: habit.bgColor,
+              position: 'absolute',
+              opacity: 0.9,
+              bottom: '10px',
+              left: '10px',
+              color: '#FFFFFF',
               height: '36px',
+              borderRadius: '5px',
             }}
           >
-            <IonIcon slot="icon-only" icon={create} />
+            Edit quantity and goal
           </IonButton>
-        )}
-      </div>
+        )
+      }
+      <IonDatetime
+        presentation="date"
+        size="cover"
+        preferWheel={false}
+        value={selectedDate}
+        onIonChange={(e) => {
+          if (e.detail.value) {
+            const date = (e.detail.value as string).split('T')[0];
+            handleDateClick(date);
+          }
+        }}
+        highlightedDates={getHighlightedDates}
+        className="calendar-custom"
+        max={new Date().toISOString()}
+      />
 
-      {habit.type === 'quantity' && (
-        <DateEditModal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleSaveDate}
-          habit={habit}
-          date={selectedDate}
-        />
-      )}
-    </div>
+      <DateEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleSaveDate}
+        habit={habit}
+        date={selectedDate}
+      />
+
+    </div >
   );
 };
 

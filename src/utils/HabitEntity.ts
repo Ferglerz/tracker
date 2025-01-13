@@ -28,43 +28,63 @@ export class HabitEntity {
   get listOrder() { return this.props.listOrder; }
   get widgetAssignment() { return this.props.widgets; }
 
-  async update(updates: UpdateOptions): Promise<void> { 
-    const dateString = updates.dateString || getTodayString(); 
+  async update(updates: UpdateOptions): Promise<void> {
+    const dateString = updates.dateString || getTodayString();
     const data = await HabitStorageWrapper.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === this.id);
 
     if (habitIndex === -1) throw new Error('Habit not found in storage');
 
-    const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
-
+    // Update history separately from other updates
+    let updatedHistory = this.history;
     if (updates.history) {
-      updates.history = {
-        ...this.history,
-        [dateString]: {
-          quantity: updates.history[dateString]?.quantity ?? currentEntry.quantity,
-          goal: updates.history[dateString]?.goal ?? currentEntry.goal
-        }
-      };
+        const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
+        updatedHistory = {
+            ...this.history,
+            [dateString]: {
+                quantity: updates.history[dateString]?.quantity ?? currentEntry.quantity,
+                goal: updates.history[dateString]?.goal ?? currentEntry.goal,
+            },
+        };
     }
 
-    const updatedHabit = { ...data.habits[habitIndex], ...updates };
+    // Construct the updated habit, ensuring history is merged correctly
+    const updatedHabit = { 
+        ...data.habits[habitIndex], 
+        ...updates, 
+        history: updatedHistory 
+    };
+
+    // Update the habit in the data array
     data.habits[habitIndex] = updatedHabit;
+
+    // Save the updated data
     await HabitStorageWrapper.handleHabitData('save', data);
+
+    // Update the internal props to reflect the changes
     this.props = updatedHabit;
 
-    habitsSubject.next(data.habits.map(habit => 
-      habit.id === this.id 
-        ? { ...habit, quantity: habit.history[dateString]?.quantity ?? 0, goal: habit.history[dateString]?.goal ?? habit.goal ?? 0 } 
-        : habit
-    ));
-  }
+    // Emit the updated habits array with default quantities
+    habitsSubject.next(data.habits); 
+}
 
-  async increment(amount = 1, dateString = getTodayString()): Promise<void> {
-    await this.update({ 
+  async increment(amount = 1, dateString: string): Promise<void> {
+    const today = getTodayString();
+    dateString = dateString || today;
+  
+    const currentHistoryEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
+    const newHistoryQuantity = Math.max(0, currentHistoryEntry.quantity + amount);
+  
+    // Update both quantity (default) and history
+    const newQuantity = Math.max(0, this.quantity + amount); 
+  
+    await this.update({
       dateString: dateString,
-      quantity: Math.max(0, this.quantity + amount),
-      history: { [dateString]: { quantity: Math.max(0, this.quantity + amount), goal: this.goal || 0 } } 
-    }); 
+      quantity: newQuantity, // Update the default quantity
+      history: {
+        [dateString]: { quantity: newHistoryQuantity, goal: this.goal || 0 },
+      },
+    });
   }
 
   async updateWidgetAssignment(widget?: Habit.Widgets): Promise<void> {

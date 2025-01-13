@@ -3,6 +3,7 @@
   /* Neutral grey for generic buttons */
   --neutral-button-hover: #6b7280;
   /* Darker grey for hover state */
+  --calendar-height: 480px;
 }
 
 .app-container {
@@ -34,20 +35,55 @@
 }
 
 .calendar-container {
-  transition: all 0.3s ease-in-out;
-  overflow: hidden;
-  background: --ion-item-background;
+  background: var(--ion-item-background);
+  height: var(--calendar-height);
+  position: relative;
 }
 
-.calendar-day {
-  background: #121212;
-  color: #ffffff;
-  border-radius: 0;
+
+.calendar-custom {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
 }
+
+
+.calendar-month-grid {
+  grid-template-rows: (6, 2fr) !important;
+  }
 
 .calendar-custom::part(calendar-day) {
   color: var(--ion-text-color);
+  margin: 10px 0;
 }
+
+.calendar-custom::part(calendar-day active) {
+background: inherit;
+
+}
+
+.calendar-custom::part(calendar-day active)::after {
+  width: 100%;
+  height: 100%;
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: transparent;
+  z-index: -1;
+  border: 3px solid var(--ion-text-color);
+}
+
+.calendar-custom::part(calendar-day today)::after {
+  width: 100%;
+  height: 100%;
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: transparent;
+  z-index: -1;
+  border: 1px solid var(--ion-text-color);
+}
+
 
 .habit-action-icon {
   font-size: 24px;
@@ -114,7 +150,7 @@ ion-item.habit::part(native) {
   flex: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0px;
   margin: auto;
 }
 
@@ -125,14 +161,6 @@ ion-item.habit::part(native) {
   justify-content: space-between;
 }
 
-.habit-content .history-grid {
-  transition: opacity 0.3s ease-in-out;
-  opacity: 1;
-}
-
-.habit-content .history-grid[style*="display: none"] {
-  opacity: 0;
-}
 
 .habit-content {
   transition: height 0.3s ease-in-out;
@@ -140,4 +168,33 @@ ion-item.habit::part(native) {
 
 .ion-icon[slot="icon-only"] {
   transition: opacity 0.2s ease-in-out;
+}
+/* Existing style */
+.history-grid {
+  margin-top: 12px;
+}
+
+/* New style to hide elements when the class is applied */
+.history-grid.hide-grid-elements > * {
+  display: none !important;
+}
+
+
+/* Material Design styles */
+ion-segment-button.md::part(native) {
+  color: var(--ion-text-color); 
+}
+/* Use the custom variable for indicator background */
+ion-segment-button.md::part(indicator-background) {
+  height: 4px;
+  background: var(--indicator-color);
+}
+
+/* iOS styles */
+ion-segment-button.ios::part(native) {
+  color: var(--indicator-color); /* Use custom variable for indicator */
+}
+
+.segment-button-checked.ios::part(native) {
+  color: #fff; /* Consider making this customizable as well */
 }

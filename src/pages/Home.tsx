@@ -1,5 +1,5 @@
 // Home.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   IonContent,
   IonHeader,
@@ -13,6 +13,7 @@ import { TopToolbar } from '@components/TopToolbar';
 import { useHabits } from '@utils/useHabits';
 import { HabitCSVService } from '@utils/ImportCSV';
 import { Habit } from '@utils/TypesAndProps';
+import { handleSettings } from '@utils/Storage';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -26,6 +27,19 @@ const Home: React.FC = () => {
   const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>();
   const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
+  const [initialHistoryGridSetting, setInitialHistoryGridSetting] = useState(true); // Default to true
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await handleSettings('load');
+        setInitialHistoryGridSetting(settings.historyGrid ?? true); // Update initial setting
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleHabitForm = useCallback((isOpen: boolean, habit?: HabitEntity) => {
     setIsMenuOpen(isOpen);
@@ -84,6 +98,8 @@ const Home: React.FC = () => {
           onExport={handleExport}
           hasHabits={habits.length > 0}
           onNewHabit={() => handleHabitForm(true)}
+          initialHistoryGridSetting={initialHistoryGridSetting} // Pass initial setting
+
         />
       </IonHeader>
       <IonContent>

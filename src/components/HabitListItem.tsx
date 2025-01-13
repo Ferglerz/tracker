@@ -63,8 +63,8 @@ export const HabitListItem: React.FC<Props> = ({
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Get habits from central state
+
+  // Get habits from central state using the hook
   const { habits } = useHabits();
   const habitState = habits.find(h => h.id === habit.id);
 
@@ -87,10 +87,18 @@ export const HabitListItem: React.FC<Props> = ({
     }
   }, [habit]);
 
-  const handleValueChange = useCallback(async (newValue: number) => {
-    if (!habit) return;
-    await habit.increment(newValue - state.quantity, state.selectedDate);
-  }, [habit, state.quantity, state.selectedDate]);
+  const handleValueChange = useCallback(
+    async (value: number, date: string) => {
+      const historyQuantity = habit.history[date]?.quantity || 0;
+      await habit.increment(value - historyQuantity, date);
+      setState((prevState) => ({
+        ...prevState,
+        quantity: value,
+        selectedDate: date,
+      }));
+    },
+    [habit]
+  );
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,19 +110,25 @@ export const HabitListItem: React.FC<Props> = ({
     }
 
     if (habit?.type === 'checkbox') {
-      handleValueChange(state.quantity > 0 ? 0 : 1);
+      handleValueChange(state.quantity > 0 ? 0 : 1, state.selectedDate);
     }
   }, [habit, state.quantity, handleValueChange, openCalendarId, onToggleCalendar]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('ion-reorder')) return;
+    
+    // Close calendar if open when starting drag/long press
+    if (isCalendarOpen) {
+        onToggleCalendar(habit.id);
+    }
+    
     longPressActive.current = true;
     timer.current = setTimeout(() => {
-      if (longPressActive.current) {
-        slidingRef.current?.open('end');
-      }
+        if (longPressActive.current) {
+            slidingRef.current?.open('end');
+        }
     }, CONSTANTS.UI.LONG_PRESS_DELAY);
-  }, []);
+}, [isCalendarOpen, onToggleCalendar, habit.id]);
 
   const cancelLongPress = useCallback(() => {
     if (timer.current) {
@@ -192,12 +206,12 @@ export const HabitListItem: React.FC<Props> = ({
               <div className="habit-header">
                 <HabitDetails
                   habit={habit}
-                  quantity={state.quantity}
-                  goal={state.goal}
+                  quantity={state.quantity} //Pass down for habit details
+                  goal={state.goal} //Pass down for habit details
                 />
                 <InteractionControls
                   habit={habit}
-                  habitItemState={state}
+                  selectedDate={state.selectedDate} // Pass selectedDate
                   handleValueChange={handleValueChange}
                 />
               </div>
@@ -240,7 +254,7 @@ export const HabitListItem: React.FC<Props> = ({
         <Calendar
           habit={habit}
           onClose={() => onToggleCalendar(habit.id)}
-          onValueChange={handleValueChange}
+          onValueChange={handleValueChange} // Pass the updated handleValueChange
           onDateSelected={handleDateSelected}
         />
       )}
