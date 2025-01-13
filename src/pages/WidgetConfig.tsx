@@ -20,6 +20,8 @@ import { arrowBack, lockClosed, apps, square } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { Squircle } from '@components/Squircle';
 import { HabitEntity } from '@utils/HabitEntity';
+import { useHabits } from '@utils/useHabits';
+import * as icons from 'ionicons/icons';
 
 interface WidgetSpace {
     id: string;
@@ -86,7 +88,8 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
                 width="100%"
                 height="100%"
                 cornerRadius={16}
-                fill={[getLighterColor(habit.bgColor), habit.bgColor]}                style={{
+                fill={[getLighterColor(habit.bgColor), habit.bgColor]}
+                style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
@@ -101,17 +104,29 @@ const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#000000',
+                color: 'var(--ion-text-color)',
                 fontWeight: 'bold',
                 fontSize: '1.2rem',
                 padding: '8px',
             }}>
-                {habit.name}
+                {habit.icon && (
+                    <IonIcon
+                        size="large"
+                        style={{
+                            marginRight: '8px',
+                        }}
+                        icon={icons[habit.icon as keyof typeof icons]}
+                    />
+                )}
+                            {habit.name.length > 10 ? (
+                                <span style={{ fontSize: '0.9rem' }}>{habit.name}</span>
+                            ) : (
+                                habit.name
+                            )}
             </div>
         </div>
     );
 };
-
 const DroppableSpace: React.FC<{
     spaceId: string;
     onDrop: (habitId: string, spaceId: string) => void;
@@ -227,7 +242,7 @@ const WidgetSection: React.FC<{
     onDrop: (habitId: string, spaceId: string) => void;
 }> = ({ title, spaces, habits, onDrop }) => (
     <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ padding: '0 16px', marginBottom: '12px' }}>{title}</h2>
+        <h2 style={{ padding: '0 16px', textAlign: 'center', marginBottom: '12px' }}>{title}</h2>
         <div
             style={{
                 display: 'grid',
@@ -265,39 +280,33 @@ const WidgetSection: React.FC<{
 
 const WidgetConfig: React.FC = () => {
     const history = useHistory();
-    const [habits, setHabits] = useState<HabitEntity[]>([]);
+    const { habits, refreshHabits } = useHabits();
     const [widgetSpaces, setWidgetSpaces] = useState<WidgetSpace[]>([]);
 
     useEffect(() => {
-        const loadHabits = async () => {
-            const loadedHabits = await HabitEntity.loadAll();
-            setHabits(loadedHabits);
+        const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
 
-            const spaces = WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
-
-            const habitAssignments: { [key: string]: string } = {};
-            loadedHabits.forEach(habit => {
-                habit.widgetAssignment?.assignments?.forEach(assignment => {
-                    const spaceId = `${assignment.type}-${assignment.order}`;
-                    habitAssignments[spaceId] = habit.id;
-                });
+        const habitAssignments: { [key: string]: string } = {};
+        habits.forEach(habit => {
+            habit.widgetAssignment?.assignments?.forEach(assignment => {
+                const spaceId = `${assignment.type}-${assignment.order}`;
+                habitAssignments[spaceId] = habit.id;
             });
+        });
 
-            const updatedSpaces = spaces.map(space => {
-                if (habitAssignments[space.id]) {
-                    return {
-                        ...space,
-                        isOccupied: true,
-                        habitId: habitAssignments[space.id]
-                    };
-                }
-                return space;
-            });
+        const updatedSpaces = spaces.map(space => {
+            if (habitAssignments[space.id]) {
+                return {
+                    ...space,
+                    isOccupied: true,
+                    habitId: habitAssignments[space.id]
+                };
+            }
+            return space;
+        });
 
-            setWidgetSpaces(updatedSpaces);
-        };
-        loadHabits();
-    }, []);
+        setWidgetSpaces(updatedSpaces);
+    }, [habits]);
 
     const handleDrop = async (habitId: string, spaceId: string) => {
         const habit = habits.find(h => h.id === habitId);
@@ -307,19 +316,20 @@ const WidgetConfig: React.FC = () => {
             const sourceSpace = widgetSpaces.find(space =>
                 space.habitId === habitId && space.isOccupied
             );
-            
+
             if (sourceSpace) {
                 const newAssignments = (habit.widgetAssignment?.assignments || []).filter(a =>
                     !(a.type === sourceSpace.type && a.order === sourceSpace.order)
                 );
-                
+
                 setWidgetSpaces(prevSpaces => prevSpaces.map(space =>
-                    space.id === sourceSpace.id 
+                    space.id === sourceSpace.id
                         ? { ...space, isOccupied: false, habitId: undefined }
                         : space
                 ));
-                
+
                 await habit.updateWidgetAssignment({ assignments: newAssignments });
+                await refreshHabits();
             }
             return;
         }
@@ -329,8 +339,8 @@ const WidgetConfig: React.FC = () => {
 
         let newAssignments = [...(habit.widgetAssignment?.assignments || [])];
 
-        const existingSpaceForType = widgetSpaces.find(space => 
-            space.habitId === habitId && 
+        const existingSpaceForType = widgetSpaces.find(space =>
+            space.habitId === habitId &&
             space.type === targetType &&
             space.isOccupied
         );
@@ -353,13 +363,14 @@ const WidgetConfig: React.FC = () => {
             newAssignments.push({ type: targetType, order: targetOrder });
 
             setWidgetSpaces(prevSpaces => prevSpaces.map(space =>
-                space.id === spaceId 
+                space.id === spaceId
                     ? { ...space, isOccupied: true, habitId }
                     : space
             ));
         }
 
         await habit.updateWidgetAssignment({ assignments: newAssignments });
+        await refreshHabits();
     };
 
     const renderTabContent = (filterPrefix: string) => (
@@ -391,7 +402,7 @@ const WidgetConfig: React.FC = () => {
                     <IonTitle className="ion-text-center">Widget Configuration</IonTitle>
                 </IonToolbar>
             </IonHeader>
-            
+
             <IonContent>
                 <IonTabs>
                     <IonTab tab="lock">

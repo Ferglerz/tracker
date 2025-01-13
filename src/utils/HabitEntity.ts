@@ -33,41 +33,45 @@ export class HabitEntity {
     const dateString = updates.dateString || getTodayString();
     const data = await HabitStorageWrapper.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === this.id);
-
+  
     if (habitIndex === -1) throw new Error('Habit not found in storage');
-
+  
     // Update history separately from other updates
     let updatedHistory = this.history;
     if (updates.history) {
-        const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
-        updatedHistory = {
-            ...this.history,
-            [dateString]: {
-                quantity: updates.history[dateString]?.quantity ?? currentEntry.quantity,
-                goal: updates.history[dateString]?.goal ?? currentEntry.goal,
-            },
-        };
+      const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
+      updatedHistory = {
+        ...this.history,
+        [dateString]: {
+          quantity: updates.history[dateString]?.quantity ?? currentEntry.quantity,
+          goal: updates.history[dateString]?.goal ?? currentEntry.goal,
+        },
+      };
     }
-
-    // Construct the updated habit, ensuring history is merged correctly
+  
+    // Handle widget assignments properly
+    const updatedWidgets = updates.widget !== undefined ? updates.widget : this.props.widgets;
+  
+    // Construct the updated habit, ensuring all properties are merged correctly
     const updatedHabit = { 
-        ...data.habits[habitIndex], 
-        ...updates, 
-        history: updatedHistory 
+      ...data.habits[habitIndex],
+      ...updates,
+      history: updatedHistory,
+      widgets: updatedWidgets, // Ensure widgets are included
     };
-
+  
     // Update the habit in the data array
     data.habits[habitIndex] = updatedHabit;
-
+  
     // Save the updated data
     await HabitStorageWrapper.handleHabitData('save', data);
-
+  
     // Update the internal props to reflect the changes
     this.props = updatedHabit;
-
-    // Emit the updated habits array with default quantities
-    habitsSubject.next(data.habits); 
-}
+  
+    // Emit the updated habits array
+    habitsSubject.next(data.habits);
+  }
 
   async increment(amount = 1, dateString: string): Promise<void> {
     const today = getTodayString();

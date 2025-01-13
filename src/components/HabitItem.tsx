@@ -1,4 +1,5 @@
-import React, { forwardRef, useCallback, useRef, useState, useEffect, useContext } from 'react';
+//HabitItem.tsx
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -11,9 +12,9 @@ import {
 } from '@ionic/react';
 import { calendar, pencil, trash, reorderThree } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
-import Calendar from './Calendar';
+import Calendar from '@components/Calendar';
 import { getHistoryRange, getTodayString } from '@utils/Utilities';
-import { HistoryGrid } from './HistoryGrid';
+import { HistoryGrid } from '@components/HistoryGrid';
 import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
 import { HabitItemState } from '@utils/TypesAndProps';
@@ -37,42 +38,42 @@ const HabitDetails: React.FC<{
   goal: number;
 }> = ({ habit, quantity, goal }) => (
   <div
-  className="ion-no-padding ion-no-margin ion-align-items-baseline"
-  style={{ display: 'flex', justifyContent: 'flex-start' }}
->
-  {habit.icon && (
-    <IonIcon
-      size="large"
-      icon={(icons as any)[habit.icon]}
-      style={{
-        fontSize: '24px',
-        marginRight: '12px',
-        color: habit.bgColor,
-        alignSelf: 'flex-end',
-      }}
-    />
-  )}
-  <div className="habit-name-quantity">
-    <div className="habit-name">
-      {habit.name}
-      {habit.type === 'quantity' &&
-        goal > 0 &&
-        quantity >= goal && (
-          <IonBadge className="ion-margin-start" color="success">
-            Complete!
-          </IonBadge>
-        )}
-    </div>
-    {habit.type === 'quantity' && (
-      <div className="habit-quantity">
-        {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
-      </div>
+    className="ion-no-padding ion-no-margin ion-align-items-baseline"
+    style={{ display: 'flex', justifyContent: 'flex-start' }}
+  >
+    {habit.icon && (
+      <IonIcon
+        size="large"
+        icon={(icons as any)[habit.icon]}
+        style={{
+          fontSize: '24px',
+          marginRight: '12px',
+          color: habit.bgColor,
+          alignSelf: 'flex-end',
+        }}
+      />
     )}
+    <div className="habit-name-quantity">
+      <div className="habit-name">
+        {habit.name}
+        {habit.type === 'quantity' &&
+          goal > 0 &&
+          quantity >= goal && (
+            <IonBadge className="ion-margin-start" color="success">
+              Complete!
+            </IonBadge>
+          )}
+      </div>
+      {habit.type === 'quantity' && (
+        <div className="habit-quantity">
+          {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
+        </div>
+      )}
+    </div>
   </div>
-</div>
-  );
+);
 
-export const HabitListItem: React.FC<Props> = ({
+export const HabitItem: React.FC<Props> = ({
   habit,
   onEdit,
   onDelete,
@@ -158,6 +159,13 @@ export const HabitListItem: React.FC<Props> = ({
     longPressActive.current = false;
   }, []);
 
+  const handleReorderStart = useCallback(() => {
+    if (isCalendarOpen && habit) {
+      onToggleCalendar(habit.id);
+    }
+  }, [isCalendarOpen, habit, onToggleCalendar]);
+
+
   const handleEdit = useCallback(() => {
     slidingRef.current?.close();
     onEdit();
@@ -166,7 +174,13 @@ export const HabitListItem: React.FC<Props> = ({
   const handleToggleCalendar = useCallback(() => {
     if (!habit) return;
 
+    slidingRef.current?.close();
+
+    // If we're closing the calendar (it's currently open)
     if (openCalendarId === habit.id) {
+      // First close the calendar
+      onToggleCalendar(habit.id);
+      // Then update the state
       const today = getTodayString();
       const todayValue = habit.history[today];
       setState({
@@ -174,10 +188,10 @@ export const HabitListItem: React.FC<Props> = ({
         quantity: todayValue?.quantity ?? 0,
         goal: todayValue?.goal ?? habit.goal ?? 0
       });
+    } else {
+      // If we're opening the calendar, just toggle it
+      onToggleCalendar(habit.id);
     }
-
-    slidingRef.current?.close();
-    onToggleCalendar(habit.id);
   }, [habit, onToggleCalendar, openCalendarId]);
 
   const handleDateSelected = useCallback((date: string) => {
@@ -218,7 +232,9 @@ export const HabitListItem: React.FC<Props> = ({
             style={{ backgroundColor: habit.bgColor }}
           />
           <div className="habit-container ion-align-items-center ion-no-margin">
-            <IonReorder className="habit-reorder">
+            <IonReorder className="habit-reorder"
+              onMouseDown={handleReorderStart}
+              onTouchStart={handleReorderStart}>
               <IonIcon icon={reorderThree} className="margin-auto" />
             </IonReorder>
 
@@ -239,8 +255,8 @@ export const HabitListItem: React.FC<Props> = ({
               <HistoryGrid
                 color={habit.bgColor}
                 type={habit.type}
-                baseSize={22}
-                gap={3}
+                baseSize={24}
+                gap={5}
                 cellsPerRow={CONSTANTS.UI.CELLS_PER_ROW}
                 data={getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3)}
                 history={habit.history}
@@ -273,7 +289,7 @@ export const HabitListItem: React.FC<Props> = ({
       {isCalendarOpen && (
         <Calendar
           habit={habit}
-          onClose={() => onToggleCalendar(habit.id)}
+          onClose={handleToggleCalendar}
           onValueChange={handleValueChange} // Pass the updated handleValueChange
           onDateSelected={handleDateSelected}
         />
@@ -282,6 +298,6 @@ export const HabitListItem: React.FC<Props> = ({
   );
 };
 
-HabitListItem.displayName = 'HabitListItem';
+HabitItem.displayName = 'HabitListItem';
 
-export default HabitListItem;
+export default HabitItem;

@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { IonReorderGroup } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
-import { HabitListItem } from '@components/HabitListItem';
+import { HabitItem } from '@components/HabitItem';
 import { useHabits } from '@utils/useHabits';
 
 interface Props {
@@ -27,7 +27,7 @@ const HabitList: React.FC<Props> = ({
   return (
     <IonReorderGroup disabled={false} onIonItemReorder={onReorder}>
       {sortHabits(habits).map(habit => (
-        <HabitListItem
+        <HabitItem
           key={habit.id}
           habit={habit}
           onEdit={() => onEdit(habit.id)}

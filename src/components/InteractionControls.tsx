@@ -51,7 +51,7 @@ export const InteractionControls = ({
           }}
         />
       ) : (
-        <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <AnimatedIncrements
             onClick={() => handleValueChange(Math.max(0, quantity - 1), selectedDate, habit)}
             color={habit.bgColor}
