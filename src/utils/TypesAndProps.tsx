@@ -98,7 +98,7 @@ export interface StorageStrategy {
 export interface IconCategoryItem {
   name: string;
   icon: string;
-  description: string;
+  tags: string;
 }
 
 export interface IconCategory {

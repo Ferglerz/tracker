@@ -299,3 +299,17 @@ ion-segment-button.ios::part(native) {
 .segment-button-checked.ios::part(native) {
   color: #fff; /* Consider making this customizable as well */
 }
+
+
+@keyframes habitLongPress {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+.habit-long-press {
+  animation: habitLongPress 1s ease-in-out;
+}
