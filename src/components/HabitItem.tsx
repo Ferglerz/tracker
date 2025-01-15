@@ -21,7 +21,7 @@ import { useHabits } from '@utils/useHabits';
 import * as icons from 'ionicons/icons';
 import { handleSettings } from '@utils/Storage';
 
-interface Props {
+interface HabitItemProps {
   habit: HabitEntity;
   onEdit: () => void;
   onDelete: () => void;
@@ -37,8 +37,7 @@ const HabitDetails: React.FC<{
   goal: number;
 }> = ({ habit, quantity, goal }) => (
   <div
-    className="ion-no-padding ion-no-margin ion-align-items-baseline"
-    style={{ display: 'flex', justifyContent: 'flex-start' }}
+    className="ion-no-padding ion-no-margin habit-details"
   >
     {habit.icon && (
       <IonIcon
@@ -48,31 +47,24 @@ const HabitDetails: React.FC<{
           fontSize: '24px',
           marginRight: '12px',
           color: habit.bgColor,
-          alignSelf: 'flex-end',
         }}
       />
     )}
     <div className="habit-name-quantity">
       <div className="habit-name">
         {habit.name}
-        {habit.type === 'quantity' &&
-          goal > 0 &&
-          quantity >= goal && (
-            <IonBadge className="ion-margin-start" color="success">
-              Complete!
-            </IonBadge>
-          )}
       </div>
       {habit.type === 'quantity' && (
         <div className="habit-quantity">
           {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
+          
         </div>
       )}
     </div>
   </div>
 );
 
-export const HabitItem: React.FC<Props> = ({
+export const HabitItem: React.FC<HabitItemProps> = ({
   habit,
   onEdit,
   onDelete,
@@ -83,9 +75,6 @@ export const HabitItem: React.FC<Props> = ({
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const { habits } = useHabits();
-  const habitState = habits.find(h => h.id === habit.id);
 
   const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [hideGrid, setHideGrid] = useState(false);
@@ -230,6 +219,24 @@ export const HabitItem: React.FC<Props> = ({
                 defaultGoal={habit.goal ?? 0}
                 hideGrid={hideGrid}
               />
+
+{habit.type === 'quantity' &&
+          habit.goal > 0 &&
+          habit.quantity >= habit.goal && (
+            <IonBadge 
+              className={`ion-margin-start ion-margin-top ${habit.quantity >= habit.goal * 4 ? 'shake-takeoff' : ''}`} 
+              color={habit.bgColor}
+              style={{
+                animation:  habit.quantity >= habit.goal * 4 ? 'shake-takeoff 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
+                            habit.quantity >= habit.goal * 3 ? 'triple-fire 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
+                            habit.quantity >= habit.goal * 2 ? 'double-hop 0.5s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 'none'
+              }}
+            >
+              {habit.quantity >= habit.goal * 4 ? 'UNSTOPPABLE 🚀' :
+               habit.quantity >= habit.goal * 3 ? 'Triple! 🔥' :
+               habit.quantity >= habit.goal * 2 ? 'Double!' :
+               'Complete!'}
+            </IonBadge>          )}
             </div>
           </div>
 

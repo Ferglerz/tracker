@@ -155,11 +155,109 @@ ion-item.habit::part(native) {
 
 .habit-header {
   display: flex;
-  width: 100%;
-  align-items: center;
+  height: 50px;
+  align-items:center;
   justify-content: space-between;
 }
 
+@keyframes double-hop {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  2.5% { transform: translate(1px, -1.5px) rotate(-1.25deg); }
+  5% { transform: translate(1px, -3px) rotate(-2.5deg); }
+  7.5% { transform: translate(1px, -4px) rotate(-3.75deg); }
+  10% { transform: translate(1px, -5px) rotate(-5deg); }
+  15% { transform: translate(1.5px, -8px) rotate(-7.5deg); }
+  20% { transform: translate(2px, -11px) rotate(-10deg); }
+  25% { transform: translate(2.5px, -13px) rotate(-8.75deg); }
+  30% { transform: translate(3px, -15px) rotate(-7.5deg); }
+  35% { transform: translate(3.5px, -11.5px) rotate(-6.25deg); }
+  40% { transform: translate(4px, -8px) rotate(-5deg); }
+  45% { transform: translate(4.5px, -4px) rotate(-2.5deg); }
+  50% { transform: translate(5px, 0) rotate(0deg); }
+  55% { transform: translate(4.5px, -2.5px) rotate(-1.25deg); }
+  60% { transform: translate(4px, -5px) rotate(-2.5deg); }
+  65% { transform: translate(3.5px, -6px) rotate(-3.75deg); }
+  70% { transform: translate(3px, -7px) rotate(-5deg); }
+  75% { transform: translate(2.5px, -6px) rotate(-3.75deg); }
+  80% { transform: translate(2px, -5px) rotate(-2.5deg); }
+  85% { transform: translate(1.5px, -4px) rotate(-1.25deg); }
+  90% { transform: translate(1px, -3px) rotate(-1.25deg); }
+  95% { transform: translate(0.5px, -1.5px) rotate(-0.625deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes shake-takeoff {
+  0% { transform: translate(0, 0) skew(0deg); color: inherit; }
+  15% { transform: translate(1px, -1px) skew(3deg); color: rgb(38, 219, 255); }
+  30% { transform: translate(1px, -1px) skew(3deg); color: rgb(199, 30, 255); }
+  45% { transform: translate(1px, -1px) skew(3deg); color: rgb(255, 188, 30); }
+  60% { transform: translate(1px, -1px) skew(3deg); color: rgb(30, 255, 68); }
+  75% { transform: translate(1px, -1px) skew(3deg); color: rgb(30, 128, 255); }
+  100% { transform: translate(0, 0) skew(0deg); color: inherit; }
+  0% { transform: translate(0, 0) rotate(0deg); }
+  5% { transform: translate(-1px, 0) rotate(-0.5deg); }
+  10% { transform: translate(1px, -1px) rotate(0.5deg); }
+  15% { transform: translate(-1px, -2px) rotate(-0.5deg); }
+  20% { transform: translate(1px, -3px) rotate(0.5deg); }
+  25% { transform: translate(-2px, -4px) rotate(-0.5deg); }
+  30% { transform: translate(2px, -5px) rotate(0.5deg); }
+  35% { transform: translate(-2px, -6px) rotate(-0.5deg); }
+  40% { transform: translate(2px, -7px) rotate(0.5deg); }
+  45% { transform: translate(-1px, -8px) rotate(-0.5deg); }
+  50% { transform: translate(1px, -7px) rotate(0.5deg); }
+  55% { transform: translate(-1px, -6px) rotate(-0.5deg); }
+  60% { transform: translate(1px, -5px) rotate(0.5deg); }
+  65% { transform: translate(-1px, -4px) rotate(-0.5deg); }
+  70% { transform: translate(1px, -3px) rotate(0.5deg); }
+  75% { transform: translate(-1px, -2px) rotate(-0.5deg); }
+  80% { transform: translate(1px, -1px) rotate(0.5deg); }
+  85% { transform: translate(-1px, -1px) rotate(-0.5deg); }
+  90% { transform: translate(1px, 0) rotate(0.5deg); }
+  95% { transform: translate(-1px, 0) rotate(-0.5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes triple-fire {
+  0% { transform: translate(0, 0) skew(0deg); color: inherit; }
+  15% { transform: translate(1px, -1px) skew(3deg); color: orange; }
+  40% { transform: translate(1px, -1px) skew(3deg); color: rgb(255, 79, 30); }
+  60% { transform: translate(1px, -1px) skew(3deg); color: rgb(236, 98, 73); }
+  100% { transform: translate(0, 0) skew(0deg); color: inherit; }
+  3.33% { transform: translate(1px, -1px) skew(2deg); }
+  6.66% { transform: translate(-1px, 1px) skew(-1deg); }
+  10% { transform: translate(1px, -1px) skew(3deg); }
+  13.33% { transform: translate(-1px, 1px) skew(-2deg); }
+  16.66% { transform: translate(1px, -1px) skew(1deg); }
+  20% { transform: translate(-1px, -1px) skew(-3deg); }
+  23.33% { transform: translate(1px, 1px) skew(2deg); }
+  26.66% { transform: translate(-1px, -1px) skew(-1deg); }
+  30% { transform: translate(1px, -1px) skew(3deg); }
+  33.33% { transform: translate(-1px, 1px) skew(-2deg); }
+  36.66% { transform: translate(1px, -1px) skew(1deg); }
+  40% { transform: translate(-1px, -1px) skew(-3deg); }
+  43.33% { transform: translate(1px, 1px) skew(2deg); }
+  46.66% { transform: translate(-1px, -1px) skew(-1deg); }
+  53.33% { transform: translate(-1px, 1px) skew(-2deg); }
+  56.66% { transform: translate(1px, -1px) skew(1deg); }
+  60% { transform: translate(-1px, -1px) skew(-3deg); }
+  63.33% { transform: translate(1px, 1px) skew(2deg); }
+  66.66% { transform: translate(-1px, -1px) skew(-1deg); }
+  70% { transform: translate(1px, -1px) skew(3deg); }
+  73.33% { transform: translate(-1px, 1px) skew(-2deg); }
+  76.66% { transform: translate(1px, -1px) skew(1deg); }
+  80% { transform: translate(-1px, -1px) skew(-3deg); }
+  83.33% { transform: translate(1px, 1px) skew(2deg); }
+  86.66% { transform: translate(-1px, -1px) skew(-1deg); }
+  90% { transform: translate(1px, -1px) skew(3deg); }
+  93.33% { transform: translate(-1px, 1px) skew(-2deg); }
+  96.66% { transform: translate(1px, -1px) skew(1deg); }
+}
+.habit-details {
+  height: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .habit-content {
   transition: height 0.3s ease-in-out;
