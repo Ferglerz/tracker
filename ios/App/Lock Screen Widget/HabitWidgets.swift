@@ -10,6 +10,13 @@ struct WidgetPosition {
 
 // MARK: - Timeline Provider
 struct Provider: TimelineProvider {
+    private var lastCheck = Date()
+    
+    private func isNewDay(_ currentDate: Date = Date()) -> Bool {
+        let calendar = Calendar.current
+        return !calendar.isDate(lastCheck, inSameDayAs: currentDate)
+    }
+    
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(date: Date(), habits: [], error: nil, widgetID: String(context.family.rawValue))
     }
@@ -19,21 +26,30 @@ struct Provider: TimelineProvider {
             let habits = try IonicStorageManager.shared.loadHabits()
             completion(SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue)))
         } catch {
-                completion(SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue)))
-            }
+            completion(SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue)))
+        }
     }
     
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         do {
             let habits = try IonicStorageManager.shared.loadHabits()
             let entry = SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue))
-            let timeline = Timeline(entries: [entry], policy: .after(Calendar.current.date(byAdding: .minute, value: 15, to: Date())!))
+            
+            // Calculate next midnight
+            let calendar = Calendar.current
+            guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()),
+                  let nextMidnight = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: tomorrow) else {
+                throw NSError(domain: "Timeline Error", code: -1, userInfo: nil)
+            }
+            
+            let timeline = Timeline(entries: [entry], policy: .after(nextMidnight))
+            lastCheck = Date()
             completion(timeline)
         } catch {
-                let entry = SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue))
-                let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
-                completion(timeline)
-            }
+            let entry = SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue))
+            let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
+            completion(timeline)
+        }
     }
 }
 

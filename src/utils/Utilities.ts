@@ -152,3 +152,9 @@ export const getFillColor = (
   const colorIntensity = Math.min(quantity / goal, 1);
   return adjustColor(color, { opacity: colorIntensity });
 };
+
+export const isNewDay = (lastCheck: Date, currentTime: Date = new Date()): boolean => {
+  return lastCheck.getDate() !== currentTime.getDate() ||
+         lastCheck.getMonth() !== currentTime.getMonth() ||
+         lastCheck.getFullYear() !== currentTime.getFullYear();
+};

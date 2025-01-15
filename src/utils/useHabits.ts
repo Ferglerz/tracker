@@ -1,8 +1,7 @@
-// useHabits.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
-import { handleSettings } from '@utils/Storage';
+import { isNewDay } from '@utils/Utilities';
 
 interface UseHabitsResult {
   habits: HabitEntity[];
@@ -12,18 +11,34 @@ interface UseHabitsResult {
 
 export function useHabits(): UseHabitsResult {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
-  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [settings] = useState<Record<string, any>>({});
   const initialLoadComplete = useRef(false);
   const subscriptionRef = useRef<any>(null);
-
+  const lastCheckRef = useRef(new Date());
 
   const refreshHabits = useCallback(async () => {
     try {
       await HabitEntity.loadAll();
+      lastCheckRef.current = new Date();
     } catch (error) {
       console.error('Failed to refresh habits:', error);
     }
   }, []);
+
+  // Add midnight check interval
+  useEffect(() => {
+    const checkNewDay = () => {
+      const now = new Date();
+      if (isNewDay(lastCheckRef.current, now)) {
+        refreshHabits();
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkNewDay, 60000);
+
+    return () => clearInterval(interval);
+  }, [refreshHabits]);
 
   useEffect(() => {
     if (!subscriptionRef.current) {
