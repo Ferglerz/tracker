@@ -68,7 +68,7 @@
 		43A4B1772D03E9AA005B3C72 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		43A4B1792D03E9AA005B3C72 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		43CB942B2D34D79500D99DC6 /* IonicStorageManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = IonicStorageManager.swift; path = ../../../../../.Trash/IonicStorageManager.swift; sourceTree = "<group>"; };
-		43CB942E2D34D79E00D99DC6 /* HabitWidgets.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = HabitWidgets.swift; path = ../../../../../Desktop/HabitWidgets.swift; sourceTree = "<group>"; };
+		43CB942E2D34D79E00D99DC6 /* HabitWidgets.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HabitWidgets.swift; sourceTree = "<group>"; };
 		43CB94312D34DBA800D99DC6 /* WidgetTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTypes.swift; sourceTree = "<group>"; };
 		43CB94332D34DBF500D99DC6 /* HabitRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitRow.swift; sourceTree = "<group>"; };
 		43CB94352D34DC4800D99DC6 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
