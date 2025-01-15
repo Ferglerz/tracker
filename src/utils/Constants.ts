@@ -30,12 +30,12 @@ export const CONSTANTS = {
     '#8B4513'  // Brown (7.10)
   ] as const,
   WIDGET_SECTIONS: [
-    { title: 'Lock Screen 1', spaces: 1, type: 'lock1' },
-    { title: 'Lock Screen 2', spaces: 1, type: 'lock2' },
-    { title: 'Small Widget 1', spaces: 3, type: 'small1' },
-    { title: 'Small Widget 2', spaces: 3, type: 'small2' },
-    { title: 'Medium Widget 1', spaces: 6, type: 'medium1' },
-    { title: 'Medium Widget 2', spaces: 6, type: 'medium2' }
+    { title: 'Lock Screen 1', spaces: 2, type: 'lock1' },
+    { title: 'Lock Screen 2', spaces: 2, type: 'lock2' },
+    { title: 'Small Widget 1', spaces: 4, type: 'small1' },
+    { title: 'Small Widget 2', spaces: 4, type: 'small2' },
+    { title: 'Medium Widget 1', spaces: 8, type: 'medium1' },
+    { title: 'Medium Widget 2', spaces: 8, type: 'medium2' }
   ] as const,
   HISTORY_GRID: { // New category for HistoryGrid constants
     DEFAULT_GRAY: 'rgba(128, 128, 128, 0.1)',

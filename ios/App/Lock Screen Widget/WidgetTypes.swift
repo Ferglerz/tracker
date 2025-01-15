@@ -1,6 +1,6 @@
 import Foundation
 
-enum WidgetType: String {
+enum WidgetType: String, CaseIterable {
     case lock1, lock2
     case small1, small2
     case medium1, medium2
@@ -8,8 +8,8 @@ enum WidgetType: String {
     var capacity: Int {
         switch self {
         case .lock1, .lock2: return 2
-        case .small1, .small2: return 3
-        case .medium1, .medium2: return 6
+        case .small1, .small2: return 4
+        case .medium1, .medium2: return 8
         }
     }
     
@@ -23,9 +23,9 @@ enum WidgetType: String {
     
     var rows: Int {
         switch self {
-        case .lock1, .lock2: return 2
-        case .small1, .small2: return 3
-        case .medium1, .medium2: return 3
+        case .lock1, .lock2: return 1
+        case .small1, .small2: return 4
+        case .medium1, .medium2: return 4
         }
     }
 }
