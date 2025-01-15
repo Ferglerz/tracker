@@ -1,9 +1,13 @@
-
+// NativeStorageStrategy.ts
 import { Habit, StorageStrategy } from "@utils/TypesAndProps";
 import { WidgetsBridgePlugin } from "capacitor-widgetsbridge-plugin";
 
 export class NativeStorageStrategy implements StorageStrategy {
-  constructor(private group: string) { }
+  private group: string;
+
+  constructor(group: string) {
+    this.group = group;
+  }
 
   async save(key: string, value: Habit.Data): Promise<void> {
     try {
@@ -13,9 +17,8 @@ export class NativeStorageStrategy implements StorageStrategy {
         group: String(this.group)
       });
 
-      await WidgetsBridgePlugin.reloadAllTimelines();
     } catch (error) {
-      alert('Failed to save to native storage:' + error);
+      console.error('Failed to save to native storage:', error);
       throw error;
     }
   }
@@ -50,7 +53,6 @@ export class NativeStorageStrategy implements StorageStrategy {
       key: String(key),
       group: String(this.group)
     });
-    await WidgetsBridgePlugin.reloadAllTimelines();
   }
 
   private getDefaultData(): Habit.Data {
