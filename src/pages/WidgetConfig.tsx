@@ -23,6 +23,7 @@ import { HabitEntity } from '@utils/HabitEntity';
 import { useHabits } from '@utils/useHabits';
 import * as icons from 'ionicons/icons';
 import { CONSTANTS } from '@utils/Constants';
+import { adjustColor } from '@utils/Utilities';
 
 interface WidgetSpace {
     id: string;
@@ -48,75 +49,69 @@ const createEmptySpaces = (section: WidgetSection): WidgetSpace[] => {
 };
 
 const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
-    const getLighterColor = (color: string): string => {
-        if (color.startsWith('#')) {
-            const r = parseInt(color.slice(1, 3), 16);
-            const g = parseInt(color.slice(3, 5), 16);
-            const b = parseInt(color.slice(5, 7), 16);
-            const lighter = [r, g, b].map(c => Math.min(255, c + (255 - c) * 0.3));
-            return `rgb(${lighter[0]}, ${lighter[1]}, ${lighter[2]})`;
-        }
-        return color;
-    };
-
     return (
-        <div
-            draggable
-            onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', habit.id);
-            }}
-            style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                minHeight: '60px',
-                cursor: 'grab',
-                userSelect: 'none',
-            }}
-        >
-            <Squircle
-                width="100%"
-                height="100%"
-                cornerRadius={16}
-                fill={[getLighterColor(habit.bgColor), habit.bgColor]}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                }}
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', habit.id);
+        }}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          minHeight: '60px',
+          cursor: 'grab',
+          userSelect: 'none',
+        }}
+      >
+        <Squircle
+          width="100%"
+          height="100%"
+          cornerRadius={16}
+          fill={[
+            adjustColor(habit.bgColor, { lighter: true }),
+            habit.bgColor
+          ]}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        />
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--ion-text-color)',
+          fontWeight: 'bold',
+          fontSize: '1.2rem',
+          padding: '8px',
+        }}>
+          {habit.icon && (
+            <IonIcon
+              size="large"
+              style={{
+                marginRight: '8px',
+              }}
+              icon={icons[habit.icon as keyof typeof icons]}
             />
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--ion-text-color)',
-                fontWeight: 'bold',
-                fontSize: '1.2rem',
-                padding: '8px',
-            }}>
-                {habit.icon && (
-                    <IonIcon
-                        size="large"
-                        style={{
-                            marginRight: '8px',
-                        }}
-                        icon={icons[habit.icon as keyof typeof icons]}
-                    />
-                )}
-                            {habit.name.length > 10 ? (
-                                <span style={{ fontSize: '0.9rem' }}>{habit.name}</span>
-                            ) : (
-                                habit.name
-                            )}
-            </div>
+          )}
+          {habit.name.length > 10 ? (
+            <span style={{ fontSize: '0.9rem' }}>{habit.name}</span>
+          ) : (
+            habit.name
+          )}
         </div>
+      </div>
     );
-};
+  };
+
+  
 const DroppableSpace: React.FC<{
     spaceId: string;
     onDrop: (habitId: string, spaceId: string) => void;

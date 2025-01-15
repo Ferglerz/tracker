@@ -49,11 +49,10 @@ const TopToolbar: React.FC<{
 
   return (
     <div className="top-toolbar ion-no-padding ion-no-margin">
-      <IonTitle className="app-title ion-text-center">SIMPLE<span className="cursive">Habits</span></IonTitle>
       <IonToolbar>
         <IonButtons slot="start">
           {hasHabits && (
-            <div>
+            <>
               <IonButton
                 onClick={() => {
                   configButton.handlePress(() => history.push('/widget-config'));
@@ -78,9 +77,10 @@ const TopToolbar: React.FC<{
                   icon={gridOutline} 
                 />
               </IonButton>
-            </div>
+            </>
           )}
         </IonButtons>
+        <IonTitle className="app-title ion-text-center">SIMPLE<span className="cursive">Habits</span></IonTitle>
         <IonButtons slot="end">
           {hasHabits && (
             <IonButton
@@ -108,8 +108,7 @@ const TopToolbar: React.FC<{
           </IonButton>
         </IonButtons>
       </IonToolbar>
-    </div>
-  );
+    </div>  );
 };
 
 export { TopToolbar };

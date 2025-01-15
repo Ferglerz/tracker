@@ -1,5 +1,5 @@
 //HabitItem.tsx
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -17,11 +17,9 @@ import { getHistoryRange, getTodayString } from '@utils/Utilities';
 import { HistoryGrid } from '@components/HistoryGrid';
 import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
-import { HabitItemState } from '@utils/TypesAndProps';
 import { useHabits } from '@utils/useHabits';
 import * as icons from 'ionicons/icons';
 import { handleSettings } from '@utils/Storage';
-
 
 interface Props {
   habit: HabitEntity;
@@ -86,23 +84,20 @@ export const HabitItem: React.FC<Props> = ({
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Get habits from central state using the hook
   const { habits } = useHabits();
   const habitState = habits.find(h => h.id === habit.id);
 
-  const [state, setState] = useState<HabitItemState>(() => {
-    const today = getTodayString();
-    return {
-      selectedDate: today,
-      quantity: habitState?.history[today]?.quantity ?? 0,
-      goal: habitState?.history[today]?.goal ?? habitState?.goal ?? 0
-    };
-  });
-
-
+  const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [hideGrid, setHideGrid] = useState(false);
 
-  // Add this effect
+  const currentEntry = useMemo(() =>
+    habit.history[selectedDate] || {
+      quantity: 0,
+      goal: habit.goal ?? 0
+    },
+    [habit, selectedDate]
+  );
+
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await handleSettings('load');
@@ -111,25 +106,10 @@ export const HabitItem: React.FC<Props> = ({
     loadSettings();
   }, []);
 
-  useEffect(() => {
-    if (habit) {
-      setState(prevState => ({
-        selectedDate: prevState.selectedDate,
-        quantity: habit.history[prevState.selectedDate]?.quantity ?? 0,
-        goal: habit.history[prevState.selectedDate]?.goal ?? habit.goal ?? 0
-      }));
-    }
-  }, [habit]);
-
   const handleValueChange = useCallback(
     async (value: number, date: string) => {
       const historyQuantity = habit.history[date]?.quantity || 0;
       await habit.increment(value - historyQuantity, date);
-      setState((prevState) => ({
-        ...prevState,
-        quantity: value,
-        selectedDate: date,
-      }));
     },
     [habit]
   );
@@ -139,9 +119,9 @@ export const HabitItem: React.FC<Props> = ({
     e.stopPropagation();
 
     if (habit?.type === 'checkbox') {
-      handleValueChange(state.quantity > 0 ? 0 : 1, state.selectedDate);
+      handleValueChange(currentEntry.quantity > 0 ? 0 : 1, selectedDate);
     }
-  }, [habit, state.quantity, handleValueChange]);
+  }, [habit, currentEntry.quantity, handleValueChange, selectedDate]);
 
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('ion-reorder')) return;
@@ -168,7 +148,6 @@ export const HabitItem: React.FC<Props> = ({
     }
   }, [isCalendarOpen, habit, onToggleCalendar]);
 
-
   const handleEdit = useCallback(() => {
     slidingRef.current?.close();
     onEdit();
@@ -179,33 +158,18 @@ export const HabitItem: React.FC<Props> = ({
 
     slidingRef.current?.close();
 
-    // If we're closing the calendar (it's currently open)
     if (openCalendarId === habit.id) {
-      // First close the calendar
       onToggleCalendar(habit.id);
-      // Then update the state
       const today = getTodayString();
-      const todayValue = habit.history[today];
-      setState({
-        selectedDate: today,
-        quantity: todayValue?.quantity ?? 0,
-        goal: todayValue?.goal ?? habit.goal ?? 0
-      });
+      setSelectedDate(today);
     } else {
-      // If we're opening the calendar, just toggle it
       onToggleCalendar(habit.id);
     }
   }, [habit, onToggleCalendar, openCalendarId]);
 
   const handleDateSelected = useCallback((date: string) => {
     if (!habit) return;
-
-    setState(prevState => ({
-      ...prevState,
-      selectedDate: date,
-      quantity: habit.history[date]?.quantity ?? 0,
-      goal: habit.history[date]?.goal ?? habit.goal ?? 0
-    }));
+    setSelectedDate(date);
   }, [habit]);
 
   React.useEffect(() => {
@@ -245,12 +209,12 @@ export const HabitItem: React.FC<Props> = ({
               <div className="habit-header">
                 <HabitDetails
                   habit={habit}
-                  quantity={state.quantity} //Pass down for habit details
-                  goal={state.goal} //Pass down for habit details
+                  quantity={currentEntry.quantity}
+                  goal={currentEntry.goal}
                 />
                 <InteractionControls
                   habit={habit}
-                  selectedDate={state.selectedDate} // Pass selectedDate
+                  selectedDate={selectedDate}
                   handleValueChange={handleValueChange}
                 />
               </div>
@@ -264,7 +228,7 @@ export const HabitItem: React.FC<Props> = ({
                 data={getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3)}
                 history={habit.history}
                 defaultGoal={habit.goal ?? 0}
-                hideGrid={hideGrid} 
+                hideGrid={hideGrid}
               />
             </div>
           </div>
@@ -294,7 +258,7 @@ export const HabitItem: React.FC<Props> = ({
         <Calendar
           habit={habit}
           onClose={handleToggleCalendar}
-          onValueChange={handleValueChange} // Pass the updated handleValueChange
+          onValueChange={handleValueChange}
           onDateSelected={handleDateSelected}
         />
       )}

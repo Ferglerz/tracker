@@ -1,12 +1,54 @@
+//Utilities.tsx
+import { useState, useCallback } from 'react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
-import { useState, useCallback } from 'react';
+import { CONSTANTS } from '@utils/Constants';
 
 interface HistoryRangeItem {
   date: string;
   value: [number, number];
 }
 
+export interface ColorAdjustOptions {
+  lighter?: boolean;
+  opacity?: number;
+}
+
+export const adjustColor = (color: string, options: ColorAdjustOptions = {}): string => {
+  if (!color) return color;
+  
+  const { lighter, opacity } = options;
+  
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    
+    if (lighter) {
+      const lighterRGB = [r, g, b].map(c => 
+        Math.min(255, c + (255 - c) * 0.3)
+      );
+      return opacity !== undefined
+        ? `rgba(${lighterRGB.join(', ')}, ${opacity})`
+        : `rgb(${lighterRGB.join(', ')})`;
+    }
+    
+    return opacity !== undefined
+      ? `rgba(${r}, ${g}, ${b}, ${opacity})`
+      : color;
+  }
+  
+  if (color.startsWith('rgb')) {
+    if (opacity !== undefined) {
+      return color.startsWith('rgba')
+        ? color.replace(/[\d.]+\)$/g, `${opacity})`)
+        : color.replace(')', `, ${opacity})`);
+    }
+    return color;
+  }
+  
+  return color;
+};
 
 export const useAnimatedPress = () => {
   const [isPressed, setIsPressed] = useState(false);
@@ -66,12 +108,6 @@ export const getHistoryRange = (
 
 type StatusType = 'complete' | 'partial' | 'none';
 
-interface StatusColors {
-  complete: string;
-  partial: string;
-  none: string;
-}
-
 export const getHabitStatus = (
   value: Habit.HistoryEntry | undefined,
   habit: HabitEntity
@@ -96,4 +132,23 @@ export const applyGridVisibility = (shouldShow: boolean) => {
       gridContainer.classList.add('hide-grid-elements');
     }
   });
+};
+
+export const getFillColor = (
+  value: [number, number],
+  type: Habit.Type,
+  color: string
+): string => {
+  const [quantity, goal] = value;
+  
+  if (!quantity || quantity <= 0) {
+    return CONSTANTS.HISTORY_GRID.DEFAULT_GRAY;
+  }
+  
+  if (type === 'checkbox' || !goal) {
+    return color;
+  }
+  
+  const colorIntensity = Math.min(quantity / goal, 1);
+  return adjustColor(color, { opacity: colorIntensity });
 };

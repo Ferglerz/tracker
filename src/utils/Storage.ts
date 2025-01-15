@@ -28,6 +28,22 @@ export class HabitStorage {
     }
   }
 
+  private async handleStorageOperation<T>(
+    operation: () => Promise<T>,
+    errorMessage: string
+  ): Promise<T> {
+    try {
+      await this.initPromise;
+      return await operation();
+    } catch (error) {
+      console.error(`${errorMessage}:`, error);
+      if (error instanceof Error) {
+        throw new Error(`${errorMessage}: ${error.message}`);
+      }
+      throw new Error(errorMessage);
+    }
+  }
+
   static getInstance(): HabitStorage {
     if (!this.instance) {
       this.instance = new HabitStorage();
@@ -42,64 +58,62 @@ export class HabitStorage {
   }
 
   async save(data: Habit.Data): Promise<void> {
-    try {
-      await this.initPromise;
-      await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
-
-      await this.updateWidgets();
-    } catch (error) {
-      console.error('Storage save failed:', error);
-      throw error;
-    }
+    return this.handleStorageOperation(
+      async () => {
+        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
+        await this.updateWidgets();
+      },
+      'Failed to save habit data'
+    );
   }
 
-
   async load(): Promise<Habit.Data> {
-    try {
-      await this.initPromise;
-      const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
-      return data || { habits: [] };
-    } catch (error) {
-      console.error('Storage load failed:', error);
-      return { habits: [] };
-    }
+    return this.handleStorageOperation(
+      async () => {
+        const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
+        return data || { habits: [] };
+      },
+      'Failed to load habit data'
+    );
   }
 
   async saveSettings(settings: any): Promise<void> {
-    try {
-      await this.initPromise;
-      await this.storage.save(CONSTANTS.STORAGE.SETTINGS_KEY, settings);
-    } catch (error) {
-      console.error('Settings save failed:', error);
-      throw error;
-    }
+    return this.handleStorageOperation(
+      async () => {
+        await this.storage.save(CONSTANTS.STORAGE.SETTINGS_KEY, settings);
+      },
+      'Failed to save settings'
+    );
   }
 
   async loadSettings(): Promise<any> {
-    try {
-      await this.initPromise;
-      const settings = await this.storage.load(CONSTANTS.STORAGE.SETTINGS_KEY);
-      return settings || {};
-    } catch (error) {
-      console.error('Settings load failed:', error);
-      return {};
-    }
+    return this.handleStorageOperation(
+      async () => {
+        const settings = await this.storage.load(CONSTANTS.STORAGE.SETTINGS_KEY);
+        return settings || {};
+      },
+      'Failed to load settings'
+    );
   }
 
   async refresh(): Promise<void> {
-    await this.load();
+    return this.handleStorageOperation(
+      async () => {
+        await this.load();
+      },
+      'Failed to refresh storage'
+    );
   }
 
   async clear(): Promise<void> {
-    try {
-      await this.storage.clear(CONSTANTS.STORAGE.HABITS_KEY);
-      await this.updateWidgets();
-    } catch (error) {
-      console.error('Storage clear failed:', error);
-      throw error;
-    }
+    return this.handleStorageOperation(
+      async () => {
+        await this.storage.clear(CONSTANTS.STORAGE.HABITS_KEY);
+        await this.updateWidgets();
+      },
+      'Failed to clear storage'
+    );
   }
-
 }
 
 export const HabitStorageWrapper = {

@@ -17,12 +17,12 @@
 }
 
 .app-title {
-  position: absolute;
+  pointer-events: none;
   height: 100%;
   width: 100%;
   overflow: visible;
   padding: 0;
-  z-index: 99;
+  z-index: 50;
   font-family: Arial, sans-serif;
   font-size: 20px;
 }

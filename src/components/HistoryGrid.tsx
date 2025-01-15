@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
 import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
 import { CONSTANTS } from '@utils/Constants';
+import { adjustColor, getFillColor } from '@utils/Utilities';
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
@@ -24,37 +25,6 @@ const SquircleDefinition: React.FC<{
   );
 };
 
-const adjustColorOpacity = (color: string, opacity: number): string => {
-  if (color.startsWith('#')) {
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  }
-  if (color.startsWith('rgb')) {
-    if (color.startsWith('rgba')) {
-      return color.replace(/[\d.]+\)$/g, `${opacity})`);
-    }
-    return color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
-  }
-  return color;
-};
-
-const getFillColor = (
-  value: [number, number],
-  type: Habit.Type,
-  color: string
-): string => {
-  const [quantity, goal] = value;
-  if (type === 'checkbox') {
-    return quantity > 0 ? color : CONSTANTS.HISTORY_GRID.DEFAULT_GRAY;
-  } else {
-    const hasQuantity = quantity > 0;
-    const colorIntensity = goal && hasQuantity ? Math.min(quantity / goal, 1) : 1;
-    return hasQuantity ? adjustColorOpacity(color, colorIntensity) : CONSTANTS.HISTORY_GRID.DEFAULT_GRAY;
-  }
-};
-
 const DaySquare: React.FC<{
   day: { date: string; value: [number, number] };
   index: number;
@@ -65,23 +35,17 @@ const DaySquare: React.FC<{
   history: HistoryGridProps['data'];
   defaultGoal: number;
 }> = ({ day, index, squareSize, rowOpacity, type, color, history }) => {
-  const fill = getFillColor(day.value, type, color);
+  const fill = useMemo(() => 
+    getFillColor(day.value, type, color),
+    [day.value, type, color]
+  );
 
-  // Transform history to the correct format
-  const historyObject: Record<string, Habit.HistoryEntry> = {}; 
-  history.forEach(entry => {
-    historyObject[entry.date] = { 
-      goal: entry.value[1],
-      quantity: entry.value[0],
-    };
-  });
-
-  const containerStyle = {
+  const containerStyle = useMemo(() => ({
     width: `${squareSize}px`,
     height: `${squareSize}px`,
     opacity: rowOpacity,
     position: 'relative' as const,
-  };
+  }), [squareSize, rowOpacity]);
 
   return (
     <div
@@ -104,7 +68,7 @@ const DaySquare: React.FC<{
   );
 };
 
-const GridRow: React.FC<{
+const GridRow = React.memo<{
   days: Array<{ date: string; value: [number, number] }>;
   gap: number;
   squareSize: number;
@@ -112,23 +76,30 @@ const GridRow: React.FC<{
   type: Habit.Type;
   color: string;
   history: HistoryGridProps['data'];
-}> = ({ days, gap, squareSize, rowOpacity, type, color, history }) => (
-  <div style={{ display: 'flex', gap: `${gap}px` }}>
-    {days.map((day, index) => (
-      <DaySquare
-        key={`${day.date}-${index}`}
-        day={day}
-        index={index}
-        squareSize={squareSize}
-        rowOpacity={rowOpacity}
-        type={type}
-        color={color} 
-        history={history}
-        defaultGoal={0} 
-      />
-    ))}
-  </div>
-);
+}>(({ days, gap, squareSize, rowOpacity, type, color, history }) => {
+  const rowStyle = useMemo(() => ({
+    display: 'flex',
+    gap: `${gap}px`
+  }), [gap]);
+
+  return (
+    <div style={rowStyle}>
+      {days.map((day, index) => (
+        <DaySquare
+          key={`${day.date}-${index}`}
+          day={day}
+          index={index}
+          squareSize={squareSize}
+          rowOpacity={rowOpacity}
+          type={type}
+          color={color} 
+          history={history}
+          defaultGoal={0} 
+        />
+      ))}
+    </div>
+  );
+});
 
 export const HistoryGrid: React.FC<HistoryGridProps> = ({
   data,
@@ -142,23 +113,27 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   const squareSize = baseSize - gap;
   const cornerRadius = CONSTANTS.UI.DEFAULT_CORNER_RADIUS;
   const rowsCount = CONSTANTS.HISTORY_GRID.DEFAULT_ROWS_COUNT;
-  const gridWidth = cellsPerRow * squareSize + (cellsPerRow - 1) * gap;
+  
+  const gridWidth = useMemo(() => 
+    cellsPerRow * squareSize + (cellsPerRow - 1) * gap,
+    [cellsPerRow, squareSize, gap]
+  );
 
-  const gridContainerStyle = {
+  const gridContainerStyle = useMemo(() => ({
     width: `${gridWidth}px`,
-    display: 'flex',
+    display: 'flex' as const,
     flexDirection: 'column' as const,
     padding: '0px',
     gap: `${gap}px`,
-  };
+  }), [gridWidth, gap]);
 
   return (
     <div className={`history-grid ${hideGrid ? 'hide-grid-elements' : ''}`} style={gridContainerStyle}>
       <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
-
       {[...Array(rowsCount)].map((_, rowIndex) => {
         const rowStart = rowIndex * cellsPerRow;
-        const rowOpacity = CONSTANTS.UI.MAX_ROW_OPACITY - (rowsCount - 1 - rowIndex) * CONSTANTS.UI.ROW_OPACITY_DECREMENT;
+        const rowOpacity = CONSTANTS.UI.MAX_ROW_OPACITY - 
+          (rowsCount - 1 - rowIndex) * CONSTANTS.UI.ROW_OPACITY_DECREMENT;
 
         return (
           <GridRow

@@ -1,5 +1,5 @@
 // HabitForm.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -113,12 +113,12 @@ const HabitForm: React.FC<Props> = ({
     }
   };
 
-  const segmentButtonStyles = {
+  const segmentButtonStyles = useMemo(() => ({
     '--indicator-color': color,
     '--indicator-color-checked': color,
     '--color-checked': color,
     '--color': 'black',
-  } as React.CSSProperties;
+  } as React.CSSProperties), [color]);
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onClose}>
