@@ -105,3 +105,17 @@ export interface IconCategory {
   name: string;
   icons: IconCategoryItem[];
 }
+
+export interface WidgetSpaceProps {
+  id: string;
+  type: string;
+  order: number;
+  isOccupied: boolean;
+  habitId?: string;
+}
+
+export interface WidgetSectionProps {
+  title: string;
+  spaces: number;
+  type: string;
+}

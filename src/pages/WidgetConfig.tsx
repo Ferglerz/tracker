@@ -1,5 +1,4 @@
-//WidgetConfig.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     IonPage,
     IonTabs,
@@ -16,157 +15,23 @@ import {
     IonTabButton,
     IonLabel,
 } from '@ionic/react';
-import { arrowBack, lockClosed, apps, square } from 'ionicons/icons';
+import { arrowBack, lockClosed, apps, square, closeCircle } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { Squircle } from '@components/Squircle';
 import { HabitEntity } from '@utils/HabitEntity';
 import { useHabits } from '@utils/useHabits';
-import * as icons from 'ionicons/icons';
 import { CONSTANTS } from '@utils/Constants';
-import { adjustColor } from '@utils/Utilities';
+import { WidgetSectionProps, WidgetSpaceProps } from '@utils/TypesAndProps';
+import { HabitBadge } from '@components/HabitBadge';
+import { WidgetSection } from '@components/WidgetSection';
 
-interface WidgetSpace {
-    id: string;
-    type: string;
-    order: number;
-    isOccupied: boolean;
-    habitId?: string;
-}
-
-interface WidgetSection {
-    title: string;
-    spaces: number;
-    type: string;
-}
-
-const createEmptySpaces = (section: WidgetSection): WidgetSpace[] => {
+const createEmptySpaces = (section: WidgetSectionProps): WidgetSpaceProps[] => {
     return Array.from({ length: section.spaces }, (_, index) => ({
         id: `${section.type}-${index + 1}`,
         type: section.type,
         order: index + 1,
         isOccupied: false,
     }));
-};
-
-const HabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
-    return (
-      <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData('text/plain', habit.id);
-        }}
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          minHeight: '60px',
-          cursor: 'grab',
-          userSelect: 'none',
-        }}
-      >
-        <Squircle
-          width="100%"
-          height="100%"
-          cornerRadius={16}
-          fill={[
-            adjustColor(habit.bgColor, { lighter: true }),
-            habit.bgColor
-          ]}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        />
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--ion-text-color)',
-          fontWeight: 'bold',
-          fontSize: '1.2rem',
-          padding: '8px',
-        }}>
-          {habit.icon && (
-            <IonIcon
-              size="large"
-              style={{
-                marginRight: '8px',
-              }}
-              icon={icons[habit.icon as keyof typeof icons]}
-            />
-          )}
-          {habit.name.length > 10 ? (
-            <span style={{ fontSize: '0.9rem' }}>{habit.name}</span>
-          ) : (
-            habit.name
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  
-const DroppableSpace: React.FC<{
-    spaceId: string;
-    onDrop: (habitId: string, spaceId: string) => void;
-}> = ({ spaceId, onDrop }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-        <div
-            onDragOver={(e) => {
-                e.preventDefault();
-                setIsHovered(true);
-            }}
-            onDragLeave={(e) => {
-                setIsHovered(false);
-            }}
-            onDrop={(e) => {
-                e.preventDefault();
-                setIsHovered(false);
-                const habitId = e.dataTransfer.getData('text/plain');
-                onDrop(habitId, spaceId);
-            }}
-            style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                minHeight: '60px',
-            }}
-        >
-            <Squircle
-                width="100%"
-                height="100%"
-                cornerRadius={16}
-                dashed={true}
-                strokeWidth={2}
-                stroke={isHovered ? '#444444' : '#666666'}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    transition: 'stroke 0.2s ease',
-                }}
-            />
-            <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '60px',
-            }} />
-        </div>
-    );
 };
 
 const HabitsContainer: React.FC<{
@@ -195,7 +60,7 @@ const HabitsContainer: React.FC<{
         <div
             style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(2, 1fr)',
                 gap: '12px',
             }}
         >
@@ -203,7 +68,7 @@ const HabitsContainer: React.FC<{
                 <IonItem
                     key={habit.id}
                     style={{
-                        '--min-height': '60px',
+                        '--min-height': '42px', // Reduced height by 8 pixels
                         '--padding-start': '0',
                         '--inner-padding-end': '0',
                         '--background': 'transparent',
@@ -220,53 +85,10 @@ const HabitsContainer: React.FC<{
     </div>
 );
 
-const WidgetSection: React.FC<{
-    title: string;
-    spaces: WidgetSpace[];
-    habits: HabitEntity[];
-    onDrop: (habitId: string, spaceId: string) => void;
-}> = ({ title, spaces, habits, onDrop }) => (
-    <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ padding: '0 16px', textAlign: 'center', marginBottom: '12px' }}>{title}</h2>
-        <div
-            style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '12px',
-                padding: '0 16px',
-            }}
-        >
-            {spaces.map((space) => (
-                <IonItem
-                    key={space.id}
-                    style={{
-                        '--min-height': '60px',
-                        '--padding-start': '0',
-                        '--inner-padding-end': '0',
-                        '--background': 'transparent',
-                        '--background-hover': 'transparent',
-                        '--border-width': '0',
-                        overflow: 'visible',
-                    }}
-                    lines="none"
-                >
-                    {space.isOccupied && space.habitId ? (
-                        <HabitBadge
-                            habit={habits.find((h) => h.id === space.habitId)!}
-                        />
-                    ) : (
-                        <DroppableSpace spaceId={space.id} onDrop={onDrop} />
-                    )}
-                </IonItem>
-            ))}
-        </div>
-    </div>
-);
-
 const WidgetConfig: React.FC = () => {
     const history = useHistory();
     const { habits, refreshHabits } = useHabits();
-    const [widgetSpaces, setWidgetSpaces] = useState<WidgetSpace[]>([]);
+    const [widgetSpaces, setWidgetSpaces] = useState<WidgetSpaceProps[]>([]);
 
     useEffect(() => {
         const spaces = CONSTANTS.WIDGET_SECTIONS.flatMap(section => createEmptySpaces(section));
