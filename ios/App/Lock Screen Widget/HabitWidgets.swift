@@ -18,22 +18,46 @@ struct Provider: TimelineProvider {
     }
     
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), habits: [], error: nil, widgetID: String(context.family.rawValue))
+        SimpleEntry(
+            date: Date(),
+            habits: [],
+            error: nil,
+            widgetID: String(context.family.rawValue),
+            quantityStepperSides: QuantityStepperStateStore.loadMap()
+        )
     }
-    
+
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
         do {
             let habits = try IonicStorageManager.shared.loadHabits()
-            completion(SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue)))
+            completion(SimpleEntry(
+                date: Date(),
+                habits: habits,
+                error: nil,
+                widgetID: String(context.family.rawValue),
+                quantityStepperSides: QuantityStepperStateStore.loadMap()
+            ))
         } catch {
-            completion(SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue)))
+            completion(SimpleEntry(
+                date: Date(),
+                habits: [],
+                error: error,
+                widgetID: String(context.family.rawValue),
+                quantityStepperSides: QuantityStepperStateStore.loadMap()
+            ))
         }
     }
-    
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         do {
             let habits = try IonicStorageManager.shared.loadHabits()
-            let entry = SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue))
+            let entry = SimpleEntry(
+                date: Date(),
+                habits: habits,
+                error: nil,
+                widgetID: String(context.family.rawValue),
+                quantityStepperSides: QuantityStepperStateStore.loadMap()
+            )
             
             // Calculate next midnight
             let calendar = Calendar.current
@@ -46,7 +70,13 @@ struct Provider: TimelineProvider {
             lastCheck = Date()
             completion(timeline)
         } catch {
-            let entry = SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue))
+            let entry = SimpleEntry(
+                date: Date(),
+                habits: [],
+                error: error,
+                widgetID: String(context.family.rawValue),
+                quantityStepperSides: QuantityStepperStateStore.loadMap()
+            )
             let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
             completion(timeline)
         }
@@ -58,6 +88,8 @@ struct SimpleEntry: TimelineEntry {
     let habits: [Habit]
     let error: Error?
     let widgetID: String?
+    /// Per-habit expanded stepper: `.plus` / `.minus` / `.none` (default via map lookup).
+    let quantityStepperSides: [String: QuantityStepperSide]
 }
 
 // MARK: - Main Widget Configuration
@@ -91,7 +123,11 @@ struct WidgetView: View {
         switch family {
         case .accessoryRectangular:
             if let habit = getHabitForLockScreen(entry.habits) {
-                HabitRow(habit: habit, widgetFamily: family)
+                HabitRow(
+                    habit: habit,
+                    widgetFamily: family,
+                    stepperSide: entry.quantityStepperSides[habit.id] ?? .none
+                )
             } else {
                     Text("No habit configured")
                 }
@@ -99,12 +135,22 @@ struct WidgetView: View {
         case .systemSmall:
             let type: WidgetType = entry.widgetID?.contains("2") == true ? .small2 : .small1
             let habits = organizeHabitsForWidget(entry.habits, type: type)
-            WidgetGridLayout(habits: habits, type: type, widgetFamily: family)
-            
+            WidgetGridLayout(
+                habits: habits,
+                type: type,
+                widgetFamily: family,
+                quantityStepperSides: entry.quantityStepperSides
+            )
+
         case .systemMedium:
             let type: WidgetType = entry.widgetID?.contains("2") == true ? .medium2 : .medium1
             let habits = organizeHabitsForWidget(entry.habits, type: type)
-            WidgetGridLayout(habits: habits, type: type, widgetFamily: family)
+            WidgetGridLayout(
+                habits: habits,
+                type: type,
+                widgetFamily: family,
+                quantityStepperSides: entry.quantityStepperSides
+            )
             
         @unknown default:
             Text("Unsupported widget size")
@@ -125,12 +171,12 @@ struct WidgetView: View {
 #Preview(as: .systemMedium) {
     HabitWidget()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "medium1")
+    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "medium1", quantityStepperSides: [:])
 }
 
 #Preview(as: .accessoryRectangular) {
     HabitWidget()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "lock1")
+    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "lock1", quantityStepperSides: [:])
 }
 
