@@ -2,14 +2,9 @@
 
 import Foundation
 import SwiftUI
+/// Matches JS habit history keys (`toISOString().split('T')[0]`, UTC).
 func getCurrentDateString() -> String {
-    let calendar = Calendar.current
-    let now = Date()
-    let components = calendar.dateComponents([.year, .month, .day], from: now)
-    let dateFormatter = DateFormatter()
-    dateFormatter.dateFormat = "yyyy-MM-dd"
-    dateFormatter.timeZone = calendar.timeZone
-    return dateFormatter.string(from: calendar.date(from: components)!)
+    IonicStorageManager.appHistoryDateKey(for: Date())
 }
 
 func organizeHabitsForWidget(_ habits: [Habit], type: WidgetType) -> [WidgetPosition?] {
