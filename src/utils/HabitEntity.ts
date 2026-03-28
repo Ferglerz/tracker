@@ -111,6 +111,21 @@ export class HabitEntity {
     await this.update({ widget }); 
   }
 
+  /** Single save after multiple widget assignment changes (avoids redundant loads/reloads). */
+  static async applyWidgetAssignmentBatch(
+    updates: { habitId: string; widgets: Habit.Widgets }[],
+  ): Promise<void> {
+    if (updates.length === 0) return;
+    const data = await HabitStorageWrapper.handleHabitData('load');
+    for (const { habitId, widgets } of updates) {
+      const idx = data.habits.findIndex((h) => h.id === habitId);
+      if (idx === -1) continue;
+      data.habits[idx] = { ...data.habits[idx], widgets };
+    }
+    await HabitStorageWrapper.handleHabitData('save', data);
+    habitsSubject.next(data.habits);
+  }
+
   static async loadAll(): Promise<HabitEntity[]> {
     const data = await HabitStorageWrapper.handleHabitData('load');
     const habits = data.habits.map(habitData => new HabitEntity(habitData));
