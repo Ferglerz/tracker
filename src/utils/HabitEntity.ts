@@ -29,9 +29,13 @@ export class HabitEntity {
   get listOrder() { return this.props.listOrder; }
   get widgetAssignment() { return this.props.widgets; }
 
-  async update(updates: UpdateOptions): Promise<void> {
+  static emptyHistoryEntry(goal: number): Habit.HistoryEntry {
+    return { quantity: 0, goal: goal ?? 0 };
+  }
+
+  async update(updates: UpdateOptions, preloadedData?: Habit.Data): Promise<void> {
     const dateString = updates.dateString || getTodayString();
-    const data = await HabitStorageWrapper.handleHabitData('load');
+    const data = preloadedData ?? await HabitStorageWrapper.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === this.id);
   
     if (habitIndex === -1) throw new Error('Habit not found in storage');
@@ -39,7 +43,7 @@ export class HabitEntity {
     // Update history separately from other updates
     let updatedHistory = this.history;
     if (updates.history) {
-      const currentEntry = this.history[dateString] || { quantity: 0, goal: this.goal || 0 };
+      const currentEntry = this.history[dateString] || HabitEntity.emptyHistoryEntry(this.goal);
       updatedHistory = {
         ...this.history,
         [dateString]: {
@@ -83,10 +87,7 @@ export class HabitEntity {
     if (!freshHabit) throw new Error('Habit not found');
   
     // Get the current history entry from fresh data
-    const currentHistoryEntry = freshHabit.history[dateString] || { 
-      quantity: 0, 
-      goal: freshHabit.goal || 0 
-    };
+    const currentHistoryEntry = freshHabit.history[dateString] || HabitEntity.emptyHistoryEntry(freshHabit.goal);
     
     const newHistoryQuantity = Math.max(0, currentHistoryEntry.quantity + amount);
     
@@ -104,7 +105,7 @@ export class HabitEntity {
           goal: freshHabit.goal || 0 
         },
       },
-    });
+    }, data);
   }
 
   async updateWidgetAssignment(widget?: Habit.Widgets): Promise<void> {
@@ -153,7 +154,7 @@ export class HabitEntity {
       }
       storage.habits[existingIndex] = { ...storage.habits[existingIndex], ...props };
     } else {
-      storage.habits.push({ ...props, id: props.id || `${Date.now()}-${Math.random().toString(20).substring(2, 10)}` });
+      storage.habits.push({ ...props, id: props.id || `${Date.now()}-${Math.random().toString(36).substring(2, 10)}` });
     }
 
     await HabitStorageWrapper.handleHabitData('save', storage);

@@ -7,9 +7,11 @@
 }
 
 .app-container {
-  max-width: 600px;
+  max-width: 450px;
   margin: 0 auto;
   height: 100%;
+  width: 100%;
+  position: relative;
 }
 
 .top-toolbar {
@@ -61,17 +63,7 @@ background: inherit;
 
 }
 
-.calendar-custom::part(calendar-day active)::after {
-  width: 100%;
-  height: 100%;
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: transparent;
-  z-index: -1;
-  border: 3px solid var(--ion-text-color);
-}
-
+.calendar-custom::part(calendar-day active)::after,
 .calendar-custom::part(calendar-day today)::after {
   width: 100%;
   height: 100%;
@@ -80,6 +72,13 @@ background: inherit;
   border-radius: 50%;
   background: transparent;
   z-index: -1;
+}
+
+.calendar-custom::part(calendar-day active)::after {
+  border: 3px solid var(--ion-text-color);
+}
+
+.calendar-custom::part(calendar-day today)::after {
   border: 1px solid var(--ion-text-color);
 }
 
@@ -104,7 +103,7 @@ ion-item.habit::part(native) {
 }
 
 .habitDivider {
-  background: #353535FF;
+  background: var(--ion-border-color, #353535);
   height: 1px;
 }
 
@@ -187,34 +186,27 @@ ion-item.habit::part(native) {
 }
 
 @keyframes shake-takeoff {
-  0% { transform: translate(0, 0) skew(0deg); color: inherit; }
-  15% { transform: translate(1px, -1px) skew(3deg); color: rgb(38, 219, 255); }
-  30% { transform: translate(1px, -1px) skew(3deg); color: rgb(199, 30, 255); }
-  45% { transform: translate(1px, -1px) skew(3deg); color: rgb(255, 188, 30); }
-  60% { transform: translate(1px, -1px) skew(3deg); color: rgb(30, 255, 68); }
-  75% { transform: translate(1px, -1px) skew(3deg); color: rgb(30, 128, 255); }
-  100% { transform: translate(0, 0) skew(0deg); color: inherit; }
-  0% { transform: translate(0, 0) rotate(0deg); }
+  0% { transform: translate(0, 0) rotate(0deg); color: inherit; }
   5% { transform: translate(-1px, 0) rotate(-0.5deg); }
   10% { transform: translate(1px, -1px) rotate(0.5deg); }
-  15% { transform: translate(-1px, -2px) rotate(-0.5deg); }
+  15% { transform: translate(-1px, -2px) rotate(-0.5deg); color: rgb(38, 219, 255); }
   20% { transform: translate(1px, -3px) rotate(0.5deg); }
   25% { transform: translate(-2px, -4px) rotate(-0.5deg); }
-  30% { transform: translate(2px, -5px) rotate(0.5deg); }
+  30% { transform: translate(2px, -5px) rotate(0.5deg); color: rgb(199, 30, 255); }
   35% { transform: translate(-2px, -6px) rotate(-0.5deg); }
   40% { transform: translate(2px, -7px) rotate(0.5deg); }
-  45% { transform: translate(-1px, -8px) rotate(-0.5deg); }
+  45% { transform: translate(-1px, -8px) rotate(-0.5deg); color: rgb(255, 188, 30); }
   50% { transform: translate(1px, -7px) rotate(0.5deg); }
   55% { transform: translate(-1px, -6px) rotate(-0.5deg); }
-  60% { transform: translate(1px, -5px) rotate(0.5deg); }
+  60% { transform: translate(1px, -5px) rotate(0.5deg); color: rgb(30, 255, 68); }
   65% { transform: translate(-1px, -4px) rotate(-0.5deg); }
   70% { transform: translate(1px, -3px) rotate(0.5deg); }
-  75% { transform: translate(-1px, -2px) rotate(-0.5deg); }
+  75% { transform: translate(-1px, -2px) rotate(-0.5deg); color: rgb(30, 128, 255); }
   80% { transform: translate(1px, -1px) rotate(0.5deg); }
   85% { transform: translate(-1px, -1px) rotate(-0.5deg); }
   90% { transform: translate(1px, 0) rotate(0.5deg); }
   95% { transform: translate(-1px, 0) rotate(-0.5deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(0, 0) rotate(0deg); color: inherit; }
 }
 
 @keyframes triple-fire {

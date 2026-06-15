@@ -2,18 +2,17 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
 import { isNewDay } from '@utils/Utilities';
+import type { Subscription } from 'rxjs';
 
 interface UseHabitsResult {
   habits: HabitEntity[];
-  settings: Record<string, any>;
   refreshHabits: () => Promise<void>;
 }
 
 export function useHabits(): UseHabitsResult {
   const [habits, setHabits] = useState<HabitEntity[]>([]);
-  const [settings] = useState<Record<string, any>>({});
   const initialLoadComplete = useRef(false);
-  const subscriptionRef = useRef<any>(null);
+  const subscriptionRef = useRef<Subscription | null>(null);
   const lastCheckRef = useRef(new Date());
 
   const refreshHabits = useCallback(async () => {
@@ -63,5 +62,5 @@ export function useHabits(): UseHabitsResult {
     };
   }, [refreshHabits]);
 
-  return { habits, settings, refreshHabits };
+  return { habits, refreshHabits };
 }

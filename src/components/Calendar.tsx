@@ -1,17 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   IonButton,
-  IonIcon,
-  IonCard,
-  IonCardContent,
   IonDatetime,
-  IonBadge,
   IonHeader,
 } from '@ionic/react';
-import { arrowBack, create } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
 import DateEditModal from '@components/DateEditModal';
 import { UpdateOptions } from '@utils/HabitEntity';
+import { getTodayString, adjustColor } from '@utils/Utilities';
 
 interface Props {
   habit: HabitEntity;
@@ -26,20 +22,13 @@ const HabitCalendar: React.FC<Props> = ({
   onValueChange,
   onDateSelected,
 }) => {
-  const getTodayString = () => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
-      2,
-      '0'
-    )}-${String(today.getDate()).padStart(2, '0')}`;
-  };
-
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const maxDate = useMemo(() => new Date().toISOString(), []);
+
   const resetToToday = useCallback(() => {
-    const today = getTodayString();
-    setSelectedDate(today);
+    setSelectedDate(getTodayString());
   }, []);
 
   const handleDateClick = useCallback(
@@ -97,10 +86,7 @@ const HabitCalendar: React.FC<Props> = ({
               backgroundColor: habit.bgColor,
             };
           } else if (quantity > 0) {
-            const rgbaColor = habit.bgColor.startsWith('#')
-              ? `${habit.bgColor}80`
-              : `rgba(${habit.bgColor.replace('rgb(', '').replace(')', '')}, 0.5)`;
-
+            const rgbaColor = adjustColor(habit.bgColor, { opacity: 0.5 });
             return {
               textColor: '#000000',
               backgroundColor: rgbaColor,
@@ -148,7 +134,8 @@ const HabitCalendar: React.FC<Props> = ({
         >
           Done
         </IonButton>
-      </IonHeader>      <IonDatetime
+      </IonHeader>
+      <IonDatetime
         presentation="date"
         size="cover"
         preferWheel={false}
@@ -161,7 +148,7 @@ const HabitCalendar: React.FC<Props> = ({
         }}
         highlightedDates={getHighlightedDates}
         className="calendar-custom"
-        max={new Date().toISOString()}
+        max={maxDate}
       />
 
       <DateEditModal
@@ -171,8 +158,7 @@ const HabitCalendar: React.FC<Props> = ({
         habit={habit}
         date={selectedDate}
       />
-
-    </div >
+    </div>
   );
 };
 

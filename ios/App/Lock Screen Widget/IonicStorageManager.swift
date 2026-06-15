@@ -95,7 +95,7 @@ final class IonicStorageManager {
     /// Matches JS `new Date().toISOString().split('T')[0]` (UTC calendar day).
     static func appHistoryDateKey(for date: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        cal.timeZone = TimeZone.current
         let y = cal.component(.year, from: date)
         let m = cal.component(.month, from: date)
         let d = cal.component(.day, from: date)

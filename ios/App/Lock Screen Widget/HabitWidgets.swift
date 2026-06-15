@@ -141,9 +141,119 @@ struct TypedWidgetView: View {
     }
 }
 
-struct SingleKindHabitWidget: Widget {
-    let kind: String
-    let widgetType: WidgetType
+struct HabitWidgetLock1: Widget {
+    let kind: String = "HabitWidgetLock1"
+    let widgetType: WidgetType = .lock1
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetLock2: Widget {
+    let kind: String = "HabitWidgetLock2"
+    let widgetType: WidgetType = .lock2
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetSmall1: Widget {
+    let kind: String = "HabitWidgetSmall1"
+    let widgetType: WidgetType = .small1
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetSmall2: Widget {
+    let kind: String = "HabitWidgetSmall2"
+    let widgetType: WidgetType = .small2
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetMedium1: Widget {
+    let kind: String = "HabitWidgetMedium1"
+    let widgetType: WidgetType = .medium1
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetMedium2: Widget {
+    let kind: String = "HabitWidgetMedium2"
+    let widgetType: WidgetType = .medium2
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
@@ -165,13 +275,13 @@ struct SingleKindHabitWidget: Widget {
 
 // MARK: - Previews
 #Preview(as: .systemMedium) {
-    SingleKindHabitWidget(kind: "HabitWidgetMedium1", widgetType: .medium1)
+    HabitWidgetMedium1()
 } timeline: {
     SimpleEntry(date: .now, habits: [], error: nil)
 }
 
 #Preview(as: .accessoryRectangular) {
-    SingleKindHabitWidget(kind: "HabitWidgetLock1", widgetType: .lock1)
+    HabitWidgetLock1()
 } timeline: {
     SimpleEntry(date: .now, habits: [], error: nil)
 }

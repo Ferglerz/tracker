@@ -1,5 +1,5 @@
 // IconSelect.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   IonModal,
   IonHeader,
@@ -15,8 +15,8 @@ import {
   IonSearchbar,
 } from '@ionic/react';
 import { checkmark } from 'ionicons/icons';
-import * as icons from 'ionicons/icons';
 import { ICON_CATEGORIES } from '@utils/Constants';
+import { getIcon } from '@utils/iconUtils';
 
 interface Props {
   isOpen: boolean;
@@ -33,13 +33,17 @@ export const IconSelect: React.FC<Props> = ({
 }) => {
   const [searchText, setSearchText] = useState('');
 
-  const filteredCategories = ICON_CATEGORIES.map(category => ({
-    ...category,
-    icons: category.icons.filter(icon => 
-      icon.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      icon.description.toLowerCase().includes(searchText.toLowerCase())
-    )
-  })).filter(category => category.icons.length > 0);
+  const filteredCategories = useMemo(() => {
+    const query = searchText.toLowerCase();
+    if (!query) return ICON_CATEGORIES;
+    return ICON_CATEGORIES.map(category => ({
+      ...category,
+      icons: category.icons.filter(icon => 
+        icon.name.toLowerCase().includes(query) ||
+        icon.description.toLowerCase().includes(query)
+      )
+    })).filter(category => category.icons.length > 0);
+  }, [searchText]);
 
   const handleSelect = (iconName: string) => {
     onSelect(iconName);
@@ -63,9 +67,8 @@ export const IconSelect: React.FC<Props> = ({
         <IonToolbar>
           <IonSearchbar
             value={searchText}
-            onIonInput={e => setSearchText(e.detail.value!)} // Changed from onIonChange to onIonInput
+            onIonInput={e => setSearchText(e.detail.value!)}
             placeholder="Search icons..."
-            // Removed the debounce property
           />
         </IonToolbar>
       </IonHeader>
@@ -98,7 +101,7 @@ export const IconSelect: React.FC<Props> = ({
                   }}
                 >
                   <IonIcon
-                    icon={(icons as any)[icon.icon]}
+                    icon={getIcon(icon.icon)}
                     slot="start"
                     style={{
                       fontSize: '24px',

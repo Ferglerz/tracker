@@ -78,7 +78,6 @@ export class HabitCSVService {
       const csv = Papa.unparse([headers, ...rows]);
       this.createDownload(csv, `habit-tracker-export-${format(new Date(), 'yyyy-MM-dd')}.csv`);
     } catch (error) {
-      alert('Failed to export habits to CSV');
       throw error;
     }
   }

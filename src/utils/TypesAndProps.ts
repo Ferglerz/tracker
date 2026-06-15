@@ -1,11 +1,11 @@
-import { HabitEntity } from "./HabitEntity";
+import type { HabitEntity } from './HabitEntity';
 
 export namespace Habit {
   export type Type = 'checkbox' | 'quantity';
 
   export interface HistoryEntry {
-    quantity: number | 0;
-    goal: number | 0;
+    quantity: number;
+    goal: number;
   }
 
   export interface Habit {
@@ -36,32 +36,28 @@ export namespace Habit {
   export interface Widgets {
     assignments: WidgetsAssignment[];
   }
-
 }
 
-export interface HabitItemState {
-  selectedDate: string;
-  quantity: number;
-  goal: number;
+export interface AppSettings {
+  historyGrid?: boolean;
+  [key: string]: unknown;
 }
 
 export interface InteractionControlsProps {
   habit: HabitEntity;
-  handleValueChange: (value: number, date: string, habit: HabitEntity) => void;
+  handleValueChange: (value: number, date: string) => void;
   selectedDate: string;
 }
 
 export interface HistoryGridProps {
-  data: Array<{ date: string; value: [number, number]; }>;
+  data: Array<{ date: string; value: [number, number] }>;
   color: string;
   type: Habit.Type;
   baseSize?: number;
   gap?: number;
   rowPadding?: number;
   cellsPerRow?: number;
-  history: Record<string, Habit.HistoryEntry>;
-  defaultGoal: number;
-  hideGrid?: boolean; 
+  hideGrid?: boolean;
 }
 
 export interface CalendarProps {
@@ -79,19 +75,9 @@ export interface CalendarDayProps {
   onDateSelected: () => void;
 }
 
-export interface Props {
-  habit: Habit.Habit;
-  onEdit: () => void;
-  onDelete: () => void;
-  isCalendarOpen: boolean;
-  openCalendarId: string | null;
-  onToggleCalendar: (habitId: string) => void;
-  dragHandleProps?: any;
-}
-
 export interface StorageStrategy {
-  save(key: string, value: Habit.Data): Promise<void>;
-  load(key: string): Promise<Habit.Data | null>;
+  save(key: string, value: any): Promise<void>;
+  load(key: string): Promise<any>;
   clear(key: string): Promise<void>;
 }
 

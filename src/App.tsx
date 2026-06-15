@@ -33,6 +33,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
+    let listener: Promise<{ remove: () => Promise<void> }> | null = null;
     
     const handleAppStateChange = async ({ isActive }: AppState) => {
       console.log('App state changed, isActive:', isActive);
@@ -47,25 +48,21 @@ const App: React.FC = () => {
       }
     };
   
-    CapacitorApp.addListener('appStateChange', handleAppStateChange);
+    listener = CapacitorApp.addListener('appStateChange', handleAppStateChange);
   
     // Clean up to prevent state updates after unmount
     return () => {
       mounted = false;
-      CapacitorApp.removeAllListeners();
+      if (listener) {
+        listener.then(h => h.remove());
+      }
     };
   }, []);
 
   return (
     <IonApp>
       <IonReactRouter>
-        <div style={{ 
-          maxWidth: '450px', 
-          margin: '0 auto', 
-          height: '100%',
-          width: '100%',
-          position: 'relative'
-        }}>
+        <div className="app-container">
           <IonRouterOutlet>
             <Route exact path="/home" component={Home} />
             <Route exact path="/widget-config" component={WidgetConfig} />
