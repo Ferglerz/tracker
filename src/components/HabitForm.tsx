@@ -11,8 +11,8 @@ import {
   IonLabel,
   IonButton,
   IonButtons,
-  IonIcon,
   IonInput,
+  useIonToast,
 } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
 import { Habit } from '@utils/TypesAndProps';
@@ -32,14 +32,6 @@ interface Props {
   onSave?: () => void;
 }
 
-// Interface for segment button styles (for type safety)
-interface SegmentButtonStyles {
-  '--indicator-color'?: string;
-  '--indicator-color-checked'?: string;
-  '--color-checked'?: string;
-  '--color'?: string; // For default text color (MD)
-}
-
 const HabitForm: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -47,6 +39,7 @@ const HabitForm: React.FC<Props> = ({
   title,
   onSave,
 }) => {
+  const [present] = useIonToast();
   const [name, setName] = useState('');
   const [type, setType] = useState<Habit.Type>('checkbox');
   const [unit, setUnit] = useState<string | undefined>();
@@ -77,15 +70,17 @@ const HabitForm: React.FC<Props> = ({
     }
   }, [isOpen, editedHabit]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!name.trim() || isSaving) return;
+
     setIsSaving(true);
 
     try {
       const today = getTodayString();
       const habitProps: Habit.Habit = {
-        ...(editedHabit as Habit.Habit) ?? {},
-        id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...((editedHabit as unknown as Habit.Habit) ?? {}),
+        id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         name: name.trim(),
         type,
         unit: type === 'quantity' ? unit : undefined,
@@ -107,7 +102,12 @@ const HabitForm: React.FC<Props> = ({
       onClose();
     } catch (error) {
       console.error('Failed to save habit:', error);
-      alert('Failed to save habit');
+      present({
+        message: 'Failed to save habit',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -138,7 +138,7 @@ const HabitForm: React.FC<Props> = ({
           <IonButtons slot="end">
             <IonButton
               strong
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={isSaving || !name.trim()}
               style={{
                 '--color': color,
@@ -151,59 +151,61 @@ const HabitForm: React.FC<Props> = ({
       </IonHeader>
 
       <IonContent className="ion-padding">
-        <IonList>
+        <form onSubmit={handleSubmit}>
+          <IonList>
+            <HabitTypeSelection
+              value={type}
+              onTypeChange={setType}
+              segmentButtonStyle={segmentButtonStyles}
+            />
+            <IonItem>
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                <IconSelectButton
+                  icon={icon}
+                  onClick={() => setShowIconSelect(true)}
+                />
+                <div style={{ flex: 1 }}>
+                  <IonLabel position="stacked">
+                    <h1>Name</h1>
+                  </IonLabel>
+                  <IonInput
+                    value={name}
+                    onIonInput={(e) => setName(e.detail.value || '')}
+                    placeholder="Enter habit name"
+                    required
+                  />
+                </div>
+              </div>
+            </IonItem>
 
-
-        <HabitTypeSelection
-            value={type}
-            onTypeChange={setType}
-            segmentButtonStyle={segmentButtonStyles}
-          />
-          <IonItem>
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-              <IconSelectButton
-                icon={icon}
-                onClick={() => setShowIconSelect(true)}
+            {type === 'quantity' && (
+              <QuantityInputs
+                unit={unit}
+                goal={goal}
+                onUnitChange={setUnit}
+                onGoalChange={setGoal}
               />
-              <div style={{ flex: 1 }}>
-                <IonLabel position="stacked">
-                  <h1>Name</h1>
-                </IonLabel>
-                <IonInput
-                  value={name}
-                  onIonChange={(e) => setName(e.detail.value || '')}
-                  placeholder="Enter habit name"
-                  required
+            )}
+
+            <IonItem>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  width: '100%',
+                }}
+              >
+                <ColorPicker
+                  colors={CONSTANTS.PRESET_COLORS}
+                  selectedColor={color}
+                  onColorSelect={setColor}
                 />
               </div>
-            </div>
-          </IonItem>
-
-          {type === 'quantity' && (
-            <QuantityInputs
-              unit={unit}
-              goal={goal}
-              onUnitChange={setUnit}
-              onGoalChange={setGoal}
-            />
-          )}
-
-          <IonItem>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                width: '100%',
-              }}
-            >
-              <ColorPicker
-                colors={CONSTANTS.PRESET_COLORS}
-                selectedColor={color}
-                onColorSelect={setColor}
-              />
-            </div>
-          </IonItem>
-        </IonList>
+            </IonItem>
+          </IonList>
+          {/* Hidden submit button to enable enter key submission */}
+          <button type="submit" style={{ display: 'none' }} />
+        </form>
       </IonContent>
 
       <IconSelect

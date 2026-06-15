@@ -1,5 +1,5 @@
 // NativeStorageStrategy.ts
-import { Habit, StorageStrategy } from "@utils/TypesAndProps";
+import { StorageStrategy } from "@utils/TypesAndProps";
 import { WidgetsBridgePlugin } from "capacitor-widgetsbridge-plugin";
 
 export class NativeStorageStrategy implements StorageStrategy {
@@ -9,53 +9,47 @@ export class NativeStorageStrategy implements StorageStrategy {
     this.group = group;
   }
 
-  async save(key: string, value: Habit.Data): Promise<void> {
+  async save(key: string, value: any): Promise<void> {
     try {
       await WidgetsBridgePlugin.setItem({
-        key: String(key),
+        key,
         value: JSON.stringify(value),
-        group: String(this.group)
+        group: this.group
       });
-
     } catch (error) {
       console.error('Failed to save to native storage:', error);
       throw error;
     }
   }
 
-  async load(key: string): Promise<Habit.Data | null> {
+  async load(key: string): Promise<any | null> {
     try {
       const result = await WidgetsBridgePlugin.getItem({
-        key: String(key),
-        group: String(this.group)
+        key,
+        group: this.group
       });
 
       if (result && result.results) {
         try {
-          const parsedResult = JSON.parse(result.results);
-          return parsedResult;
+          return JSON.parse(result.results);
         } catch (parseError) {
           console.error("Failed to parse data from native storage:", parseError);
-          return this.getDefaultData();
+          return null;
         }
       } else {
-        console.warn("Loaded data is null. Returning default data.");
-        return this.getDefaultData();
+        console.warn("Loaded data is null.");
+        return null;
       }
     } catch (error) {
       console.error(`Native storage load error:`, error);
-      return this.getDefaultData();
+      return null;
     }
   }
 
   async clear(key: string): Promise<void> {
     await WidgetsBridgePlugin.removeItem({
-      key: String(key),
-      group: String(this.group)
+      key,
+      group: this.group
     });
-  }
-
-  private getDefaultData(): Habit.Data {
-    return { habits: [] };
   }
 }

@@ -1,10 +1,11 @@
 // Home.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   IonContent,
   IonHeader,
   IonPage,
   IonAlert,
+  useIonToast,
 } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
 import HabitForm from '@components/HabitForm';
@@ -13,7 +14,6 @@ import { TopToolbar } from '@components/TopToolbar';
 import { useHabits } from '@utils/useHabits';
 import { HabitCSVService } from '@utils/ImportCSV';
 import { Habit } from '@utils/TypesAndProps';
-import { handleSettings } from '@utils/Storage';
 
 const EmptyState: React.FC = () => (
   <div className="ion-padding ion-text-center" style={{ marginTop: '2rem' }}>
@@ -23,23 +23,11 @@ const EmptyState: React.FC = () => (
 
 const Home: React.FC = () => {
   const { habits, refreshHabits } = useHabits();
+  const [present] = useIonToast();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>();
   const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
-  const [initialHistoryGridSetting, setInitialHistoryGridSetting] = useState<boolean>(true); // Default to true
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await handleSettings('load');
-        setInitialHistoryGridSetting(settings.historyGrid ?? true); // Update initial setting
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
-    };
-    loadSettings();
-  }, []);
 
   const handleHabitForm = useCallback((isOpen: boolean, habit?: HabitEntity) => {
     setIsMenuOpen(isOpen);
@@ -51,21 +39,39 @@ const Home: React.FC = () => {
 
     try {
       await HabitEntity.delete(habitToDelete.id);
-      await refreshHabits();
       setHabitToDelete(null);
+      present({
+        message: 'Habit deleted successfully',
+        duration: 2000,
+        position: 'bottom',
+      });
     } catch (error) {
-      alert('Failed to delete habit');
+      present({
+        message: 'Failed to delete habit',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger',
+      });
     }
-  }, [habitToDelete, refreshHabits]);
+  }, [habitToDelete, present]);
 
   const handleExport = useCallback(async () => {
     try {
       await HabitCSVService.exportHabits(habits);
-      alert('Export completed successfully');
+      present({
+        message: 'Export completed successfully',
+        duration: 2000,
+        position: 'bottom',
+      });
     } catch (error) {
-      alert('Failed to export habit data');
+      present({
+        message: 'Failed to export habit data',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger',
+      });
     }
-  }, [habits]);
+  }, [habits, present]);
 
   const handleToggleCalendar = useCallback((habitId: string) => {
     setOpenCalendarId(current => current === habitId ? null : habitId);
@@ -83,13 +89,17 @@ const Home: React.FC = () => {
 
     try {
       await HabitEntity.updateListOrder(updatedHabits);
-      await refreshHabits();
       event.detail.complete();
     } catch (error) {
-      alert('Failed to update habit order');
+      present({
+        message: 'Failed to update habit order',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger',
+      });
       event.detail.complete(false);
     }
-  }, [habits, refreshHabits]);
+  }, [habits, present]);
 
   return (
     <IonPage>
@@ -98,8 +108,6 @@ const Home: React.FC = () => {
           onExport={handleExport}
           hasHabits={habits.length > 0}
           onNewHabit={() => handleHabitForm(true)}
-          initialHistoryGridSetting={initialHistoryGridSetting} // Pass initial setting
-
         />
       </IonHeader>
       <IonContent>
@@ -107,14 +115,9 @@ const Home: React.FC = () => {
           <EmptyState />
         ) : (
           <HabitList
-            onEdit={(habitId) => {
-              const habit = habits.find(h => h.id === habitId);
-              if (habit) handleHabitForm(true, habit);
-            }}
-            onDelete={(habitId) => {
-              const habit = habits.find(h => h.id === habitId);
-              if (habit) setHabitToDelete(habit);
-            }}
+            habits={habits}
+            onEdit={(habit) => handleHabitForm(true, habit)}
+            onDelete={(habit) => setHabitToDelete(habit)}
             openCalendarId={openCalendarId}
             onToggleCalendar={handleToggleCalendar}
             onReorder={handleReorder}

@@ -20,14 +20,16 @@ struct NoDoubleClickButtonStyle: ButtonStyle {
 struct HabitRow: View {
     let habit: Habit
     let widgetFamily: WidgetFamily
+    /// Timeline entry date — use for history key so widget matches app (UTC day keys).
+    let timelineDate: Date
     @Environment(\.widgetRenderingMode) private var renderingMode
-    
+
     private var habitColor: Color {
         Color(hex: habit.bgColor) ?? .blue
     }
-    
+
     private var todayValue: Int {
-        let todayString = getCurrentDateString()
+        let todayString = IonicStorageManager.appHistoryDateKey(for: timelineDate)
         return habit.history[todayString]?.quantity ?? 0
     }
     

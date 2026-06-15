@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   IonModal,
   IonHeader,
   IonToolbar,
-  IonTitle,
   IonContent,
   IonGrid,
   IonRow,
@@ -13,8 +12,8 @@ import {
   IonButtons,
   IonSearchbar,
 } from '@ionic/react';
-import * as icons from 'ionicons/icons';
 import { ICON_CATEGORIES } from '@utils/Constants';
+import { getIcon } from '@utils/iconUtils';
 
 interface Props {
   isOpen: boolean;
@@ -31,13 +30,17 @@ export const IconSelect: React.FC<Props> = ({
 }) => {
   const [searchText, setSearchText] = useState('');
 
-  const filteredCategories = ICON_CATEGORIES.map(category => ({
-    ...category,
-    icons: category.icons.filter(icon =>
-      icon.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      icon.tags.toLowerCase().includes(searchText.toLowerCase())
-    )
-  })).filter(category => category.icons.length > 0);
+  const filteredCategories = useMemo(() => {
+    const query = searchText.toLowerCase();
+    if (!query) return ICON_CATEGORIES;
+    return ICON_CATEGORIES.map(category => ({
+      ...category,
+      icons: category.icons.filter(icon =>
+        icon.name.toLowerCase().includes(query) ||
+        icon.tags.toLowerCase().includes(query)
+      )
+    })).filter(category => category.icons.length > 0);
+  }, [searchText]);
 
   const handleSelect = (iconName: string) => {
     onSelect(iconName);
@@ -88,21 +91,27 @@ export const IconSelect: React.FC<Props> = ({
                   <IonCol size="3" key={icon.icon}>
                     <div
                       onClick={() => handleSelect(icon.icon)}
-                      className="icon-container"
+                      className={`icon-container${currentIcon === icon.icon ? ' selected-icon' : ''}`}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         padding: '10px',
                         borderRadius: '8px',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        outline: currentIcon === icon.icon
+                          ? '2px solid var(--ion-color-primary)'
+                          : 'none',
                       }}
                     >
                       <IonIcon
-                        icon={(icons as any)[icon.icon]}
+                        icon={getIcon(icon.icon)}
                         style={{
                           fontSize: '24px',
-                          marginBottom: '5px'
+                          marginBottom: '5px',
+                          color: currentIcon === icon.icon
+                            ? 'var(--ion-color-primary)'
+                            : undefined,
                         }}
                       />
                     </div>
