@@ -1,6 +1,6 @@
 import { WidgetsBridgePlugin } from 'capacitor-widgetsbridge-plugin';
 import { Capacitor } from '@capacitor/core';
-import { Habit, StorageStrategy } from '@utils/TypesAndProps';
+import { Habit, StorageStrategy, AppSettings } from '@utils/TypesAndProps';
 import { IonicStorageStrategy } from '@utils/IonicStorageStrategy';
 import { NativeStorageStrategy } from '@utils/NativeStorageStrategy';
 import { CONSTANTS } from '@utils/Constants';
@@ -9,10 +9,16 @@ export class HabitStorage {
   private static instance: HabitStorage;
   private storage: StorageStrategy;
   private initPromise: Promise<void>;
+  private isNativeIOS: boolean;
+
+  private habitCache: Habit.Data | null = null;
+  private settingsCache: AppSettings | null = null;
+  private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly DEBOUNCE_MS = 300;
 
   private constructor() {
-    const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-    this.storage = isNativeIOS
+    this.isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+    this.storage = this.isNativeIOS
       ? new NativeStorageStrategy(CONSTANTS.STORAGE.GROUP)
       : new IonicStorageStrategy();
 
@@ -51,46 +57,74 @@ export class HabitStorage {
     return this.instance;
   }
 
-  private async updateWidgets(): Promise<void> {
-    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
-      await WidgetsBridgePlugin.reloadAllTimelines();
-    }
-  }
-
   async save(data: Habit.Data): Promise<void> {
     return this.handleStorageOperation(
       async () => {
-        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
-        await this.updateWidgets();
+        this.habitCache = data;
+        this.debouncedSave(data);
       },
       'Failed to save habit data'
     );
   }
 
+  private debouncedSave(data: Habit.Data): void {
+    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+    this.saveDebounceTimer = setTimeout(async () => {
+      try {
+        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
+        if (this.isNativeIOS) {
+          await WidgetsBridgePlugin.reloadAllTimelines();
+        }
+      } catch (error) {
+        console.error('Debounced save failed:', error);
+      }
+    }, this.DEBOUNCE_MS);
+  }
+
+  async flushSave(): Promise<void> {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+      if (this.habitCache) {
+        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, this.habitCache);
+        if (this.isNativeIOS) {
+          await WidgetsBridgePlugin.reloadAllTimelines();
+        }
+      }
+    }
+  }
+
   async load(): Promise<Habit.Data> {
     return this.handleStorageOperation(
       async () => {
+        if (this.habitCache) return this.habitCache;
         const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
-        return data || { habits: [] };
+        const resolvedData: Habit.Data = data || { habits: [] };
+        this.habitCache = resolvedData;
+        return resolvedData;
       },
       'Failed to load habit data'
     );
   }
 
-  async saveSettings(settings: any): Promise<void> {
+  async saveSettings(settings: AppSettings): Promise<void> {
     return this.handleStorageOperation(
       async () => {
+        this.settingsCache = settings;
         await this.storage.save(CONSTANTS.STORAGE.SETTINGS_KEY, settings);
       },
       'Failed to save settings'
     );
   }
 
-  async loadSettings(): Promise<any> {
+  async loadSettings(): Promise<AppSettings> {
     return this.handleStorageOperation(
       async () => {
+        if (this.settingsCache) return this.settingsCache;
         const settings = await this.storage.load(CONSTANTS.STORAGE.SETTINGS_KEY);
-        return settings || {};
+        const resolvedSettings: AppSettings = settings || {};
+        this.settingsCache = resolvedSettings;
+        return resolvedSettings;
       },
       'Failed to load settings'
     );
@@ -99,6 +133,7 @@ export class HabitStorage {
   async refresh(): Promise<void> {
     return this.handleStorageOperation(
       async () => {
+        this.habitCache = null; // Clear cache to force reload
         await this.load();
       },
       'Failed to refresh storage'
@@ -108,8 +143,15 @@ export class HabitStorage {
   async clear(): Promise<void> {
     return this.handleStorageOperation(
       async () => {
+        if (this.saveDebounceTimer) {
+          clearTimeout(this.saveDebounceTimer);
+          this.saveDebounceTimer = null;
+        }
+        this.habitCache = null;
         await this.storage.clear(CONSTANTS.STORAGE.HABITS_KEY);
-        await this.updateWidgets();
+        if (this.isNativeIOS) {
+          await WidgetsBridgePlugin.reloadAllTimelines();
+        }
       },
       'Failed to clear storage'
     );
@@ -139,8 +181,8 @@ export const HabitStorageWrapper = {
 
   async handleSettings(
     action: 'load' | 'save',
-    settings?: any,
-  ): Promise<any> {
+    settings?: AppSettings,
+  ): Promise<AppSettings> {
     const storage = HabitStorage.getInstance();
 
     switch (action) {

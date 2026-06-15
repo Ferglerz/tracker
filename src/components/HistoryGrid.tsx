@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
 import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
 import { CONSTANTS } from '@utils/Constants';
-import { adjustColor, getFillColor } from '@utils/Utilities';
+import { getFillColor } from '@utils/Utilities';
 
 const SquircleDefinition: React.FC<{
   squareSize: number;
@@ -32,9 +32,9 @@ const DaySquare: React.FC<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-  history: HistoryGridProps['data'];
-  defaultGoal: number;
-}> = ({ day, index, squareSize, rowOpacity, type, color, history }) => {
+}> = ({ day, index, squareSize, rowOpacity, type, color }) => {
+  const [quantity, goal] = day.value;
+
   const fill = useMemo(() => 
     getFillColor(day.value, type, color),
     [day.value, type, color]
@@ -46,6 +46,31 @@ const DaySquare: React.FC<{
     opacity: rowOpacity,
     position: 'relative' as const,
   }), [squareSize, rowOpacity]);
+
+  const emoji = useMemo(() => {
+    if (type !== 'quantity' || !goal || quantity < goal * 2) {
+      return null;
+    }
+    if (quantity >= goal * 4) return '🚀';
+    if (quantity >= goal * 3) return '🔥';
+    if (quantity >= goal * 2) return '⚡';
+    return null;
+  }, [quantity, goal, type]);
+
+  const emojiStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: `${squareSize * 0.55}px`,
+    pointerEvents: 'none' as const,
+    userSelect: 'none' as const,
+    lineHeight: 1,
+  }), [squareSize]);
 
   return (
     <div
@@ -64,6 +89,11 @@ const DaySquare: React.FC<{
           height={squareSize}
         />
       </svg>
+      {squareSize >= 12 && emoji && (
+        <span style={emojiStyle}>
+          {emoji}
+        </span>
+      )}
     </div>
   );
 };
@@ -75,8 +105,7 @@ const GridRow = React.memo<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-  history: HistoryGridProps['data'];
-}>(({ days, gap, squareSize, rowOpacity, type, color, history }) => {
+}>(({ days, gap, squareSize, rowOpacity, type, color }) => {
   const rowStyle = useMemo(() => ({
     display: 'flex',
     gap: `${gap}px`
@@ -93,8 +122,6 @@ const GridRow = React.memo<{
           rowOpacity={rowOpacity}
           type={type}
           color={color} 
-          history={history}
-          defaultGoal={0} 
         />
       ))}
     </div>
@@ -144,7 +171,6 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
             rowOpacity={rowOpacity}
             type={type}
             color={color} 
-            history={data}
           />
         );
       })}

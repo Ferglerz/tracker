@@ -1,5 +1,5 @@
 //HabitItem.tsx
-import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -17,16 +17,14 @@ import { getHistoryRange, getTodayString } from '@utils/Utilities';
 import { HistoryGrid } from '@components/HistoryGrid';
 import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
-import { useHabits } from '@utils/useHabits';
-import * as icons from 'ionicons/icons';
-import { handleSettings } from '@utils/Storage';
+import { getIcon } from '@utils/iconUtils';
+import { useSettings } from '@utils/useSettings';
 
 interface HabitItemProps {
   habit: HabitEntity;
   onEdit: () => void;
   onDelete: () => void;
   isCalendarOpen: boolean;
-  openCalendarId: string | null;
   onToggleCalendar: (habitId: string) => void;
   dragHandleProps?: any;
 }
@@ -36,13 +34,11 @@ const HabitDetails: React.FC<{
   quantity: number;
   goal: number;
 }> = ({ habit, quantity, goal }) => (
-  <div
-    className="ion-no-padding ion-no-margin habit-details"
-  >
+  <div className="ion-no-padding ion-no-margin habit-details">
     {habit.icon && (
       <IonIcon
         size="large"
-        icon={(icons as any)[habit.icon]}
+        icon={getIcon(habit.icon)}
         style={{
           fontSize: '24px',
           marginRight: '12px',
@@ -51,25 +47,21 @@ const HabitDetails: React.FC<{
       />
     )}
     <div className="habit-name-quantity">
-      <div className="habit-name">
-        {habit.name}
-      </div>
+      <div className="habit-name">{habit.name}</div>
       {habit.type === 'quantity' && (
         <div className="habit-quantity">
           {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
-          
         </div>
       )}
     </div>
   </div>
 );
 
-export const HabitItem: React.FC<HabitItemProps> = ({
+const HabitItem: React.FC<HabitItemProps> = ({
   habit,
   onEdit,
   onDelete,
   isCalendarOpen,
-  openCalendarId,
   onToggleCalendar,
 }) => {
   const slidingRef = useRef<HTMLIonItemSlidingElement>(null);
@@ -77,23 +69,18 @@ export const HabitItem: React.FC<HabitItemProps> = ({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [selectedDate, setSelectedDate] = useState(getTodayString());
-  const [hideGrid, setHideGrid] = useState(false);
+  const { settings } = useSettings();
+  const hideGrid = !settings.historyGrid;
 
   const currentEntry = useMemo(() =>
-    habit.history[selectedDate] || {
-      quantity: 0,
-      goal: habit.goal ?? 0
-    },
+    habit.history[selectedDate] || HabitEntity.emptyHistoryEntry(habit.goal),
     [habit, selectedDate]
   );
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const settings = await handleSettings('load');
-      setHideGrid(!settings.historyGrid);
-    };
-    loadSettings();
-  }, []);
+  const historyRangeData = useMemo(() =>
+    getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3),
+    [habit, habit.history]
+  );
 
   const handleValueChange = useCallback(
     async (value: number, date: string) => {
@@ -121,7 +108,7 @@ export const HabitItem: React.FC<HabitItemProps> = ({
         slidingRef.current?.open('end');
       }
     }, CONSTANTS.UI.LONG_PRESS_DELAY);
-  }, [isCalendarOpen, habit.id]);
+  }, []);
 
   const cancelLongPress = useCallback(() => {
     if (timer.current) {
@@ -147,28 +134,17 @@ export const HabitItem: React.FC<HabitItemProps> = ({
 
     slidingRef.current?.close();
 
-    if (openCalendarId === habit.id) {
-      onToggleCalendar(habit.id);
+    onToggleCalendar(habit.id);
+    if (isCalendarOpen) {
       const today = getTodayString();
       setSelectedDate(today);
-    } else {
-      onToggleCalendar(habit.id);
     }
-  }, [habit, onToggleCalendar, openCalendarId]);
+  }, [habit, onToggleCalendar, isCalendarOpen]);
 
   const handleDateSelected = useCallback((date: string) => {
     if (!habit) return;
     setSelectedDate(date);
   }, [habit]);
-
-  React.useEffect(() => {
-    document.addEventListener('mouseup', cancelLongPress);
-    document.addEventListener('touchend', cancelLongPress);
-    return () => {
-      document.removeEventListener('mouseup', cancelLongPress);
-      document.removeEventListener('touchend', cancelLongPress);
-    };
-  }, [cancelLongPress]);
 
   if (!habit) {
     return null;
@@ -181,7 +157,10 @@ export const HabitItem: React.FC<HabitItemProps> = ({
           className="habit-item ion-activatable"
           onClick={handleClick}
           onTouchStart={handleLongPress}
+          onTouchEnd={cancelLongPress}
           onMouseDown={handleLongPress}
+          onMouseUp={cancelLongPress}
+          onMouseLeave={cancelLongPress}
         >
           <div
             className="habit-color-bar"
@@ -214,29 +193,28 @@ export const HabitItem: React.FC<HabitItemProps> = ({
                 baseSize={24}
                 gap={5}
                 cellsPerRow={CONSTANTS.UI.CELLS_PER_ROW}
-                data={getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3)}
-                history={habit.history}
-                defaultGoal={habit.goal ?? 0}
+                data={historyRangeData}
                 hideGrid={hideGrid}
               />
 
-{habit.type === 'quantity' &&
-          habit.goal > 0 &&
-          habit.quantity >= habit.goal && (
-            <IonBadge 
-              className={`ion-margin-start ion-margin-top ${habit.quantity >= habit.goal * 4 ? 'shake-takeoff' : ''}`} 
-              color={habit.bgColor}
-              style={{
-                animation:  habit.quantity >= habit.goal * 4 ? 'shake-takeoff 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
-                            habit.quantity >= habit.goal * 3 ? 'triple-fire 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
-                            habit.quantity >= habit.goal * 2 ? 'double-hop 0.5s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 'none'
-              }}
-            >
-              {habit.quantity >= habit.goal * 4 ? 'UNSTOPPABLE 🚀' :
-               habit.quantity >= habit.goal * 3 ? 'Triple! 🔥' :
-               habit.quantity >= habit.goal * 2 ? 'Double!' :
-               'Complete!'}
-            </IonBadge>          )}
+              {habit.type === 'quantity' &&
+                habit.goal > 0 &&
+                habit.quantity >= habit.goal && (
+                  <IonBadge 
+                    className={`ion-margin-start ion-margin-top ${habit.quantity >= habit.goal * 4 ? 'shake-takeoff' : ''}`} 
+                    color={habit.bgColor}
+                    style={{
+                      animation:  habit.quantity >= habit.goal * 4 ? 'shake-takeoff 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
+                                  habit.quantity >= habit.goal * 3 ? 'triple-fire 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
+                                  habit.quantity >= habit.goal * 2 ? 'double-hop 0.5s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 'none'
+                    }}
+                  >
+                    {habit.quantity >= habit.goal * 4 ? 'UNSTOPPABLE 🚀' :
+                     habit.quantity >= habit.goal * 3 ? 'Triple! 🔥' :
+                     habit.quantity >= habit.goal * 2 ? 'Double! ⚡' :
+                     'Complete!'}
+                  </IonBadge>
+                )}
             </div>
           </div>
 
@@ -273,6 +251,6 @@ export const HabitItem: React.FC<HabitItemProps> = ({
   );
 };
 
-HabitItem.displayName = 'HabitListItem';
+HabitItem.displayName = 'HabitItem';
 
 export default HabitItem;

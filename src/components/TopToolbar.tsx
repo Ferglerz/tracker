@@ -6,20 +6,19 @@ import {
   IonButtons,
   IonButton
 } from '@ionic/react';
-import { handleSettings } from '@utils/Storage';
 import { add, downloadOutline, gridOutline, hammerOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { applyGridVisibility, getTransform, useAnimatedPress } from '@utils/Utilities';
+import { getTransform, useAnimatedPress } from '@utils/Utilities';
+import { useSettings } from '@utils/useSettings';
 
 const TopToolbar: React.FC<{
   onExport: () => Promise<void>;
   hasHabits: boolean;
   onNewHabit: () => void;
-  initialHistoryGridSetting: boolean;
-}> = ({ onExport, hasHabits, onNewHabit, initialHistoryGridSetting }) => {
+}> = ({ onExport, hasHabits, onNewHabit }) => {
   const history = useHistory();
-  const [isGridVisible, setIsGridVisible] = useState(initialHistoryGridSetting);
+  const { settings, updateSettings } = useSettings();
+  const isGridVisible = settings.historyGrid ?? true;
   
   // Create animation states for each button
   const configButton = useAnimatedPress();
@@ -27,20 +26,9 @@ const TopToolbar: React.FC<{
   const exportButton = useAnimatedPress();
   const addButton = useAnimatedPress();
 
-  // Apply initial visibility when the component mounts
-  useEffect(() => {
-    applyGridVisibility(initialHistoryGridSetting);
-    setIsGridVisible(initialHistoryGridSetting);
-  }, [initialHistoryGridSetting]);
-
   const toggleHistoryGrid = async () => {
     try {
-      const settings = await handleSettings('load');
-      const currentValue = settings.historyGrid ?? true;
-      const newValue = !currentValue;
-      await handleSettings('save', { ...settings, historyGrid: newValue });
-      applyGridVisibility(newValue);
-      setIsGridVisible(newValue);
+      await updateSettings({ historyGrid: !isGridVisible });
       gridButton.handlePress();
     } catch (error) {
       console.error('Error toggling history grid:', error);
@@ -61,6 +49,7 @@ const TopToolbar: React.FC<{
                   transform: getTransform(configButton.isPressed, 'scale'),
                   transition: 'all 0.2s ease-in-out',
                 }}
+                aria-label="Widget Configuration"
               >
                 <IonIcon slot="icon-only" icon={hammerOutline} />
               </IonButton>
@@ -71,6 +60,7 @@ const TopToolbar: React.FC<{
                   opacity: isGridVisible ? 1 : 0.3,
                   transition: 'all 0.2s ease-in-out',
                 }}
+                aria-label="Toggle History Grid"
               >
                 <IonIcon 
                   slot="icon-only" 
@@ -91,6 +81,7 @@ const TopToolbar: React.FC<{
                 transition: 'all 0.2s ease-in-out',
                 transform: getTransform(exportButton.isPressed, 'scale')
               }}
+              aria-label="Export Habit Data"
             >
               <IonIcon slot="icon-only" icon={downloadOutline} />
             </IonButton>
@@ -103,6 +94,7 @@ const TopToolbar: React.FC<{
               transition: 'all 0.2s ease-in-out',
               transform: getTransform(addButton.isPressed, 'scale')
             }}
+            aria-label="Add New Habit"
           >
             <IonIcon slot="icon-only" icon={add} />
           </IonButton>

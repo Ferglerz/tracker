@@ -1,7 +1,8 @@
 // IconSelectButton.tsx
 import React from 'react';
 import { IonIcon } from '@ionic/react';
-import * as icons from 'ionicons/icons';
+import { help } from 'ionicons/icons';
+import { getIcon } from '@utils/iconUtils';
 
 interface Props {
   icon?: string;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export const IconSelectButton: React.FC<Props> = ({ icon, onClick }) => {
-  const iconRef = icon ? (icons as any)[icon] : icons.help;
+  const iconRef = getIcon(icon) || help;
   
   return (
     <div

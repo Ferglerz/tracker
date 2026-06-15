@@ -42,7 +42,7 @@ const DateEditModal: React.FC<Props> = ({
       setValue(0);
       setGoal(habit.goal ?? 0);
     }
-  }, [habit, date, isOpen]);
+  }, [habit.history, habit.goal, date, isOpen]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -68,7 +68,7 @@ const DateEditModal: React.FC<Props> = ({
 
   const inputLabel = useMemo(() => {
     return `Quantity ${habit.unit ? `(${habit.unit})` : ''}`;
-  }, [habit]);
+  }, [habit.unit]);
 
   return (
     <IonModal

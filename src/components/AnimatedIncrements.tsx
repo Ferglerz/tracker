@@ -1,4 +1,30 @@
+import React from 'react';
 import { getTransform, useAnimatedPress } from "@utils/Utilities";
+
+const symbolContainerStyle: React.CSSProperties = {
+  width: '14px',
+  height: '14px',
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+};
+
+const horizontalLineStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: '14px',
+  height: '3px',
+  backgroundColor: '#ffffff',
+  borderRadius: '1px'
+};
+
+const verticalLineStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: '3px',
+  height: '14px',
+  backgroundColor: '#ffffff',
+  borderRadius: '1px'
+};
 
 export const AnimatedIncrements: React.FC<{
   onClick: (e: React.MouseEvent) => void;
@@ -29,36 +55,12 @@ export const AnimatedIncrements: React.FC<{
         transform: getTransform(isPressed, type),
       }}
     >
-      {/* Symbol container */}
-      <div style={{
-        width: '14px',
-        height: '14px',
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        {/* Horizontal line */}
-        <div style={{
-          position: 'absolute',
-          width: '14px',
-          height: '3px',
-          backgroundColor: '#ffffff',
-          borderRadius: '1px'
-        }} />
-        
-        {/* Vertical line (only for increment) */}
+      <div style={symbolContainerStyle}>
+        <div style={horizontalLineStyle} />
         {type === 'increment' && (
-          <div style={{
-            position: 'absolute',
-            width: '3px',
-            height: '14px',
-            backgroundColor: '#ffffff',
-            borderRadius: '1px'
-          }} />
+          <div style={verticalLineStyle} />
         )}
       </div>
-
     </div>
   );
 };

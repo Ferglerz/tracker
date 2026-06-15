@@ -1,5 +1,5 @@
 // Squircle.tsx
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useId } from 'react';
 
 const generateCornerPoints = (size: number, steps: number, n: number, powN: number) => {
     const memoKey = `${size}-${steps}-${n}`;
@@ -135,7 +135,8 @@ export const Squircle: React.FC<{
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-    const gradientId = useMemo(() => `gradient-${Math.random().toString(36).substr(2, 9)}`, []);
+    const uniqueId = useId();
+    const gradientId = useMemo(() => `gradient-${uniqueId.replace(/:/g, '')}`, [uniqueId]);
 
     useEffect(() => {
         const updateDimensions = () => {

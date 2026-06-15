@@ -77,9 +77,12 @@ export const getTransform = (isPressed: boolean, type: 'increment' | 'decrement'
   }
 };
 
+export const formatDateString = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export const getTodayString = (): string => {
-  const date = new Date();
-  return date.toISOString().split('T')[0];
+  return formatDateString(new Date());
 };
 
 export const getHistoryRange = (
@@ -93,7 +96,7 @@ export const getHistoryRange = (
   return Array.from({ length: days }, (_, index) => {
     const currentDate = new Date(startDate);
     currentDate.setDate(startDate.getDate() + index);
-    const dateString = currentDate.toISOString().split('T')[0];
+    const dateString = formatDateString(currentDate);
     const historyValue = habit.history[dateString];
     
     return {
@@ -121,17 +124,6 @@ export const getHabitStatus = (
   }
 
   return value.quantity >= value.goal ? 'complete' : 'partial';
-};
-
-export const applyGridVisibility = (shouldShow: boolean) => {
-  const gridContainers = document.querySelectorAll('.history-grid');
-  gridContainers.forEach((gridContainer) => {
-    if (shouldShow) {
-      gridContainer.classList.remove('hide-grid-elements');
-    } else {
-      gridContainer.classList.add('hide-grid-elements');
-    }
-  });
 };
 
 export const getFillColor = (

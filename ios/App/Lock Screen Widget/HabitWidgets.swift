@@ -9,44 +9,37 @@ struct WidgetPosition {
 }
 
 // MARK: - Timeline Provider
-struct Provider: TimelineProvider {
-    private var lastCheck = Date()
-    
-    private func isNewDay(_ currentDate: Date = Date()) -> Bool {
-        let calendar = Calendar.current
-        return !calendar.isDate(lastCheck, inSameDayAs: currentDate)
-    }
-    
+struct HabitTimelineProvider: TimelineProvider {
+    let widgetType: WidgetType
+
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), habits: [], error: nil, widgetID: String(context.family.rawValue))
+        SimpleEntry(date: Date(), habits: [], error: nil)
     }
-    
+
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
         do {
             let habits = try IonicStorageManager.shared.loadHabits()
-            completion(SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue)))
+            completion(SimpleEntry(date: Date(), habits: habits, error: nil))
         } catch {
-            completion(SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue)))
+            completion(SimpleEntry(date: Date(), habits: [], error: error))
         }
     }
-    
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         do {
             let habits = try IonicStorageManager.shared.loadHabits()
-            let entry = SimpleEntry(date: Date(), habits: habits, error: nil, widgetID: String(context.family.rawValue))
-            
-            // Calculate next midnight
+            let entry = SimpleEntry(date: Date(), habits: habits, error: nil)
+
             let calendar = Calendar.current
             guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()),
                   let nextMidnight = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: tomorrow) else {
                 throw NSError(domain: "Timeline Error", code: -1, userInfo: nil)
             }
-            
+
             let timeline = Timeline(entries: [entry], policy: .after(nextMidnight))
-            lastCheck = Date()
             completion(timeline)
         } catch {
-            let entry = SimpleEntry(date: Date(), habits: [], error: error, widgetID: String(context.family.rawValue))
+            let entry = SimpleEntry(date: Date(), habits: [], error: error)
             let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60)))
             completion(timeline)
         }
@@ -57,80 +50,238 @@ struct SimpleEntry: TimelineEntry {
     let date: Date
     let habits: [Habit]
     let error: Error?
-    let widgetID: String?
 }
 
-// MARK: - Main Widget Configuration
-struct HabitWidget: Widget {
-    let kind: String = "HabitWidget"
-    
+// MARK: - Views
+
+private func supportedFamilies(for type: WidgetType) -> [WidgetFamily] {
+    switch type {
+    case .lock1, .lock2:
+        return [.accessoryRectangular]
+    case .small1, .small2:
+        return [.systemSmall]
+    case .medium1, .medium2:
+        return [.systemMedium]
+    }
+}
+
+private func displayName(for type: WidgetType) -> String {
+    switch type {
+    case .lock1: return "Habits — Lock 1"
+    case .lock2: return "Habits — Lock 2"
+    case .small1: return "Habits — Small 1"
+    case .small2: return "Habits — Small 2"
+    case .medium1: return "Habits — Medium 1"
+    case .medium2: return "Habits — Medium 2"
+    }
+}
+
+private func lockScreenHabits(_ habits: [Habit], type: WidgetType) -> [Habit?] {
+    var slots: [Habit?] = Array(repeating: nil, count: type.capacity)
+    for habit in habits {
+        guard let assignment = habit.widgets?.assignments.first(where: { $0.type == type.rawValue }) else {
+            continue
+        }
+        let index = assignment.order - 1
+        if index >= 0 && index < slots.count {
+            slots[index] = habit
+        }
+    }
+    return slots
+}
+
+struct LockWidgetSlotsView: View {
+    let habits: [Habit]
+    let type: WidgetType
+    let widgetFamily: WidgetFamily
+    let timelineDate: Date
+
+    var body: some View {
+        let slots = lockScreenHabits(habits, type: type)
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(slots.enumerated()), id: \.offset) { _, habit in
+                if let habit {
+                    HabitRow(habit: habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                } else {
+                    Text("Empty slot")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+struct TypedWidgetView: View {
+    var entry: SimpleEntry
+    let widgetType: WidgetType
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        switch widgetType {
+        case .lock1, .lock2:
+            LockWidgetSlotsView(
+                habits: entry.habits,
+                type: widgetType,
+                widgetFamily: family,
+                timelineDate: entry.date
+            )
+
+        case .small1, .small2, .medium1, .medium2:
+            let positions = organizeHabitsForWidget(entry.habits, type: widgetType)
+            WidgetGridLayout(
+                habits: positions,
+                type: widgetType,
+                widgetFamily: family,
+                timelineDate: entry.date
+            )
+        }
+    }
+}
+
+struct HabitWidgetLock1: Widget {
+    let kind: String = "HabitWidgetLock1"
+    let widgetType: WidgetType = .lock1
+
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
             if #available(iOS 17.0, *) {
-                WidgetView(entry: entry)
+                TypedWidgetView(entry: entry, widgetType: widgetType)
                     .containerBackground(.fill.tertiary, for: .widget)
             } else {
-                    WidgetView(entry: entry)
+                TypedWidgetView(entry: entry, widgetType: widgetType)
                     .padding()
                     .background()
-                }
+            }
         }
-        .configurationDisplayName("Simple Habits")
+        .configurationDisplayName(displayName(for: widgetType))
         .description("Track your daily habits")
-            .supportedFamilies([.accessoryRectangular, .systemSmall, .systemMedium])
-            .contentMarginsDisabled()
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
     }
 }
 
-// MARK: - Main Widget View
-struct WidgetView: View {
-    var entry: Provider.Entry
-    @Environment(\.widgetFamily) var family
-    
-    var body: some View {
-        switch family {
-        case .accessoryRectangular:
-            if let habit = getHabitForLockScreen(entry.habits) {
-                HabitRow(habit: habit, widgetFamily: family)
+struct HabitWidgetLock2: Widget {
+    let kind: String = "HabitWidgetLock2"
+    let widgetType: WidgetType = .lock2
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
             } else {
-                    Text("No habit configured")
-                }
-            
-        case .systemSmall:
-            let type: WidgetType = entry.widgetID?.contains("2") == true ? .small2 : .small1
-            let habits = organizeHabitsForWidget(entry.habits, type: type)
-            WidgetGridLayout(habits: habits, type: type, widgetFamily: family)
-            
-        case .systemMedium:
-            let type: WidgetType = entry.widgetID?.contains("2") == true ? .medium2 : .medium1
-            let habits = organizeHabitsForWidget(entry.habits, type: type)
-            WidgetGridLayout(habits: habits, type: type, widgetFamily: family)
-            
-        @unknown default:
-            Text("Unsupported widget size")
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
         }
-}
-    
-    func getHabitForLockScreen(_ habits: [Habit]) -> Habit? {
-        let type: WidgetType = entry.widgetID?.contains("2") == true ? .lock2 : .lock1
-        return habits.first { habit in
-            habit.widgets?.assignments.contains { assignment in
-                assignment.type == type.rawValue
-            } == true
-        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
     }
 }
 
-// MARK: - Preview Provider
+struct HabitWidgetSmall1: Widget {
+    let kind: String = "HabitWidgetSmall1"
+    let widgetType: WidgetType = .small1
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetSmall2: Widget {
+    let kind: String = "HabitWidgetSmall2"
+    let widgetType: WidgetType = .small2
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetMedium1: Widget {
+    let kind: String = "HabitWidgetMedium1"
+    let widgetType: WidgetType = .medium1
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+struct HabitWidgetMedium2: Widget {
+    let kind: String = "HabitWidgetMedium2"
+    let widgetType: WidgetType = .medium2
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HabitTimelineProvider(widgetType: widgetType)) { entry in
+            if #available(iOS 17.0, *) {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                TypedWidgetView(entry: entry, widgetType: widgetType)
+                    .padding()
+                    .background()
+            }
+        }
+        .configurationDisplayName(displayName(for: widgetType))
+        .description("Track your daily habits")
+        .supportedFamilies(supportedFamilies(for: widgetType))
+        .contentMarginsDisabled()
+    }
+}
+
+// MARK: - Previews
 #Preview(as: .systemMedium) {
-    HabitWidget()
+    HabitWidgetMedium1()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "medium1")
+    SimpleEntry(date: .now, habits: [], error: nil)
 }
 
 #Preview(as: .accessoryRectangular) {
-    HabitWidget()
+    HabitWidgetLock1()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil, widgetID: "lock1")
+    SimpleEntry(date: .now, habits: [], error: nil)
 }
-
