@@ -7,6 +7,12 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  esbuild: {
+    // Workaround for esbuild 0.28+ with @vitejs/plugin-legacy targets (evanw/esbuild#4436)
+    supported: {
+      destructuring: true,
+    },
+  },
   plugins: [
     react(),
     legacy()
