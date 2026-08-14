@@ -11,14 +11,18 @@ interface Props {
 
 export const IconSelectButton: React.FC<Props> = ({ icon, onClick }) => {
   const iconRef = getIcon(icon) || help;
-  
+
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
+      aria-label={icon ? 'Change habit icon' : 'Select habit icon'}
       style={{
         width: '48px',
         height: '48px',
         border: '2px dashed var(--ion-color-medium)',
+        padding: 0,
+        background: 'transparent',
         borderRadius: '12px',
         display: 'flex',
         alignItems: 'center',
@@ -34,6 +38,6 @@ export const IconSelectButton: React.FC<Props> = ({ icon, onClick }) => {
           color: 'var(--ion-color-medium)'
         }}
       />
-    </div>
+    </button>
   );
 };

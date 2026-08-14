@@ -5,6 +5,78 @@ import { IonicStorageStrategy } from '@utils/IonicStorageStrategy';
 import { NativeStorageStrategy } from '@utils/NativeStorageStrategy';
 import { CONSTANTS } from '@utils/Constants';
 
+const HABIT_SCHEMA_VERSION = 1;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export function migrateHabitData(value: unknown): Habit.Data {
+  if (value === null || value === undefined) {
+    return { habits: [], schemaVersion: HABIT_SCHEMA_VERSION };
+  }
+  if (!isRecord(value) || !Array.isArray(value.habits)) {
+    throw new Error('Stored habit data has an invalid shape');
+  }
+  if (
+    value.schemaVersion !== undefined &&
+    typeof value.schemaVersion !== 'number'
+  ) {
+    throw new Error('Stored habit data schema version is invalid');
+  }
+  if (
+    typeof value.schemaVersion === 'number' &&
+    value.schemaVersion > HABIT_SCHEMA_VERSION
+  ) {
+    throw new Error(`Unsupported habit data schema version: ${value.schemaVersion}`);
+  }
+
+  const habits = value.habits.map((rawHabit, index) => {
+    if (!isRecord(rawHabit)) {
+      throw new Error(`Stored habit at index ${index} is invalid`);
+    }
+    if (
+      typeof rawHabit.id !== 'string' ||
+      typeof rawHabit.name !== 'string' ||
+      (rawHabit.type !== 'checkbox' && rawHabit.type !== 'quantity')
+    ) {
+      throw new Error(`Stored habit at index ${index} is missing required fields`);
+    }
+    if (rawHabit.history !== undefined && !isRecord(rawHabit.history)) {
+      throw new Error(`Stored history at index ${index} is invalid`);
+    }
+    if (rawHabit.goal !== undefined && typeof rawHabit.goal !== 'number') {
+      throw new Error(`Stored goal at index ${index} is invalid`);
+    }
+    if (rawHabit.quantity !== undefined && typeof rawHabit.quantity !== 'number') {
+      throw new Error(`Stored quantity at index ${index} is invalid`);
+    }
+    if (
+      rawHabit.frequency !== undefined &&
+      rawHabit.frequency !== 'daily' &&
+      rawHabit.frequency !== 'weekly' &&
+      rawHabit.frequency !== 'monthly'
+    ) {
+      throw new Error(`Stored frequency at index ${index} is invalid`);
+    }
+
+    return {
+      ...rawHabit,
+      goal: typeof rawHabit.goal === 'number' ? rawHabit.goal : 1,
+      quantity: typeof rawHabit.quantity === 'number' ? rawHabit.quantity : 0,
+      bgColor: typeof rawHabit.bgColor === 'string'
+        ? rawHabit.bgColor
+        : 'var(--ion-color-primary)',
+      history: rawHabit.history ?? {},
+      frequency:
+        rawHabit.frequency === 'weekly' || rawHabit.frequency === 'monthly'
+          ? rawHabit.frequency
+          : 'daily',
+    } as Habit.Habit;
+  });
+
+  return { ...value, habits, schemaVersion: HABIT_SCHEMA_VERSION };
+}
+
 export class HabitStorage {
   private static instance: HabitStorage;
   private storage: StorageStrategy;
@@ -14,6 +86,10 @@ export class HabitStorage {
   private habitCache: Habit.Data | null = null;
   private settingsCache: AppSettings | null = null;
   private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private saveWaiters: Array<{
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }> = [];
   private readonly DEBOUNCE_MS = 300;
 
   private constructor() {
@@ -60,36 +136,70 @@ export class HabitStorage {
   async save(data: Habit.Data): Promise<void> {
     return this.handleStorageOperation(
       async () => {
-        this.habitCache = data;
-        this.debouncedSave(data);
+        const migratedData = migrateHabitData(data);
+        this.habitCache = migratedData;
+        await this.debouncedSave();
       },
       'Failed to save habit data'
     );
   }
 
-  private debouncedSave(data: Habit.Data): void {
+  private debouncedSave(): Promise<void> {
     if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+    const completion = new Promise<void>((resolve, reject) => {
+      this.saveWaiters.push({ resolve, reject });
+    });
     this.saveDebounceTimer = setTimeout(async () => {
+      this.saveDebounceTimer = null;
       try {
-        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, data);
-        if (this.isNativeIOS) {
-          await WidgetsBridgePlugin.reloadAllTimelines();
-        }
+        if (!this.habitCache) throw new Error('Habit cache was cleared before save');
+        await this.persistHabitCache();
+        this.settleSaveWaiters();
       } catch (error) {
-        console.error('Debounced save failed:', error);
+        const storageError = error instanceof Error ? error : new Error('Debounced save failed');
+        this.settleSaveWaiters(storageError);
       }
     }, this.DEBOUNCE_MS);
+    return completion;
+  }
+
+  private async persistHabitCache(): Promise<void> {
+    if (!this.habitCache) return;
+    await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, this.habitCache);
+    if (this.isNativeIOS) {
+      await WidgetsBridgePlugin.reloadAllTimelines();
+    }
+  }
+
+  private settleSaveWaiters(error?: Error): void {
+    const waiters = this.saveWaiters.splice(0);
+    waiters.forEach(({ resolve, reject }) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  }
+
+  private cancelDebouncedSave(reason: string): void {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+    if (this.saveWaiters.length) {
+      this.settleSaveWaiters(new Error(reason));
+    }
   }
 
   async flushSave(): Promise<void> {
     if (this.saveDebounceTimer) {
       clearTimeout(this.saveDebounceTimer);
       this.saveDebounceTimer = null;
-      if (this.habitCache) {
-        await this.storage.save(CONSTANTS.STORAGE.HABITS_KEY, this.habitCache);
-        if (this.isNativeIOS) {
-          await WidgetsBridgePlugin.reloadAllTimelines();
-        }
+      try {
+        await this.persistHabitCache();
+        this.settleSaveWaiters();
+      } catch (error) {
+        const storageError = error instanceof Error ? error : new Error('Failed to flush save');
+        this.settleSaveWaiters(storageError);
+        throw storageError;
       }
     }
   }
@@ -99,7 +209,7 @@ export class HabitStorage {
       async () => {
         if (this.habitCache) return this.habitCache;
         const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
-        const resolvedData: Habit.Data = data || { habits: [] };
+        const resolvedData = migrateHabitData(data);
         this.habitCache = resolvedData;
         return resolvedData;
       },
@@ -122,7 +232,10 @@ export class HabitStorage {
       async () => {
         if (this.settingsCache) return this.settingsCache;
         const settings = await this.storage.load(CONSTANTS.STORAGE.SETTINGS_KEY);
-        const resolvedSettings: AppSettings = settings || {};
+        if (settings !== null && !isRecord(settings)) {
+          throw new Error('Stored settings have an invalid shape');
+        }
+        const resolvedSettings: AppSettings = settings ?? {};
         this.settingsCache = resolvedSettings;
         return resolvedSettings;
       },
@@ -133,8 +246,12 @@ export class HabitStorage {
   async refresh(): Promise<void> {
     return this.handleStorageOperation(
       async () => {
-        this.habitCache = null; // Clear cache to force reload
-        await this.load();
+        // Foreground refresh treats shared native storage as authoritative.
+        // Never flush stale in-memory state over changes made by a widget.
+        this.cancelDebouncedSave('Pending save superseded by storage refresh');
+        this.habitCache = null;
+        const data = await this.storage.load(CONSTANTS.STORAGE.HABITS_KEY);
+        this.habitCache = migrateHabitData(data);
       },
       'Failed to refresh storage'
     );
@@ -143,10 +260,7 @@ export class HabitStorage {
   async clear(): Promise<void> {
     return this.handleStorageOperation(
       async () => {
-        if (this.saveDebounceTimer) {
-          clearTimeout(this.saveDebounceTimer);
-          this.saveDebounceTimer = null;
-        }
+        this.cancelDebouncedSave('Pending save cancelled because storage was cleared');
         this.habitCache = null;
         await this.storage.clear(CONSTANTS.STORAGE.HABITS_KEY);
         if (this.isNativeIOS) {

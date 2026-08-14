@@ -17,15 +17,17 @@ export class IonicStorageStrategy implements StorageStrategy {
     return this.initPromise;
   }
 
-  async save(key: string, value: any): Promise<void> {
+  async save(key: string, value: unknown): Promise<void> {
     await this.initialize();
     await this.storage!.set(key, JSON.stringify(value));
   }
 
-  async load(key: string): Promise<any | null> {
+  async load(key: string): Promise<unknown | null> {
     await this.initialize();
     const result = await this.storage!.get(key);
-    return result ? JSON.parse(result) : null;
+    if (result === null || result === undefined) return null;
+    if (typeof result !== 'string') return result;
+    return JSON.parse(result);
   }
 
   async clear(key: string): Promise<void> {

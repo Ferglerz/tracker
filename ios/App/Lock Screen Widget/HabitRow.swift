@@ -20,7 +20,7 @@ struct NoDoubleClickButtonStyle: ButtonStyle {
 struct HabitRow: View {
     let habit: Habit
     let widgetFamily: WidgetFamily
-    /// Timeline entry date — use for history key so widget matches app (UTC day keys).
+    /// Timeline entry date; history keys use the device's local calendar day.
     let timelineDate: Date
     @Environment(\.widgetRenderingMode) private var renderingMode
 
@@ -32,7 +32,7 @@ struct HabitRow: View {
         let todayString = IonicStorageManager.appHistoryDateKey(for: timelineDate)
         return habit.history[todayString]?.quantity ?? 0
     }
-    
+
     private var todayDisplay: String {
         if habit.type == .quantity {
             return "\(todayValue)"
@@ -54,7 +54,7 @@ struct HabitRow: View {
             return 28
         }
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             if habit.type == .quantity {
@@ -67,7 +67,7 @@ struct HabitRow: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity)
-                
+
                 // Compact controls
                 HStack(spacing: 0) {
                     Button(intent: UpdateQuantityIntent(habitId: habit.id, increment: false)) {
@@ -76,7 +76,7 @@ struct HabitRow: View {
                             .foregroundColor(habitColor)
                     }
                     .buttonStyle(NoDoubleClickButtonStyle())
-                    
+
                     Text(todayDisplay)
                         .font(.system(size: 15))
                         .fontWeight(renderingMode == .vibrant ? .heavy : .medium)
@@ -85,7 +85,7 @@ struct HabitRow: View {
                         .allowsTightening(true)
                         .kerning(todayDisplay.count == 4 ? -1 : 0)
                         .frame(minWidth: todayWidth, alignment: .center)
-                    
+
                     Button(intent: UpdateQuantityIntent(habitId: habit.id)) {
                         Image(systemName: "plus.square.fill")
                             .font(.system(size: renderingMode == .vibrant ? 24 : 20)) // Larger buttons in vibrant mode
@@ -99,7 +99,7 @@ struct HabitRow: View {
                     .fontWeight(renderingMode == .vibrant ? .bold : .medium) // Bold text in vibrant mode
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                
+
                 Button(intent: ToggleHabitIntent(habitId: habit.id)) {
                     Image(systemName: todayValue > 0 ? "checkmark.square.fill" : "square")
                         .font(.system(size: renderingMode == .vibrant ? 24 : 20)) // Larger checkbox in vibrant mode

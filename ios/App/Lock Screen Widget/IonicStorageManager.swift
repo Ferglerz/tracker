@@ -6,6 +6,7 @@ private let habitsStorageKey = "habitData"
 struct HistoryEntry: Codable, Hashable {
     var quantity: Int
     var goal: Int
+    var note: String? = nil
 }
 
 struct WidgetAssignment: Codable, Hashable {
@@ -34,6 +35,7 @@ struct Habit: Codable, Identifiable, Hashable {
     var history: [String: HistoryEntry]
     var listOrder: Int?
     var widgets: WidgetsData?
+    var frequency: String? = nil
 }
 
 struct HabitsPayload: Codable {
@@ -92,7 +94,7 @@ final class IonicStorageManager {
         try updateHabitValue(habitId: habitId, value: value, date: Self.appHistoryDateKey(for: Date()))
     }
 
-    /// Matches JS `new Date().toISOString().split('T')[0]` (UTC calendar day).
+    /// Matches JS `formatDateString`, which uses the device's local calendar day.
     static func appHistoryDateKey(for date: Date) -> String {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone.current

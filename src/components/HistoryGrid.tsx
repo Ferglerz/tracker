@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import { generateSquirclePath } from './Squircle';
 import { Habit, HistoryGridProps } from '@utils/TypesAndProps';
 import { CONSTANTS } from '@utils/Constants';
@@ -7,7 +7,8 @@ import { getFillColor } from '@utils/Utilities';
 const SquircleDefinition: React.FC<{
   squareSize: number;
   cornerRadius: number;
-}> = ({ squareSize, cornerRadius }) => {
+  pathId: string;
+}> = ({ squareSize, cornerRadius, pathId }) => {
   const pathD = useMemo(() =>
     generateSquirclePath(squareSize, squareSize, cornerRadius),
     [squareSize, cornerRadius]
@@ -17,7 +18,7 @@ const SquircleDefinition: React.FC<{
     <svg style={{ position: 'absolute', width: 0, height: 0 }}>
       <defs>
         <path
-          id="squircle-cell"
+          id={pathId}
           d={pathD}
         />
       </defs>
@@ -32,10 +33,11 @@ const DaySquare: React.FC<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-}> = ({ day, index, squareSize, rowOpacity, type, color }) => {
+  pathId: string;
+}> = ({ day, index, squareSize, rowOpacity, type, color, pathId }) => {
   const [quantity, goal] = day.value;
 
-  const fill = useMemo(() => 
+  const fill = useMemo(() =>
     getFillColor(day.value, type, color),
     [day.value, type, color]
   );
@@ -83,7 +85,7 @@ const DaySquare: React.FC<{
         viewBox={`0 0 ${squareSize} ${squareSize}`}
       >
         <use
-          href="#squircle-cell"
+          href={`#${pathId}`}
           fill={fill}
           width={squareSize}
           height={squareSize}
@@ -105,7 +107,8 @@ const GridRow = React.memo<{
   rowOpacity: number;
   type: Habit.Type;
   color: string;
-}>(({ days, gap, squareSize, rowOpacity, type, color }) => {
+  pathId: string;
+}>(({ days, gap, squareSize, rowOpacity, type, color, pathId }) => {
   const rowStyle = useMemo(() => ({
     display: 'flex',
     gap: `${gap}px`
@@ -121,12 +124,14 @@ const GridRow = React.memo<{
           squareSize={squareSize}
           rowOpacity={rowOpacity}
           type={type}
-          color={color} 
+          color={color}
+          pathId={pathId}
         />
       ))}
     </div>
   );
 });
+GridRow.displayName = 'GridRow';
 
 export const HistoryGrid: React.FC<HistoryGridProps> = ({
   data,
@@ -137,11 +142,12 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
   cellsPerRow = CONSTANTS.UI.CELLS_PER_ROW,
   hideGrid = false,
 }) => {
+  const pathId = `squircle-cell-${useId().replace(/:/g, '')}`;
   const squareSize = baseSize - gap;
   const cornerRadius = CONSTANTS.UI.DEFAULT_CORNER_RADIUS;
   const rowsCount = CONSTANTS.HISTORY_GRID.DEFAULT_ROWS_COUNT;
-  
-  const gridWidth = useMemo(() => 
+
+  const gridWidth = useMemo(() =>
     cellsPerRow * squareSize + (cellsPerRow - 1) * gap,
     [cellsPerRow, squareSize, gap]
   );
@@ -156,10 +162,10 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
 
   return (
     <div className={`history-grid ${hideGrid ? 'hide-grid-elements' : ''}`} style={gridContainerStyle}>
-      <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} />
+      <SquircleDefinition squareSize={squareSize} cornerRadius={cornerRadius} pathId={pathId} />
       {[...Array(rowsCount)].map((_, rowIndex) => {
         const rowStart = rowIndex * cellsPerRow;
-        const rowOpacity = CONSTANTS.UI.MAX_ROW_OPACITY - 
+        const rowOpacity = CONSTANTS.UI.MAX_ROW_OPACITY -
           (rowsCount - 1 - rowIndex) * CONSTANTS.UI.ROW_OPACITY_DECREMENT;
 
         return (
@@ -170,7 +176,8 @@ export const HistoryGrid: React.FC<HistoryGridProps> = ({
             squareSize={squareSize}
             rowOpacity={rowOpacity}
             type={type}
-            color={color} 
+            color={color}
+            pathId={pathId}
           />
         );
       })}

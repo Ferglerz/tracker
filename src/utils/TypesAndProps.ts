@@ -6,6 +6,7 @@ export namespace Habit {
   export interface HistoryEntry {
     quantity: number;
     goal: number;
+    note?: string;
   }
 
   export interface Habit {
@@ -22,10 +23,12 @@ export namespace Habit {
     };
     listOrder?: number;
     widgets?: Widgets;
+    frequency?: 'daily' | 'weekly' | 'monthly';
   }
 
   export interface Data {
     habits: Habit[];
+    schemaVersion?: number;
   }
 
   export interface WidgetsAssignment {
@@ -40,7 +43,8 @@ export namespace Habit {
 
 export interface AppSettings {
   historyGrid?: boolean;
-  [key: string]: unknown;
+  reminderEnabled?: boolean;
+  reminderTime?: string;
 }
 
 export interface InteractionControlsProps {
@@ -76,8 +80,8 @@ export interface CalendarDayProps {
 }
 
 export interface StorageStrategy {
-  save(key: string, value: any): Promise<void>;
-  load(key: string): Promise<any>;
+  save(key: string, value: unknown): Promise<void>;
+  load(key: string): Promise<unknown | null>;
   clear(key: string): Promise<void>;
 }
 

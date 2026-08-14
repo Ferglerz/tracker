@@ -17,10 +17,21 @@ struct WidgetGridLayout: View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(0..<habits.count, id: \.self) { index in
                 if let position = habits[index] {
-                    HabitRow(habit: position.habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                    if widgetFamily == .systemSmall {
+                        HabitRow(habit: position.habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                            .widgetURL(URL(string: "tracker://habit/\(position.habit.id)"))
+                    } else if let destination = URL(string: "tracker://habit/\(position.habit.id)") {
+                        Link(destination: destination) {
+                            HabitRow(habit: position.habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        HabitRow(habit: position.habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                    }
                 } else {
                     Color.clear
                         .frame(maxWidth: .infinity)
+                        .widgetURL(URL(string: "tracker://widget-config"))
                 }
             }
         }

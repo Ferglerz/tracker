@@ -9,7 +9,7 @@ export class NativeStorageStrategy implements StorageStrategy {
     this.group = group;
   }
 
-  async save(key: string, value: any): Promise<void> {
+  async save(key: string, value: unknown): Promise<void> {
     try {
       await WidgetsBridgePlugin.setItem({
         key,
@@ -30,19 +30,13 @@ export class NativeStorageStrategy implements StorageStrategy {
       });
 
       if (result && result.results) {
-        try {
-          return JSON.parse(result.results);
-        } catch (parseError) {
-          console.error("Failed to parse data from native storage:", parseError);
-          return null;
-        }
+        return JSON.parse(result.results);
       } else {
-        console.warn("Loaded data is null.");
         return null;
       }
     } catch (error) {
       console.error(`Native storage load error:`, error);
-      return null;
+      throw error;
     }
   }
 

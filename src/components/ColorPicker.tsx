@@ -13,22 +13,25 @@ interface Props {
 export const ColorPicker: React.FC<Props> = ({ colors, selectedColor, onColorSelect }) => (
   <div style={{
     display: 'grid',
-    gridTemplateColumns: 'repeat(8, 1fr)',
-    gridTemplateRows: 'repeat(2, 1fr)',
+    gridTemplateColumns: 'repeat(5, 1fr)',
     gap: '8px',
     padding: '10px 0',
     width: '70%',
   }}>
     {colors.map((color) => (
-      <div
+      <button
+        type="button"
         key={color}
         onClick={() => onColorSelect(color)}
+        aria-label={`Select color ${color}`}
+        aria-pressed={selectedColor === color}
         style={{
           aspectRatio: '1',
           borderRadius: '30%',
           backgroundColor: color,
           cursor: 'pointer',
           border: selectedColor === color ? '5px solid #000' : '5px solid transparent',
+          padding: 0,
           position: 'relative',
           display: 'flex',
           justifyContent: 'center',
@@ -44,7 +47,7 @@ export const ColorPicker: React.FC<Props> = ({ colors, selectedColor, onColorSel
             }}
           />
         )}
-      </div>
+      </button>
     ))}
   </div>
 );

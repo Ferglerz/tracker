@@ -1,13 +1,16 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   IonButton,
   IonDatetime,
   IonHeader,
+  IonTextarea,
+  IonItem,
 } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
 import DateEditModal from '@components/DateEditModal';
 import { UpdateOptions } from '@utils/HabitEntity';
-import { getTodayString, adjustColor } from '@utils/Utilities';
+import { adjustColor, getContrastText } from '@utils/Utilities';
+import { useCurrentDate } from '@utils/useCurrentDate';
 
 interface Props {
   habit: HabitEntity;
@@ -22,18 +25,32 @@ const HabitCalendar: React.FC<Props> = ({
   onValueChange,
   onDateSelected,
 }) => {
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const globalToday = useCurrentDate();
+  const [selectedDate, setSelectedDate] = useState<string>(globalToday);
+  const [note, setNote] = useState<string>(habit.history[globalToday]?.note || '');
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const maxDate = useMemo(() => new Date().toISOString(), []);
+  const previousGlobalToday = React.useRef(globalToday);
+  React.useEffect(() => {
+    if (previousGlobalToday.current !== globalToday) {
+      if (selectedDate === previousGlobalToday.current) {
+        setSelectedDate(globalToday);
+        setNote(habit.history[globalToday]?.note || '');
+      }
+      previousGlobalToday.current = globalToday;
+    }
+  }, [globalToday, selectedDate, habit.history]);
+
+  const maxDate = `${globalToday}T23:59:59`;
 
   const resetToToday = useCallback(() => {
-    setSelectedDate(getTodayString());
-  }, []);
+    setSelectedDate(globalToday);
+  }, [globalToday]);
 
   const handleDateClick = useCallback(
     async (date: string) => {
       setSelectedDate(date);
+      setNote(habit.history[date]?.note || '');
       onDateSelected?.(date);
 
       if (habit.type === 'checkbox') {
@@ -54,7 +71,7 @@ const HabitCalendar: React.FC<Props> = ({
       const newValue: UpdateOptions = {
         dateString: selectedDate,
         history: {
-          [selectedDate]: { quantity, goal },
+          [selectedDate]: { quantity, goal, note: habit.history[selectedDate]?.note },
         },
       };
       await habit.update(newValue);
@@ -62,6 +79,18 @@ const HabitCalendar: React.FC<Props> = ({
     },
     [habit, selectedDate]
   );
+
+  const handleNoteBlur = useCallback(async () => {
+    const currentEntry = habit.history[selectedDate] || { quantity: 0, goal: habit.goal };
+    if (currentEntry.note !== note) {
+      await habit.update({
+        dateString: selectedDate,
+        history: {
+          [selectedDate]: { quantity: currentEntry.quantity, goal: currentEntry.goal, note }
+        }
+      });
+    }
+  }, [habit, selectedDate, note]);
 
   const getHighlightedDates = useCallback(
     (date: string) => {
@@ -72,7 +101,7 @@ const HabitCalendar: React.FC<Props> = ({
         if (habit.type === 'checkbox') {
           return value.quantity > 0
             ? {
-              textColor: '#000000',
+              textColor: getContrastText(habit.bgColor),
               backgroundColor: habit.bgColor,
             }
             : undefined;
@@ -82,13 +111,13 @@ const HabitCalendar: React.FC<Props> = ({
 
           if (isComplete) {
             return {
-              textColor: '#000000',
+              textColor: getContrastText(habit.bgColor),
               backgroundColor: habit.bgColor,
             };
           } else if (quantity > 0) {
             const rgbaColor = adjustColor(habit.bgColor, { opacity: 0.5 });
             return {
-              textColor: '#000000',
+              textColor: getContrastText(rgbaColor),
               backgroundColor: rgbaColor,
             };
           }
@@ -150,6 +179,18 @@ const HabitCalendar: React.FC<Props> = ({
         className="calendar-custom"
         max={maxDate}
       />
+
+      <IonItem style={{ '--background': 'transparent', marginTop: '10px' }}>
+        <IonTextarea
+          placeholder={`Add a journal note for ${selectedDate}...`}
+          value={note}
+          onIonInput={e => setNote(e.detail.value || '')}
+          onIonBlur={handleNoteBlur}
+          autoGrow={true}
+          rows={3}
+          style={{ fontSize: '14px' }}
+        />
+      </IonItem>
 
       <DateEditModal
         isOpen={showEditModal}

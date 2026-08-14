@@ -1,5 +1,5 @@
 //HabitItem.tsx
-import React, { useCallback, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useRef, useState, useMemo, useEffect } from 'react';
 import {
   IonItem,
   IonIcon,
@@ -13,12 +13,13 @@ import {
 import { calendar, pencil, trash, reorderThree } from 'ionicons/icons';
 import { HabitEntity } from '@utils/HabitEntity';
 import Calendar from '@components/Calendar';
-import { getHistoryRange, getTodayString } from '@utils/Utilities';
+import { getHistoryRange, calculateStreaks, getPeriodProgress } from '@utils/Utilities';
 import { HistoryGrid } from '@components/HistoryGrid';
 import { InteractionControls } from '@components/InteractionControls';
 import { CONSTANTS } from '@utils/Constants';
 import { getIcon } from '@utils/iconUtils';
 import { useSettings } from '@utils/useSettings';
+import { useCurrentDate } from '@utils/useCurrentDate';
 
 interface HabitItemProps {
   habit: HabitEntity;
@@ -33,7 +34,14 @@ const HabitDetails: React.FC<{
   habit: HabitEntity;
   quantity: number;
   goal: number;
-}> = ({ habit, quantity, goal }) => (
+  currentStreak: number;
+  longestStreak: number;
+  periodQuantity: number;
+  periodGoal: number;
+}> = ({ habit, quantity, goal, currentStreak, longestStreak, periodQuantity, periodGoal }) => {
+  const isDaily = !habit.frequency || habit.frequency === 'daily';
+
+  return (
   <div className="ion-no-padding ion-no-margin habit-details">
     {habit.icon && (
       <IonIcon
@@ -50,12 +58,20 @@ const HabitDetails: React.FC<{
       <div className="habit-name">{habit.name}</div>
       {habit.type === 'quantity' && (
         <div className="habit-quantity">
-          {quantity} {goal ? ` / ${goal} ` : ''} {habit.unit}
+          {isDaily ? (
+            `${quantity} ${goal ? `/ ${goal} ` : ''} ${habit.unit || ''}`
+          ) : (
+            `${periodQuantity} ${periodGoal ? `/ ${periodGoal} ` : ''} ${habit.unit || ''} this ${habit.frequency}`
+          )}
         </div>
       )}
+      <div className="habit-streak" style={{ fontSize: '12px', color: 'var(--ion-color-medium)', marginTop: '2px' }}>
+        🔥 {currentStreak} {currentStreak === 1 ? 'day' : 'days'} • Best: {longestStreak}
+      </div>
     </div>
   </div>
-);
+  );
+};
 
 const HabitItem: React.FC<HabitItemProps> = ({
   habit,
@@ -68,8 +84,19 @@ const HabitItem: React.FC<HabitItemProps> = ({
   const longPressActive = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const globalToday = useCurrentDate();
+  const [selectedDate, setSelectedDate] = useState(globalToday);
   const { settings } = useSettings();
+
+  const previousGlobalToday = useRef(globalToday);
+  useEffect(() => {
+    if (previousGlobalToday.current !== globalToday) {
+      if (selectedDate === previousGlobalToday.current) {
+        setSelectedDate(globalToday);
+      }
+      previousGlobalToday.current = globalToday;
+    }
+  }, [globalToday, selectedDate]);
   const hideGrid = !settings.historyGrid;
 
   const currentEntry = useMemo(() =>
@@ -79,8 +106,16 @@ const HabitItem: React.FC<HabitItemProps> = ({
 
   const historyRangeData = useMemo(() =>
     getHistoryRange(habit, CONSTANTS.UI.CELLS_PER_ROW * 3),
-    [habit, habit.history]
+    [habit]
   );
+
+  const { currentStreak, longestStreak } = useMemo(() =>
+    calculateStreaks(habit),
+  [habit]);
+
+  const periodProgress = useMemo(() =>
+    getPeriodProgress(habit, selectedDate),
+  [habit, selectedDate]);
 
   const handleValueChange = useCallback(
     async (value: number, date: string) => {
@@ -99,8 +134,22 @@ const HabitItem: React.FC<HabitItemProps> = ({
     }
   }, [habit, currentEntry.quantity, handleValueChange, selectedDate]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (
+      e.target === e.currentTarget &&
+      habit.type === 'checkbox' &&
+      (e.key === 'Enter' || e.key === ' ')
+    ) {
+      e.preventDefault();
+      void handleValueChange(currentEntry.quantity > 0 ? 0 : 1, selectedDate);
+    }
+  }, [habit.type, currentEntry.quantity, handleValueChange, selectedDate]);
+
   const handleLongPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('ion-reorder')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest(
+      'ion-reorder, ion-button, ion-checkbox, ion-item-option, button, a, input, select, textarea, [role="button"]',
+    )) return;
 
     longPressActive.current = true;
     timer.current = setTimeout(() => {
@@ -136,10 +185,9 @@ const HabitItem: React.FC<HabitItemProps> = ({
 
     onToggleCalendar(habit.id);
     if (isCalendarOpen) {
-      const today = getTodayString();
-      setSelectedDate(today);
+      setSelectedDate(globalToday);
     }
-  }, [habit, onToggleCalendar, isCalendarOpen]);
+  }, [habit, onToggleCalendar, isCalendarOpen, globalToday]);
 
   const handleDateSelected = useCallback((date: string) => {
     if (!habit) return;
@@ -155,7 +203,11 @@ const HabitItem: React.FC<HabitItemProps> = ({
       <IonItemSliding ref={slidingRef} key={habit.id}>
         <IonItem
           className="habit-item ion-activatable"
+          role={habit.type === 'checkbox' ? 'button' : undefined}
+          tabIndex={habit.type === 'checkbox' ? 0 : undefined}
+          aria-label={habit.type === 'checkbox' ? `Toggle ${habit.name}` : undefined}
           onClick={handleClick}
+          onKeyDown={handleKeyDown}
           onTouchStart={handleLongPress}
           onTouchEnd={cancelLongPress}
           onMouseDown={handleLongPress}
@@ -179,6 +231,10 @@ const HabitItem: React.FC<HabitItemProps> = ({
                   habit={habit}
                   quantity={currentEntry.quantity}
                   goal={currentEntry.goal}
+                  currentStreak={currentStreak}
+                  longestStreak={longestStreak}
+                  periodQuantity={periodProgress.quantity}
+                  periodGoal={periodProgress.goal}
                 />
                 <InteractionControls
                   habit={habit}
@@ -198,20 +254,20 @@ const HabitItem: React.FC<HabitItemProps> = ({
               />
 
               {habit.type === 'quantity' &&
-                habit.goal > 0 &&
-                habit.quantity >= habit.goal && (
-                  <IonBadge 
-                    className={`ion-margin-start ion-margin-top ${habit.quantity >= habit.goal * 4 ? 'shake-takeoff' : ''}`} 
+                periodProgress.goal > 0 &&
+                periodProgress.quantity >= periodProgress.goal && (
+                  <IonBadge
+                    className={`ion-margin-start ion-margin-top ${periodProgress.quantity >= periodProgress.goal * 4 ? 'shake-takeoff' : ''}`}
                     color={habit.bgColor}
                     style={{
-                      animation:  habit.quantity >= habit.goal * 4 ? 'shake-takeoff 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
-                                  habit.quantity >= habit.goal * 3 ? 'triple-fire 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 
-                                  habit.quantity >= habit.goal * 2 ? 'double-hop 0.5s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 'none'
+                      animation:  periodProgress.quantity >= periodProgress.goal * 4 ? 'shake-takeoff 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' :
+                                  periodProgress.quantity >= periodProgress.goal * 3 ? 'triple-fire 1s cubic-bezier(0.36, 0, 0.66, -0.56) 1' :
+                                  periodProgress.quantity >= periodProgress.goal * 2 ? 'double-hop 0.5s cubic-bezier(0.36, 0, 0.66, -0.56) 1' : 'none'
                     }}
                   >
-                    {habit.quantity >= habit.goal * 4 ? 'UNSTOPPABLE 🚀' :
-                     habit.quantity >= habit.goal * 3 ? 'Triple! 🔥' :
-                     habit.quantity >= habit.goal * 2 ? 'Double! ⚡' :
+                    {periodProgress.quantity >= periodProgress.goal * 4 ? 'UNSTOPPABLE 🚀' :
+                     periodProgress.quantity >= periodProgress.goal * 3 ? 'Triple! 🔥' :
+                     periodProgress.quantity >= periodProgress.goal * 2 ? 'Double! ⚡' :
                      'Complete!'}
                   </IonBadge>
                 )}
@@ -226,14 +282,15 @@ const HabitItem: React.FC<HabitItemProps> = ({
             <IonItemOption
               color="primary"
               onClick={handleToggleCalendar}
+              aria-label={`Open calendar for ${habit.name}`}
             >
               <IonIcon slot="icon-only" icon={calendar} />
             </IonItemOption>
           )}
-          <IonItemOption color="warning" onClick={handleEdit}>
+          <IonItemOption color="warning" onClick={handleEdit} aria-label={`Edit ${habit.name}`}>
             <IonIcon slot="icon-only" icon={pencil} />
           </IonItemOption>
-          <IonItemOption color="danger" onClick={onDelete}>
+          <IonItemOption color="danger" onClick={onDelete} aria-label={`Delete ${habit.name}`}>
             <IonIcon slot="icon-only" icon={trash} />
           </IonItemOption>
         </IonItemOptions>

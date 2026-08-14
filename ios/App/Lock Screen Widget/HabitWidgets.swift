@@ -13,7 +13,11 @@ struct HabitTimelineProvider: TimelineProvider {
     let widgetType: WidgetType
 
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), habits: [], error: nil)
+        let dummyHabits = [
+            Habit(id: "dummy1", name: "Drink Water", type: .quantity, unit: "oz", goal: 64, bgColor: "#3880f4", icon: "water", quantity: 32, history: [:], listOrder: 1, widgets: nil),
+            Habit(id: "dummy2", name: "Read", type: .checkbox, unit: nil, goal: 1, bgColor: "#ff9933", icon: "book", quantity: 1, history: [:], listOrder: 2, widgets: nil)
+        ]
+        return SimpleEntry(date: Date(), habits: dummyHabits, error: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
@@ -98,19 +102,31 @@ struct LockWidgetSlotsView: View {
 
     var body: some View {
         let slots = lockScreenHabits(habits, type: type)
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(slots.enumerated()), id: \.offset) { _, habit in
-                if let habit {
-                    HabitRow(habit: habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
-                } else {
-                    Text("Empty slot")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        let isEmpty = slots.allSatisfy { $0 == nil }
+
+        if isEmpty {
+            Text("Tap to assign")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .widgetURL(URL(string: "tracker://widget-config"))
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(slots.enumerated()), id: \.offset) { _, habit in
+                    if let habit {
+                        HabitRow(habit: habit, widgetFamily: widgetFamily, timelineDate: timelineDate)
+                            .widgetURL(URL(string: "tracker://habit/\(habit.id)"))
+                    } else {
+                        Text("Empty slot")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .widgetURL(URL(string: "tracker://widget-config"))
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
@@ -131,12 +147,25 @@ struct TypedWidgetView: View {
 
         case .small1, .small2, .medium1, .medium2:
             let positions = organizeHabitsForWidget(entry.habits, type: widgetType)
-            WidgetGridLayout(
-                habits: positions,
-                type: widgetType,
-                widgetFamily: family,
-                timelineDate: entry.date
-            )
+            if positions.isEmpty || positions.allSatisfy({ $0 == nil }) {
+                VStack(spacing: 8) {
+                    Image(systemName: "plus.square.dashed")
+                        .font(.system(size: 24))
+                        .foregroundColor(.secondary)
+                    Text("Tap to assign habits")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .widgetURL(URL(string: "tracker://widget-config"))
+            } else {
+                WidgetGridLayout(
+                    habits: positions,
+                    type: widgetType,
+                    widgetFamily: family,
+                    timelineDate: entry.date
+                )
+            }
         }
     }
 }
@@ -277,11 +306,18 @@ struct HabitWidgetMedium2: Widget {
 #Preview(as: .systemMedium) {
     HabitWidgetMedium1()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil)
+    let dummyHabits = [
+        Habit(id: "dummy1", name: "Drink Water", type: .quantity, unit: "oz", goal: 64, bgColor: "#3880f4", icon: "water", quantity: 32, history: [:], listOrder: 1, widgets: WidgetsData(assignments: [WidgetAssignment(type: "medium1", order: 1)])),
+        Habit(id: "dummy2", name: "Read", type: .checkbox, unit: nil, goal: 1, bgColor: "#ff9933", icon: "book", quantity: 1, history: [:], listOrder: 2, widgets: WidgetsData(assignments: [WidgetAssignment(type: "medium1", order: 2)]))
+    ]
+    SimpleEntry(date: .now, habits: dummyHabits, error: nil)
 }
 
 #Preview(as: .accessoryRectangular) {
     HabitWidgetLock1()
 } timeline: {
-    SimpleEntry(date: .now, habits: [], error: nil)
+    let dummyHabits = [
+        Habit(id: "dummy1", name: "Drink Water", type: .quantity, unit: "oz", goal: 64, bgColor: "#3880f4", icon: "water", quantity: 32, history: [:], listOrder: 1, widgets: WidgetsData(assignments: [WidgetAssignment(type: "lock1", order: 1)])),
+    ]
+    SimpleEntry(date: .now, habits: dummyHabits, error: nil)
 }

@@ -1,5 +1,6 @@
 // Home.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import {
   IonContent,
   IonHeader,
@@ -28,6 +29,59 @@ const Home: React.FC = () => {
   const [editingHabit, setEditingHabit] = useState<HabitEntity | undefined>();
   const [habitToDelete, setHabitToDelete] = useState<HabitEntity | null>(null);
   const [openCalendarId, setOpenCalendarId] = useState<string | null>(null);
+  const location = useLocation();
+  const history = useHistory();
+  const handledDeepLink = useRef<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const openHabitId = params.get('openHabit');
+    if (!openHabitId) {
+      handledDeepLink.current = null;
+      return;
+    }
+    if (handledDeepLink.current === openHabitId) return;
+
+    handledDeepLink.current = openHabitId;
+    let cancelled = false;
+    const clearDeepLinkParam = () => {
+      params.delete('openHabit');
+      history.replace({
+        pathname: location.pathname,
+        search: params.toString() ? `?${params.toString()}` : '',
+      });
+    };
+
+    void HabitEntity.loadAll().then((loadedHabits) => {
+      if (cancelled) return;
+      if (loadedHabits.some((habit) => habit.id === openHabitId)) {
+        setOpenCalendarId(openHabitId);
+      } else {
+        present({
+          message: 'Habit from link was not found.',
+          duration: 2500,
+          position: 'top',
+          color: 'warning',
+        });
+      }
+
+      clearDeepLinkParam();
+    }).catch(() => {
+      if (!cancelled) {
+        present({
+          message: 'Failed to open habit from link.',
+          duration: 2500,
+          position: 'top',
+          color: 'danger',
+        });
+        clearDeepLinkParam();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [history, location.pathname, location.search, present]);
 
   const handleHabitForm = useCallback((isOpen: boolean, habit?: HabitEntity) => {
     setIsMenuOpen(isOpen);
@@ -45,7 +99,7 @@ const Home: React.FC = () => {
         duration: 2000,
         position: 'bottom',
       });
-    } catch (error) {
+    } catch {
       present({
         message: 'Failed to delete habit',
         duration: 2000,
@@ -70,8 +124,30 @@ const Home: React.FC = () => {
         position: 'bottom',
         color: 'danger',
       });
+      throw error;
     }
   }, [habits, present]);
+
+  const handleImport = useCallback(async (file: File) => {
+    try {
+      const parsedData = await HabitCSVService.parseCSVFile(file);
+      await HabitEntity.mergeImportedData(parsedData);
+      refreshHabits();
+      present({
+        message: 'Import completed successfully',
+        duration: 2000,
+        position: 'bottom',
+      });
+    } catch (error) {
+      present({
+        message: 'Failed to import habit data',
+        duration: 2000,
+        position: 'bottom',
+        color: 'danger',
+      });
+      throw error;
+    }
+  }, [refreshHabits, present]);
 
   const handleToggleCalendar = useCallback((habitId: string) => {
     setOpenCalendarId(current => current === habitId ? null : habitId);
@@ -90,7 +166,7 @@ const Home: React.FC = () => {
     try {
       await HabitEntity.updateListOrder(updatedHabits);
       event.detail.complete();
-    } catch (error) {
+    } catch {
       present({
         message: 'Failed to update habit order',
         duration: 2000,
@@ -106,6 +182,7 @@ const Home: React.FC = () => {
       <IonHeader>
         <TopToolbar
           onExport={handleExport}
+          onImport={handleImport}
           hasHabits={habits.length > 0}
           onNewHabit={() => handleHabitForm(true)}
         />

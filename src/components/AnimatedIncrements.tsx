@@ -39,8 +39,10 @@ export const AnimatedIncrements: React.FC<{
   };
 
   return (
-    <div
+    <button
+      type="button"
       onClick={handleClick}
+      aria-label={type === 'increment' ? 'Increase value' : 'Decrease value'}
       style={{
         position: 'relative',
         width: '24px',
@@ -51,6 +53,8 @@ export const AnimatedIncrements: React.FC<{
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
+        border: 0,
+        padding: 0,
         transition: 'all 0.2s ease-in-out',
         transform: getTransform(isPressed, type),
       }}
@@ -61,6 +65,6 @@ export const AnimatedIncrements: React.FC<{
           <div style={verticalLineStyle} />
         )}
       </div>
-    </div>
+    </button>
   );
 };

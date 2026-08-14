@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
     DndContext,
     DragOverlay,
+    KeyboardSensor,
     PointerSensor,
     TouchSensor,
     useDraggable,
@@ -25,8 +26,9 @@ import {
     IonSegment,
     IonSegmentButton,
     IonButton,
+    useIonToast,
 } from '@ionic/react';
-import { lockClosed, apps, square } from 'ionicons/icons';
+import { lockClosed, apps } from 'ionicons/icons';
 import { Squircle } from '@components/Squircle';
 import { HabitEntity } from '@utils/HabitEntity';
 import { useHabits } from '@utils/useHabits';
@@ -36,20 +38,7 @@ import type { Habit } from '@utils/TypesAndProps';
 import { getIcon } from '@utils/iconUtils';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
-const HABITS_POOL_ID = 'habits-pool';
-
-const getWidgetItemStyle = (isLock: boolean): React.CSSProperties => ({
-    '--min-height': isLock ? '32px' : '60px',
-    '--padding-start': '0',
-    '--inner-padding-end': '0',
-    '--background': 'transparent',
-    '--background-hover': 'transparent',
-    '--border-width': '0',
-    margin: 0,
-    width: '100%',
-    height: '100%',
-    overflow: 'visible',
-} as any);
+export const HABITS_POOL_ID = 'habits-pool';
 
 const WIDGET_ITEM_STYLE: Record<string, string> = {
     '--min-height': '60px',
@@ -128,7 +117,7 @@ const createEmptySpaces = (section: WidgetSectionDef): WidgetSpace[] =>
         isOccupied: false,
     }));
 
-function parseSlotId(spaceId: string): { type: string; order: number } | null {
+export function parseSlotId(spaceId: string): { type: string; order: number } | null {
     const i = spaceId.lastIndexOf('-');
     if (i <= 0) return null;
     const type = spaceId.slice(0, i);
@@ -137,7 +126,7 @@ function parseSlotId(spaceId: string): { type: string; order: number } | null {
     return { type, order };
 }
 
-function removeAssignmentSlot(
+export function removeAssignmentSlot(
     assignments: Habit.WidgetsAssignment[],
     type: string,
     order: number,
@@ -145,26 +134,38 @@ function removeAssignmentSlot(
     return assignments.filter((a) => !(a.type === type && a.order === order));
 }
 
-function habitWidgetsOrEmpty(h: HabitEntity): Habit.Widgets {
+function replaceAssignmentType(
+    assignments: Habit.WidgetsAssignment[],
+    type: string,
+    order: number,
+): Habit.WidgetsAssignment[] {
+    return [
+        ...assignments.filter((assignment) => assignment.type !== type),
+        { type, order },
+    ];
+}
+
+export function habitWidgetsOrEmpty(h: HabitEntity): Habit.Widgets {
     return h.widgetAssignment ?? { assignments: [] };
 }
 
-interface DropComputeResult {
+export interface DropComputeResult {
     nextSpaces: WidgetSpace[];
     batch: { habitId: string; widgets: Habit.Widgets }[];
 }
 
-function computeDrop(
+export function computeDrop(
     prevSpaces: WidgetSpace[],
     habitById: Map<string, HabitEntity>,
     habitId: string,
     targetId: string,
+    activeSpaceId?: string,
 ): DropComputeResult {
     const habit = habitById.get(habitId);
     if (!habit) return { nextSpaces: prevSpaces, batch: [] };
 
     if (targetId === HABITS_POOL_ID) {
-        const sourceSpace = prevSpaces.find((s) => s.habitId === habitId && s.isOccupied);
+        const sourceSpace = activeSpaceId ? prevSpaces.find((s) => s.id === activeSpaceId) : undefined;
         if (!sourceSpace) return { nextSpaces: prevSpaces, batch: [] };
 
         const newAssignments = removeAssignmentSlot(
@@ -188,9 +189,9 @@ function computeDrop(
     if (!targetSpace) return { nextSpaces: prevSpaces, batch: [] };
 
     const displacedId = targetSpace.isOccupied ? targetSpace.habitId : undefined;
-    if (displacedId === habitId) return { nextSpaces: prevSpaces, batch: [] };
+    if (displacedId === habitId && activeSpaceId === targetId) return { nextSpaces: prevSpaces, batch: [] };
 
-    const sourceSpace = prevSpaces.find((s) => s.habitId === habitId && s.isOccupied);
+    const sourceSpace = activeSpaceId ? prevSpaces.find((s) => s.id === activeSpaceId) : undefined;
 
     let nextSpaces = prevSpaces.map((s) => ({ ...s }));
     const batch: { habitId: string; widgets: Habit.Widgets }[] = [];
@@ -199,21 +200,44 @@ function computeDrop(
         (s) => s.habitId === habitId && s.isOccupied && s.type === slot.type,
     );
 
+    if (displacedId === habitId) {
+        let assignments = replaceAssignmentType(
+            habitWidgetsOrEmpty(habit).assignments,
+            slot.type,
+            slot.order,
+        );
+        if (sourceSpace && sourceSpace.type !== slot.type) {
+            assignments = removeAssignmentSlot(assignments, sourceSpace.type, sourceSpace.order);
+        }
+        nextSpaces = nextSpaces.map((space) => {
+            if (space.id === targetId) return { ...space, isOccupied: true, habitId };
+            if (
+                space.habitId === habitId &&
+                (space.type === slot.type || space.id === sourceSpace?.id)
+            ) {
+                return { ...space, isOccupied: false, habitId: undefined };
+            }
+            return space;
+        });
+        return { nextSpaces, batch: [{ habitId, widgets: { assignments } }] };
+    }
+
     if (displacedId) {
         const displaced = habitById.get(displacedId);
         if (!displaced) return { nextSpaces: prevSpaces, batch: [] };
 
-        let draggedAssignments = habitWidgetsOrEmpty(habit).assignments.filter(
-            (a) => a.type !== slot.type,
+        let draggedAssignments = replaceAssignmentType(
+            habitWidgetsOrEmpty(habit).assignments,
+            slot.type,
+            slot.order,
         );
-        if (sourceSpace) {
+        if (sourceSpace && sourceSpace.type !== slot.type) {
             draggedAssignments = removeAssignmentSlot(
                 draggedAssignments,
                 sourceSpace.type,
                 sourceSpace.order,
             );
         }
-        draggedAssignments.push({ type: slot.type, order: slot.order });
 
         let displacedAssignments = removeAssignmentSlot(
             habitWidgetsOrEmpty(displaced).assignments,
@@ -221,13 +245,11 @@ function computeDrop(
             slot.order,
         );
         if (sourceSpace) {
-            displacedAssignments = displacedAssignments.filter(
-                (a) => !(a.type === sourceSpace.type && a.order === sourceSpace.order),
+            displacedAssignments = replaceAssignmentType(
+                displacedAssignments,
+                sourceSpace.type,
+                sourceSpace.order,
             );
-            displacedAssignments.push({
-                type: sourceSpace.type,
-                order: sourceSpace.order,
-            });
         }
 
         for (let i = 0; i < nextSpaces.length; i++) {
@@ -257,13 +279,18 @@ function computeDrop(
     let draggedAssignments = [...habitWidgetsOrEmpty(habit).assignments];
 
     if (existingForType) {
-        draggedAssignments = draggedAssignments.map((a) =>
-            a.type === slot.type ? { ...a, order: slot.order } : a,
+        draggedAssignments = replaceAssignmentType(
+            draggedAssignments,
+            slot.type,
+            slot.order,
         );
         for (let i = 0; i < nextSpaces.length; i++) {
             if (nextSpaces[i].id === targetId) {
                 nextSpaces[i] = { ...nextSpaces[i], isOccupied: true, habitId };
-            } else if (nextSpaces[i].id === existingForType.id) {
+            } else if (
+                nextSpaces[i].habitId === habitId &&
+                nextSpaces[i].type === slot.type
+            ) {
                 nextSpaces[i] = { ...nextSpaces[i], isOccupied: false, habitId: undefined };
             }
         }
@@ -383,12 +410,19 @@ const HabitBadgeVisual: React.FC<{ habit: HabitEntity; dragging?: boolean; varia
 
 const DraggableHabitBadge: React.FC<{ habit: HabitEntity }> = ({ habit }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id: habit.id,
+        id: `pool-${habit.id}`,
         data: { habitId: habit.id },
     });
 
     return (
-        <div ref={setNodeRef} {...listeners} {...attributes} style={{ width: '100%', height: '100%' }}>
+        <div
+            ref={setNodeRef}
+            id={`pool-${habit.id}`}
+            {...listeners}
+            {...attributes}
+            aria-label={`Drag ${habit.name} to a widget slot`}
+            style={{ width: '100%', height: '100%' }}
+        >
             <HabitBadgeVisual habit={habit} dragging={isDragging} />
         </div>
     );
@@ -401,8 +435,8 @@ const OccupiedWidgetSlot: React.FC<{ spaceId: string; habit: HabitEntity; isLock
         setNodeRef: setDragRef,
         isDragging,
     } = useDraggable({
-        id: habit.id,
-        data: { habitId: habit.id },
+        id: `slot-${spaceId}-${habit.id}`,
+        data: { habitId: habit.id, spaceId },
     });
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: spaceId });
 
@@ -414,19 +448,52 @@ const OccupiedWidgetSlot: React.FC<{ spaceId: string; habit: HabitEntity; isLock
     const height = isLock ? '32px' : '60px';
 
     return (
-        <div ref={setRefs} {...listeners} {...attributes} style={{ width: '100%', height: height }}>
-            <div
-                style={{
-                    position: 'relative',
-                    minHeight: height,
-                    height: height,
-                    borderRadius: isLock ? 8 : 16,
-                    outline: isOver ? '2px solid var(--ion-color-primary, #3880f4)' : 'none',
-                    outlineOffset: 2,
-                }}
-            >
-                <HabitBadgeVisual habit={habit} dragging={isDragging} variant={isLock ? 'lock' : 'home'} />
-            </div>
+        <div
+            ref={setRefs}
+            {...listeners}
+            {...attributes}
+            aria-label={`Move ${habit.name} or return it to available habits`}
+            style={{ width: '100%', height: height }}
+        >
+            {isDragging ? (
+                <div
+                    style={{
+                        position: 'relative',
+                        width: '100%',
+                        height: height,
+                        minHeight: height,
+                    }}
+                >
+                    <Squircle
+                        width="100%"
+                        height="100%"
+                        cornerRadius={isLock ? 8 : 16}
+                        dashed={true}
+                        strokeWidth={isLock ? 1.5 : 2}
+                        stroke={isLock ? '#ffffff' : 'var(--ion-color-primary, #3880f4)'}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                        }}
+                    />
+                </div>
+            ) : (
+                <div
+                    style={{
+                        position: 'relative',
+                        minHeight: height,
+                        height: height,
+                        borderRadius: isLock ? 8 : 16,
+                        outline: isOver ? '2px solid var(--ion-color-primary, #3880f4)' : 'none',
+                        outlineOffset: 2,
+                    }}
+                >
+                    <HabitBadgeVisual habit={habit} dragging={false} variant={isLock ? 'lock' : 'home'} />
+                </div>
+            )}
         </div>
     );
 };
@@ -455,8 +522,8 @@ const DroppableSlot: React.FC<{
                 cornerRadius={isLock ? 8 : 16}
                 dashed={true}
                 strokeWidth={isLock ? 1.5 : 2}
-                stroke={isOver || isHighlighted 
-                    ? (isLock ? '#ffffff' : 'var(--ion-color-primary, #3880f4)') 
+                stroke={isOver || isHighlighted
+                    ? (isLock ? '#ffffff' : 'var(--ion-color-primary, #3880f4)')
                     : (isLock ? 'rgba(255,255,255,0.25)' : 'var(--ion-color-step-300, #cccccc)')}
                 style={{
                     position: 'absolute',
@@ -488,8 +555,7 @@ const DroppableSlot: React.FC<{
 
 const HabitsPool: React.FC<{
     habits: HabitEntity[];
-    activeDragId: string | null;
-}> = ({ habits, activeDragId }) => {
+}> = ({ habits }) => {
     const { setNodeRef, isOver } = useDroppable({ id: HABITS_POOL_ID });
 
     return (
@@ -514,11 +580,7 @@ const HabitsPool: React.FC<{
                     {habits.map((habit) => (
                         <div key={habit.id} style={poolItemStyle}>
                             <IonItem style={WIDGET_ITEM_STYLE} lines="none">
-                                {activeDragId === habit.id ? (
-                                    <HabitBadgeVisual habit={habit} dragging />
-                                ) : (
-                                    <DraggableHabitBadge habit={habit} />
-                                )}
+                                <DraggableHabitBadge habit={habit} />
                             </IonItem>
                         </div>
                     ))}
@@ -736,7 +798,7 @@ const mediumGridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
     gridTemplateRows: 'repeat(4, 1fr)',
-    gridAutoFlow: 'column',
+    gridAutoFlow: 'row',
     gap: '4px 8px',
     flex: 1,
 };
@@ -757,17 +819,20 @@ const dockStyle: React.CSSProperties = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
 };
 
-type TabKey = 'lock' | 'small' | 'medium';
+type TabKey = 'lock' | 'home';
 
 const WidgetConfig: React.FC = () => {
     const { habits } = useHabits();
+    const [present] = useIonToast();
     const [activeTab, setActiveTab] = useState<TabKey>('lock');
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
+    const [activeSpaceId, setActiveSpaceId] = useState<string | undefined>(undefined);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: { distance: 6 },
         }),
+        useSensor(KeyboardSensor),
         useSensor(TouchSensor, {
             activationConstraint: {
                 delay: CONSTANTS.UI.LONG_PRESS_DELAY,
@@ -789,7 +854,9 @@ const WidgetConfig: React.FC = () => {
         habits.forEach((habit) => {
             habit.widgetAssignment?.assignments?.forEach((assignment) => {
                 const spaceId = `${assignment.type}-${assignment.order}`;
-                habitAssignments[spaceId] = habit.id;
+                if (!habitAssignments[spaceId]) {
+                    habitAssignments[spaceId] = habit.id;
+                }
             });
         });
 
@@ -808,10 +875,13 @@ const WidgetConfig: React.FC = () => {
     const assignedIds = useMemo(() => {
         const s = new Set<string>();
         widgetSpaces.forEach((sp) => {
-            if (sp.isOccupied && sp.habitId) s.add(sp.habitId);
+            if (sp.isOccupied && sp.habitId) {
+                if (activeTab === 'lock' && sp.type.startsWith('lock')) s.add(sp.habitId);
+                if (activeTab === 'home' && (sp.type.startsWith('small') || sp.type.startsWith('medium'))) s.add(sp.habitId);
+            }
         });
         return s;
-    }, [widgetSpaces]);
+    }, [widgetSpaces, activeTab]);
 
     const poolHabits = useMemo(
         () => habits.filter((h) => !assignedIds.has(h.id)),
@@ -820,19 +890,32 @@ const WidgetConfig: React.FC = () => {
 
     const handleDragEnd = useCallback(
         async (event: DragEndEvent) => {
-            const { active, over } = event;
+            const { over } = event;
+            const habitId = activeDragId;
+            const sourceSpaceId = activeSpaceId;
+
             setActiveDragId(null);
-            try {
-                Haptics.impact({ style: ImpactStyle.Light });
-            } catch {}
-            const habitId = String(active.id);
-            if (!over) return;
+            setActiveSpaceId(undefined);
+
+            void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+
+            if (!habitId || !over) return;
+
             const targetId = String(over.id);
-            const { batch } = computeDrop(widgetSpaces, habitById, habitId, targetId);
+            const { batch } = computeDrop(widgetSpaces, habitById, habitId, targetId, sourceSpaceId);
             if (batch.length === 0) return;
-            await HabitEntity.applyWidgetAssignmentBatch(batch);
+            try {
+                await HabitEntity.applyWidgetAssignmentBatch(batch);
+            } catch {
+                present({
+                    message: 'Failed to save widget assignment.',
+                    duration: 2500,
+                    position: 'top',
+                    color: 'danger',
+                });
+            }
         },
-        [widgetSpaces, habitById],
+        [widgetSpaces, habitById, activeDragId, activeSpaceId, present],
     );
 
     const activeHabit = activeDragId ? habitById.get(activeDragId) : undefined;
@@ -842,21 +925,17 @@ const WidgetConfig: React.FC = () => {
         if (!space) return null;
 
         return (
-            <div key={space.id} style={{ width: '100%', height: isLock ? '32px' : '44px' }}>
+            <div key={space.id} id={space.id} style={{ width: '100%', height: isLock ? '32px' : '44px' }}>
                 {space.isOccupied && space.habitId ? (
                     (() => {
                         const h = habitById.get(space.habitId);
                         if (!h) {
                             return <DroppableSlot id={space.id} isHighlighted={false} isLock={isLock} />;
                         }
-                        return activeDragId === h.id ? (
-                            <DroppableSlot id={space.id} isHighlighted={true} isLock={isLock} />
-                        ) : (
-                            <OccupiedWidgetSlot spaceId={space.id} habit={h} isLock={isLock} />
-                        );
+                        return <OccupiedWidgetSlot spaceId={space.id} habit={h} isLock={isLock} />;
                     })()
                 ) : (
-                    <DroppableSlot id={space.id} isHighlighted={false} isLock={isLock} />
+                    <DroppableSlot id={space.id} isHighlighted={activeDragId !== null} isLock={isLock} />
                 )}
             </div>
         );
@@ -951,34 +1030,38 @@ const WidgetConfig: React.FC = () => {
                 <DndContext
                     sensors={sensors}
                     onDragStart={({ active }) => {
-                        setActiveDragId(String(active.id));
-                        try {
-                            Haptics.impact({ style: ImpactStyle.Light });
-                        } catch {}
+                        const habitId = active.data.current?.habitId as string | undefined;
+                        if (habitId) setActiveDragId(habitId);
+                        const spaceId = active.data.current?.spaceId as string | undefined;
+                        setActiveSpaceId(spaceId);
+                        void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
                     }}
-                    onDragCancel={() => setActiveDragId(null)}
+                    onDragCancel={() => {
+                        setActiveDragId(null);
+                        setActiveSpaceId(undefined);
+                    }}
                     onDragEnd={handleDragEnd}
                 >
                     <div className="ion-padding" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                         <IonSegment
                             value={activeTab}
-                            style={{ marginBottom: '12px' }}
+                            style={{
+                                marginBottom: '12px',
+                                '--color-checked': 'var(--ion-color-dark, #121212)',
+                                '--indicator-color': '#ffffff'
+                            }}
                             onIonChange={(e) => {
                                 const v = e.detail.value as TabKey;
-                                if (v === 'lock' || v === 'small' || v === 'medium') setActiveTab(v);
+                                if (v === 'lock' || v === 'home') setActiveTab(v);
                             }}
                         >
                             <IonSegmentButton value="lock">
                                 <IonIcon icon={lockClosed} />
-                                <IonLabel>Lock</IonLabel>
+                                <IonLabel>Lock Screen</IonLabel>
                             </IonSegmentButton>
-                            <IonSegmentButton value="small">
+                            <IonSegmentButton value="home">
                                 <IonIcon icon={apps} />
-                                <IonLabel>Small</IonLabel>
-                            </IonSegmentButton>
-                            <IonSegmentButton value="medium">
-                                <IonIcon icon={square} />
-                                <IonLabel>Medium</IonLabel>
+                                <IonLabel>Homescreen</IonLabel>
                             </IonSegmentButton>
                         </IonSegment>
 
@@ -997,6 +1080,9 @@ const WidgetConfig: React.FC = () => {
                                 : 'Press & drag a habit to a card on the home screen. Tap back to home when done.'
                             }
                         </p>
+
+                        {/* Available Habits Pool */}
+                        <HabitsPool habits={poolHabits} />
 
                         {/* iPhone Simulation Container */}
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1043,77 +1129,67 @@ const WidgetConfig: React.FC = () => {
                                     )}
 
                                     {/* Home Screen View */}
-                                    {(activeTab === 'small' || activeTab === 'medium') && (
+                                    {activeTab === 'home' && (
                                         <div style={homeScreenContentStyle}>
                                             <div style={homeGridStyle}>
-                                                {activeTab === 'small' ? (
-                                                    <>
-                                                        {/* Small Widget 1 */}
-                                                        <div style={homeWidgetSmallStyle}>
-                                                            <span style={homeWidgetTitleStyle}>Habits I</span>
-                                                            <div style={smallGridStyle}>
-                                                                {renderSpaceSlot('small1-1')}
-                                                                {renderSpaceSlot('small1-2')}
-                                                                {renderSpaceSlot('small1-3')}
-                                                                {renderSpaceSlot('small1-4')}
-                                                            </div>
-                                                        </div>
+                                                {/* Small Widget 1 */}
+                                                <div style={homeWidgetSmallStyle}>
+                                                    <span style={homeWidgetTitleStyle}>Habits Small I</span>
+                                                    <div style={smallGridStyle}>
+                                                        {renderSpaceSlot('small1-1')}
+                                                        {renderSpaceSlot('small1-2')}
+                                                        {renderSpaceSlot('small1-3')}
+                                                        {renderSpaceSlot('small1-4')}
+                                                    </div>
+                                                </div>
 
-                                                        {renderMockAppIcon('Safari', '🧭', 'linear-gradient(to bottom, #00c6ff, #0072ff)')}
-                                                        {renderMockAppIcon('Photos', '🌸', '#ffffff')}
-                                                        {renderMockAppIcon('Mail', '✉️', 'linear-gradient(to bottom, #2980b9, #2c3e50)')}
+                                                {renderMockAppIcon('Safari', '🧭', 'linear-gradient(to bottom, #00c6ff, #0072ff)')}
+                                                {renderMockAppIcon('Photos', '🌸', '#ffffff')}
+                                                {renderMockAppIcon('Mail', '✉️', 'linear-gradient(to bottom, #2980b9, #2c3e50)')}
 
-                                                        {/* Small Widget 2 */}
-                                                        <div style={homeWidgetSmallStyle}>
-                                                            <span style={homeWidgetTitleStyle}>Habits II</span>
-                                                            <div style={smallGridStyle}>
-                                                                {renderSpaceSlot('small2-1')}
-                                                                {renderSpaceSlot('small2-2')}
-                                                                {renderSpaceSlot('small2-3')}
-                                                                {renderSpaceSlot('small2-4')}
-                                                            </div>
-                                                        </div>
+                                                {/* Medium Widget 1 */}
+                                                <div style={homeWidgetMediumStyle}>
+                                                    <span style={homeWidgetTitleStyle}>Habits Medium I</span>
+                                                    <div style={mediumGridStyle}>
+                                                        {renderSpaceSlot('medium1-1')}
+                                                        {renderSpaceSlot('medium1-2')}
+                                                        {renderSpaceSlot('medium1-3')}
+                                                        {renderSpaceSlot('medium1-4')}
+                                                        {renderSpaceSlot('medium1-5')}
+                                                        {renderSpaceSlot('medium1-6')}
+                                                        {renderSpaceSlot('medium1-7')}
+                                                        {renderSpaceSlot('medium1-8')}
+                                                    </div>
+                                                </div>
 
-                                                        {renderMockAppIcon('Music', '🎵', 'linear-gradient(to bottom, #ff5e62, #ff9966)')}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        {/* Medium Widget 1 */}
-                                                        <div style={homeWidgetMediumStyle}>
-                                                            <span style={homeWidgetTitleStyle}>Habits Medium I</span>
-                                                            <div style={mediumGridStyle}>
-                                                                {renderSpaceSlot('medium1-1')}
-                                                                {renderSpaceSlot('medium1-2')}
-                                                                {renderSpaceSlot('medium1-3')}
-                                                                {renderSpaceSlot('medium1-4')}
-                                                                {renderSpaceSlot('medium1-5')}
-                                                                {renderSpaceSlot('medium1-6')}
-                                                                {renderSpaceSlot('medium1-7')}
-                                                                {renderSpaceSlot('medium1-8')}
-                                                            </div>
-                                                        </div>
+                                                {/* Small Widget 2 */}
+                                                <div style={homeWidgetSmallStyle}>
+                                                    <span style={homeWidgetTitleStyle}>Habits Small II</span>
+                                                    <div style={smallGridStyle}>
+                                                        {renderSpaceSlot('small2-1')}
+                                                        {renderSpaceSlot('small2-2')}
+                                                        {renderSpaceSlot('small2-3')}
+                                                        {renderSpaceSlot('small2-4')}
+                                                    </div>
+                                                </div>
 
-                                                        {renderMockAppIcon('Safari', '🧭', 'linear-gradient(to bottom, #00c6ff, #0072ff)')}
-                                                        {renderMockAppIcon('Photos', '🌸', '#ffffff')}
-                                                        {renderMockAppIcon('Settings', '⚙️', '#8e8e93')}
-                                                        {renderMockAppIcon('Mail', '✉️', 'linear-gradient(to bottom, #2980b9, #2c3e50)')}
+                                                {renderMockAppIcon('Music', '🎵', 'linear-gradient(to bottom, #ff5e62, #ff9966)')}
+                                                {renderMockAppIcon('Settings', '⚙️', '#8e8e93')}
 
-                                                        {/* Medium Widget 2 */}
-                                                        <div style={homeWidgetMediumStyle}>
-                                                            <span style={homeWidgetTitleStyle}>Habits Medium II</span>
-                                                            <div style={mediumGridStyle}>
-                                                                {renderSpaceSlot('medium2-1')}
-                                                                {renderSpaceSlot('medium2-2')}
-                                                                {renderSpaceSlot('medium2-3')}
-                                                                {renderSpaceSlot('medium2-4')}
-                                                                {renderSpaceSlot('medium2-5')}
-                                                                {renderSpaceSlot('medium2-6')}
-                                                                {renderSpaceSlot('medium2-7')}
-                                                                {renderSpaceSlot('medium2-8')}
-                                                            </div>
-                                                        </div>
-                                                    </>
-                                                )}
+                                                {/* Medium Widget 2 */}
+                                                <div style={homeWidgetMediumStyle}>
+                                                    <span style={homeWidgetTitleStyle}>Habits Medium II</span>
+                                                    <div style={mediumGridStyle}>
+                                                        {renderSpaceSlot('medium2-1')}
+                                                        {renderSpaceSlot('medium2-2')}
+                                                        {renderSpaceSlot('medium2-3')}
+                                                        {renderSpaceSlot('medium2-4')}
+                                                        {renderSpaceSlot('medium2-5')}
+                                                        {renderSpaceSlot('medium2-6')}
+                                                        {renderSpaceSlot('medium2-7')}
+                                                        {renderSpaceSlot('medium2-8')}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             {/* Home Screen Dock */}
@@ -1131,9 +1207,6 @@ const WidgetConfig: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Available Habits Pool */}
-                        <HabitsPool habits={poolHabits} activeDragId={activeDragId} />
                     </div>
 
                     <DragOverlay dropAnimation={null}>

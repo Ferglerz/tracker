@@ -29,6 +29,7 @@ export const InteractionControls = ({
     >
       {habit.type === 'checkbox' ? (
         <IonCheckbox
+          aria-label={`Mark ${habit.name} ${quantity > 0 ? 'incomplete' : 'complete'}`}
           style={{
             '--size': '24px',
             '--checkbox-background-checked': habit.bgColor,

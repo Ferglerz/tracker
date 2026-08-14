@@ -12,6 +12,8 @@ import {
   IonButton,
   IonButtons,
   IonInput,
+  IonSegment,
+  IonSegmentButton,
   useIonToast,
 } from '@ionic/react';
 import { HabitEntity } from '@utils/HabitEntity';
@@ -42,6 +44,7 @@ const HabitForm: React.FC<Props> = ({
   const [present] = useIonToast();
   const [name, setName] = useState('');
   const [type, setType] = useState<Habit.Type>('checkbox');
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [unit, setUnit] = useState<string | undefined>();
   const [goal, setGoal] = useState<number>(1);
   const [color, setColor] = useState<typeof CONSTANTS.PRESET_COLORS[number]>(CONSTANTS.PRESET_COLORS[0]);
@@ -55,6 +58,7 @@ const HabitForm: React.FC<Props> = ({
       if (editedHabit) {
         setName(editedHabit.name);
         setType(editedHabit.type);
+        setFrequency(editedHabit.frequency || 'daily');
         setUnit(editedHabit.unit);
         setGoal(editedHabit.goal ?? 1);
         setColor(editedHabit.bgColor as typeof CONSTANTS.PRESET_COLORS[number]);
@@ -62,6 +66,7 @@ const HabitForm: React.FC<Props> = ({
       } else {
         setName('');
         setType('checkbox');
+        setFrequency('daily');
         setUnit(undefined);
         setGoal(1);
         setColor(CONSTANTS.PRESET_COLORS[0]);
@@ -79,10 +84,10 @@ const HabitForm: React.FC<Props> = ({
     try {
       const today = getTodayString();
       const habitProps: Habit.Habit = {
-        ...((editedHabit as unknown as Habit.Habit) ?? {}),
         id: editedHabit?.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         name: name.trim(),
         type,
+        frequency,
         unit: type === 'quantity' ? unit : undefined,
         goal: type === 'quantity' ? goal : 1,
         bgColor: color,
@@ -95,6 +100,7 @@ const HabitForm: React.FC<Props> = ({
             goal: type === 'quantity' ? goal ?? 0 : 0,
           },
         },
+        widgets: editedHabit?.widgetAssignment,
       };
 
       await HabitEntity.create(habitProps);
@@ -158,6 +164,23 @@ const HabitForm: React.FC<Props> = ({
               onTypeChange={setType}
               segmentButtonStyle={segmentButtonStyles}
             />
+            <IonItem>
+              <IonSegment
+                value={frequency}
+                onIonChange={e => setFrequency(e.detail.value as any)}
+                style={segmentButtonStyles}
+              >
+                <IonSegmentButton value="daily">
+                  <IonLabel>Daily</IonLabel>
+                </IonSegmentButton>
+                <IonSegmentButton value="weekly">
+                  <IonLabel>Weekly</IonLabel>
+                </IonSegmentButton>
+                <IonSegmentButton value="monthly">
+                  <IonLabel>Monthly</IonLabel>
+                </IonSegmentButton>
+              </IonSegment>
+            </IonItem>
             <IonItem>
               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <IconSelectButton

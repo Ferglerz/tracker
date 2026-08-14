@@ -1,21 +1,23 @@
 PODS:
-  - Capacitor (6.2.0):
+  - Capacitor (8.5.0):
     - CapacitorCordova
-  - CapacitorApp (6.0.2):
+  - CapacitorApp (8.1.1):
     - Capacitor
-  - CapacitorCordova (6.2.0)
-  - CapacitorFilesystem (6.0.2):
+  - CapacitorCordova (8.5.0)
+  - CapacitorFilesystem (8.1.2):
     - Capacitor
-  - CapacitorHaptics (6.0.2):
+    - IONFilesystemLib (~> 1.1.1)
+  - CapacitorHaptics (8.0.2):
     - Capacitor
-  - CapacitorKeyboard (6.0.3):
+  - CapacitorKeyboard (8.0.5):
     - Capacitor
-  - CapacitorPreferences (6.0.3):
+  - CapacitorLocalNotifications (8.3.0):
     - Capacitor
-  - CapacitorStatusBar (6.0.2):
+  - CapacitorPreferences (8.0.1):
     - Capacitor
-  - CapacitorWidgetsbridgePlugin (0.1.2):
+  - CapacitorWidgetsbridgePlugin (0.2.1):
     - Capacitor
+  - IONFilesystemLib (1.1.2)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -24,9 +26,13 @@ DEPENDENCIES:
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
-  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
   - CapacitorWidgetsbridgePlugin (from `../../node_modules/capacitor-widgetsbridge-plugin`)
+
+SPEC REPOS:
+  trunk:
+    - IONFilesystemLib
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -41,24 +47,25 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/haptics"
   CapacitorKeyboard:
     :path: "../../node_modules/@capacitor/keyboard"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorPreferences:
     :path: "../../node_modules/@capacitor/preferences"
-  CapacitorStatusBar:
-    :path: "../../node_modules/@capacitor/status-bar"
   CapacitorWidgetsbridgePlugin:
     :path: "../../node_modules/capacitor-widgetsbridge-plugin"
 
 SPEC CHECKSUMS:
-  Capacitor: 05d35014f4425b0740fc8776481f6a369ad071bf
-  CapacitorApp: e1e6b7d05e444d593ca16fd6d76f2b7c48b5aea7
-  CapacitorCordova: b33e7f4aa4ed105dd43283acdd940964374a87d9
-  CapacitorFilesystem: a6b43788d8f9489fc95fb761f3d0d37d0bceaddf
-  CapacitorHaptics: 4fc15afe22b123d093e6ace24d95e8e3b1f261b9
-  CapacitorKeyboard: e89189ad398b815b6ff7e52271f0fb4f911a0a0a
-  CapacitorPreferences: f3eadae2369ac3ab8e21743a2959145b0d1286a3
-  CapacitorStatusBar: b16799a26320ffa52f6c8b01737d5a95bbb8f3eb
-  CapacitorWidgetsbridgePlugin: 2b25b0ed502849687a3cd4cc63a4409b94119f25
+  Capacitor: 00b87168591cc006ea6f5c0de681ec5c39a2c8eb
+  CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
+  CapacitorCordova: 9d3acbb574048e7167d2af127a0af2123e619f2f
+  CapacitorFilesystem: 2db285a1ac6e475cc27cae2e1bea999000f9e2be
+  CapacitorHaptics: 296f771ecd89c7a1bd92a7b6826a7d268e2e70f5
+  CapacitorKeyboard: b6b0744890cdb1d9a96e2cafcc9253fdcc55de3b
+  CapacitorLocalNotifications: bf6a3512d1aa8ecf82914e0b36303630a057fb9a
+  CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
+  CapacitorWidgetsbridgePlugin: 605103a8c58cf4dd7cddf26b7e7bfcf459b38e08
+  IONFilesystemLib: 21a63377696b2d8fab5632ecfb7d2ac67bddb68a
 
-PODFILE CHECKSUM: 0b9bc2c44de1ee1e309dee58b2604b67e084eb8b
+PODFILE CHECKSUM: 83e378437b53cdbec9eacdbd4776b57f7368aae7
 
 COCOAPODS: 1.16.2

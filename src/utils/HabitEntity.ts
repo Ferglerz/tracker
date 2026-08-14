@@ -1,5 +1,6 @@
 import { getHabitStatus, getTodayString } from '@utils/Utilities';
 import { Habit } from '@utils/TypesAndProps';
+import { ParsedHabitData } from '@utils/ImportCSV';
 import { HabitStorageWrapper } from '@utils/Storage';
 import { BehaviorSubject } from 'rxjs';
 
@@ -9,7 +10,8 @@ export interface UpdateOptions {
   history?: Record<string, Habit.HistoryEntry>;
   widget?: Habit.Widgets;
   listOrder?: number;
-  dateString?: string; 
+  dateString?: string;
+  frequency?: 'daily' | 'weekly' | 'monthly';
 }
 
 const habitsSubject = new BehaviorSubject<Habit.Habit[]>([]);
@@ -28,88 +30,88 @@ export class HabitEntity {
   get history() { return this.props.history; }
   get listOrder() { return this.props.listOrder; }
   get widgetAssignment() { return this.props.widgets; }
+  get frequency() { return this.props.frequency || 'daily'; }
 
   static emptyHistoryEntry(goal: number): Habit.HistoryEntry {
-    return { quantity: 0, goal: goal ?? 0 };
+    return { quantity: 0, goal: goal ?? 0, note: undefined };
   }
 
   async update(updates: UpdateOptions, preloadedData?: Habit.Data): Promise<void> {
     const dateString = updates.dateString || getTodayString();
     const data = preloadedData ?? await HabitStorageWrapper.handleHabitData('load');
     const habitIndex = data.habits.findIndex(h => h.id === this.id);
-  
+
     if (habitIndex === -1) throw new Error('Habit not found in storage');
-  
-    // Update history separately from other updates
-    let updatedHistory = this.history;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) throw new Error('Invalid history date');
+
+    const storedHabit = data.habits[habitIndex];
+    const storedHistory = storedHabit.history ?? {};
+
+    let updatedHistory = storedHistory;
     if (updates.history) {
-      const currentEntry = this.history[dateString] || HabitEntity.emptyHistoryEntry(this.goal);
+      const requestedEntry = updates.history[dateString];
+      if (!requestedEntry) throw new Error(`Missing history entry for ${dateString}`);
+      const currentEntry = storedHistory[dateString] || HabitEntity.emptyHistoryEntry(storedHabit.goal);
       updatedHistory = {
-        ...this.history,
+        ...storedHistory,
         [dateString]: {
-          quantity: updates.history[dateString]?.quantity ?? currentEntry.quantity,
-          goal: updates.history[dateString]?.goal ?? currentEntry.goal,
+          quantity: requestedEntry.quantity ?? currentEntry.quantity,
+          goal: requestedEntry.goal ?? currentEntry.goal,
+          note: requestedEntry.note !== undefined ? requestedEntry.note : currentEntry.note,
         },
       };
     }
-  
-    // Handle widget assignments properly
-    const updatedWidgets = updates.widget !== undefined ? updates.widget : this.props.widgets;
-  
-    // Construct the updated habit, ensuring all properties are merged correctly
-    const updatedHabit = { 
-      ...data.habits[habitIndex],
-      ...updates,
+
+    const updatedHabit: Habit.Habit = {
+      ...storedHabit,
+      ...(updates.quantity !== undefined ? { quantity: updates.quantity } : {}),
+      ...(updates.goal !== undefined ? { goal: updates.goal } : {}),
+      ...(updates.listOrder !== undefined ? { listOrder: updates.listOrder } : {}),
+      ...(updates.frequency !== undefined ? { frequency: updates.frequency } : {}),
       history: updatedHistory,
-      widgets: updatedWidgets, // Ensure widgets are included
+      widgets: updates.widget !== undefined ? updates.widget : storedHabit.widgets,
     };
-  
-    // Update the habit in the data array
+
     data.habits[habitIndex] = updatedHabit;
-  
-    // Save the updated data
     await HabitStorageWrapper.handleHabitData('save', data);
-  
-    // Update the internal props to reflect the changes
     this.props = updatedHabit;
-  
-    // Emit the updated habits array
     habitsSubject.next(data.habits);
   }
 
   async increment(amount = 1, dateString: string): Promise<void> {
     const today = getTodayString();
     dateString = dateString || today;
-  
+
     // Load fresh data to avoid stale state
     const data = await HabitStorageWrapper.handleHabitData('load');
     const freshHabit = data.habits.find(h => h.id === this.id);
     if (!freshHabit) throw new Error('Habit not found');
-  
+
     // Get the current history entry from fresh data
-    const currentHistoryEntry = freshHabit.history[dateString] || HabitEntity.emptyHistoryEntry(freshHabit.goal);
-    
+    const currentHistoryEntry = freshHabit.history?.[dateString] || HabitEntity.emptyHistoryEntry(freshHabit.goal);
+
     const newHistoryQuantity = Math.max(0, currentHistoryEntry.quantity + amount);
-    
+
     // Update both quantity (for today) and history
-    const newQuantity = dateString === today ? 
-      Math.max(0, (freshHabit.quantity || 0) + amount) : 
+    const newQuantity = dateString === today ?
+      Math.max(0, (freshHabit.quantity || 0) + amount) :
       freshHabit.quantity || 0;
-  
+
     await this.update({
       dateString: dateString,
       quantity: newQuantity,
       history: {
-        [dateString]: { 
-          quantity: newHistoryQuantity, 
-          goal: freshHabit.goal || 0 
+        [dateString]: {
+          quantity: newHistoryQuantity,
+          goal: freshHabit.goal || 0,
+          note: currentHistoryEntry.note
         },
       },
     }, data);
   }
 
   async updateWidgetAssignment(widget?: Habit.Widgets): Promise<void> {
-    await this.update({ widget }); 
+    await this.update({ widget });
   }
 
   /** Single save after multiple widget assignment changes (avoids redundant loads/reloads). */
@@ -128,6 +130,7 @@ export class HabitEntity {
   }
 
   static async loadAll(): Promise<HabitEntity[]> {
+    await HabitStorageWrapper.refreshWidgets();
     const data = await HabitStorageWrapper.handleHabitData('load');
     const habits = data.habits.map(habitData => new HabitEntity(habitData));
     habitsSubject.next(data.habits);
@@ -141,24 +144,35 @@ export class HabitEntity {
   static async create(props: Habit.Habit): Promise<HabitEntity> {
     const storage = await HabitStorageWrapper.handleHabitData('load');
     const existingIndex = storage.habits.findIndex(habit => habit.id === props.id);
+    const storedProps: Habit.Habit = {
+      ...props,
+      id: props.id || `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
+      history: { ...(props.history ?? {}) },
+    };
 
-    if (!props.listOrder) {
-      props.listOrder = Math.max(...storage.habits.map(h => h.listOrder || 0), 0) + 1;
+    if (storedProps.listOrder === undefined) {
+      storedProps.listOrder = Math.max(...storage.habits.map(h => h.listOrder || 0), 0) + 1;
     }
 
     if (existingIndex !== -1) {
-      if (props.goal !== storage.habits[existingIndex].goal) {
-        Object.keys(props.history).forEach(date => {
-          props.history[date].goal = props.goal ?? 0;
+      if (storedProps.goal !== storage.habits[existingIndex].goal) {
+        Object.keys(storedProps.history).forEach(date => {
+          storedProps.history[date] = {
+            ...storedProps.history[date],
+            goal: storedProps.goal ?? 0,
+          };
         });
       }
-      storage.habits[existingIndex] = { ...storage.habits[existingIndex], ...props };
+      storage.habits[existingIndex] = { ...storage.habits[existingIndex], ...storedProps };
     } else {
-      storage.habits.push({ ...props, id: props.id || `${Date.now()}-${Math.random().toString(36).substring(2, 10)}` });
+      storage.habits.push(storedProps);
     }
 
     await HabitStorageWrapper.handleHabitData('save', storage);
-    return new HabitEntity(props);
+    habitsSubject.next(storage.habits);
+    const savedHabit = storage.habits.find(habit => habit.id === storedProps.id);
+    if (!savedHabit) throw new Error('Created habit was not stored');
+    return new HabitEntity(savedHabit);
   }
 
   static async updateListOrder(habits: HabitEntity[]): Promise<void> {
@@ -171,12 +185,50 @@ export class HabitEntity {
     habitsSubject.next(storage.habits);
   }
 
+  static async mergeImportedData(importedData: ParsedHabitData[]): Promise<void> {
+    const data = await HabitStorageWrapper.handleHabitData('load');
+
+    importedData.forEach(importedHabit => {
+      let existingHabit = data.habits.find(h => h.name === importedHabit.name);
+
+      if (!existingHabit) {
+        existingHabit = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`,
+          name: importedHabit.name,
+          type: importedHabit.type,
+          unit: importedHabit.unit,
+          goal: 1,
+          bgColor: 'var(--ion-color-primary)', // Default color
+          quantity: 0,
+          history: {},
+          listOrder: Math.max(...data.habits.map(h => h.listOrder || 0), 0) + 1,
+          frequency: 'daily'
+        };
+        data.habits.push(existingHabit);
+      }
+
+      // Merge history
+      importedHabit.values.forEach((val) => {
+        // Always overwrite the quantity, keep existing goal if we have one
+        const currentGoal = existingHabit!.history?.[val.date]?.goal || existingHabit!.goal;
+        existingHabit!.history = existingHabit!.history ?? {};
+        existingHabit!.history[val.date] = {
+           quantity: val.value.quantity,
+           goal: currentGoal,
+           note: existingHabit!.history[val.date]?.note
+        };
+      });
+    });
+
+    await HabitStorageWrapper.handleHabitData('save', data);
+    habitsSubject.next(data.habits);
+  }
+
   static async delete(id: string): Promise<void> {
     const data = await HabitStorageWrapper.handleHabitData('load');
     const updatedHabits = data.habits.filter(h => h.id !== id);
-    await HabitStorageWrapper.handleHabitData('save', { habits: updatedHabits });
+    await HabitStorageWrapper.handleHabitData('save', { ...data, habits: updatedHabits });
     habitsSubject.next(updatedHabits);
-    await HabitStorageWrapper.refreshWidgets();
   }
 
   getStatusForDate(dateString: string): 'complete' | 'partial' | 'none' {
